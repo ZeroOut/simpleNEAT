@@ -1,9 +1,9 @@
 # simpleNEAT
 
-最近闲得无聊想学学 `C++` 感觉好难啊，之前一直想用 `Go` 实现一下这个算法，但是写错了导致占用了 `4G` 内存，干脆就重来
-`Python` 是不考虑的，国内把他吹成神了
-`NEAT` 算法的 `C++` 简单实现，还没有写种群
-线程池用的 `https://github.com/bshoshany/thread-pool/blob/master/BS_thread_pool.hpp`
+最近闲得无聊想学学 `C++` 感觉好难啊，反正我自己是感觉写了个寂寞垃圾冷，之前一直想用 `Go` 实现一下这个算法，但是写错了导致占用了 `4G` 内存，干脆就重来。
+`Python` 是不考虑的，国内把他吹成神了。
+`NEAT` 算法的 `C++` 简单实现，还没有写种群。
+线程池用的 `https://github.com/bshoshany/thread-pool/blob/master/BS_thread_pool.hpp`。
 
 实验：
 
