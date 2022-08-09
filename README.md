@@ -62,7 +62,7 @@ predict:
 
 ![image](https://user-images.githubusercontent.com/19900527/183612689-c0680195-5f40-4205-af9c-12b9a61f9346.png)
 
-对于具备最优解的陷阱还没有找到高效的解决办法，个体会倾向于贴边走...
+对于局部最优解的陷阱还没有找到高效的解决办法，个体会倾向于贴边走...
 ![image](https://user-images.githubusercontent.com/19900527/183613499-e3744e39-e6ba-4fe4-99d9-5563c333e0b9.png)
 
 ![image](https://user-images.githubusercontent.com/19900527/183615061-9525b28f-a3a0-491e-b6f2-38adf99da69b.png)
