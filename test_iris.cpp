@@ -1,5 +1,5 @@
 #include <iostream>
-#include "lib/MyNEAT.hpp"
+#include "lib/SimpleNEAT.hpp"
 
 int main() {
     znn::Opts.InputSize = 4;
