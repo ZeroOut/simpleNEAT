@@ -1,7 +1,7 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
 #include <iostream>
-#include "lib/MyNEAT.hpp"
+#include "lib/SimpleNEAT.hpp"
 
 
 int main() {
