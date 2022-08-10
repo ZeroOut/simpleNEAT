@@ -4,6 +4,7 @@
 #define MYNEAT_UTILS_H
 
 #include <cmath>
+#include <iostream>
 
 namespace znn {
     float Sigmoid(float x) {
@@ -49,6 +50,38 @@ namespace znn {
         }
         vs.emplace_back(target.data() + pos, target.data() + target.size());
         return vs;
+    }
+
+    std::vector<std::vector<int>> ImportCSV(std::string fileName, bool hasTitle) {
+        std::string line;
+        std::ifstream input_file(fileName);
+        uint lineCount = 0;
+
+        if (!input_file.is_open()) {
+            std::cerr << "Could not open the file - '" << fileName << "'\n";
+            exit(0);
+        }
+
+        std::vector<std::vector<int>> csvDatas;
+
+        while (getline(input_file, line)) {
+            if (lineCount == 0 && hasTitle) {
+                continue;
+            }
+
+            auto rawData = SplitString(line, ",");
+            std::vector<int> data;
+
+            for (auto &d : rawData) {
+                data.push_back(std::stoi(d));
+            }
+
+            csvDatas.push_back(data);
+            ++lineCount;
+        }
+
+        input_file.close();
+        return csvDatas;
     }
 }
 
