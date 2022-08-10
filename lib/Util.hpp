@@ -52,7 +52,7 @@ namespace znn {
         return vs;
     }
 
-    std::vector<std::vector<int>> ImportCSV(std::string fileName, bool hasTitle) {
+    std::vector<std::vector<float>> ImportCSV(std::string fileName, bool hasTitle) {
         std::string line;
         std::ifstream input_file(fileName);
         uint lineCount = 0;
@@ -62,7 +62,7 @@ namespace znn {
             exit(0);
         }
 
-        std::vector<std::vector<int>> csvDatas;
+        std::vector<std::vector<float>> csvDatas;
 
         while (getline(input_file, line)) {
             if (lineCount == 0 && hasTitle) {
@@ -70,10 +70,10 @@ namespace znn {
             }
 
             auto rawData = SplitString(line, ",");
-            std::vector<int> data;
+            std::vector<float> data;
 
             for (auto &d : rawData) {
-                data.push_back(std::stoi(d));
+                data.push_back(std::stof(d));
             }
 
             csvDatas.push_back(data);
