@@ -10,9 +10,9 @@
 * 完全为了好玩（不然就用现有的框架了），试着用 `C++` 简单实现 `NEAT` 算法，还没有写种群。
 * 没有做过程序员，所以写得烂。
 
-实验：
+### 实验
 
-## xor实验（test_xor.cpp）
+#### xor实验（test_xor.cpp）
 
 输出：
 ```bash
@@ -45,12 +45,12 @@ predict:
 可输出神经网络和可视化dot格式图像：
 ![image](https://user-images.githubusercontent.com/19900527/183606425-f4b5f56e-4f91-4b49-998f-7583573bdade.png)
 
-## 鸢尾花实验（test_iris.cpp）
+#### 鸢尾花实验（test_iris.cpp）
 
 `Fitness` 达到 `0.979` 的神经网络有 `18` 个神经元和 `111` 条神经连接:
 ![image](https://user-images.githubusercontent.com/19900527/183610656-188c724e-5b41-4df4-8b3d-54ff73c88e5d.png)
 
-## 基于 `sfml` 的分类实验（test_classification_sfml.cpp）
+#### 基于 `sfml` 的分类实验（test_classification_sfml.cpp）
 
 两个类型：
 ![image](https://user-images.githubusercontent.com/19900527/183608728-98a5ff85-7e7f-4553-a111-1e445bfc4899.png)
@@ -63,7 +63,7 @@ predict:
 
 以此类推...
 
-## 基于 `sfml` 的寻路实验（test_pathfindder_sfml.cpp）
+#### 基于 `sfml` 的寻路实验（test_pathfindder_sfml.cpp）
 
 ![image](https://user-images.githubusercontent.com/19900527/183612689-c0680195-5f40-4205-af9c-12b9a61f9346.png)
 
