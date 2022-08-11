@@ -42,7 +42,6 @@ namespace znn {
 
     static std::mutex mtx;
     static BS::thread_pool tPool(Opts.ThreadCount);
-
 }
 
 #endif //MYNEAT_OPTIONS_HPP
