@@ -32,8 +32,6 @@ namespace znn {
     };
 
     NetworkGenome NewNN() {
-        srandom((unsigned) clock());
-
         if (Opts.InputSize <= 0 || Opts.OutputSize <= 0) {
             std::cerr << "Input or Output size fault: Input " << Opts.InputSize << ", Output " << Opts.OutputSize << std::endl;
             exit(0);

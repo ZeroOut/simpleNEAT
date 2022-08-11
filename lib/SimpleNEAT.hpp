@@ -23,6 +23,7 @@ namespace znn {
         }
 
         tPool.reset(Opts.ThreadCount);
+        srandom((unsigned) clock());
     }
 
     void StartNew() {
