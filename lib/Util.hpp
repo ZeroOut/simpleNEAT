@@ -5,6 +5,8 @@
 
 #include <cmath>
 #include <iostream>
+#include <numeric>      // std::iota
+#include <algorithm>    // std::sort, std::stable_sort
 
 namespace znn {
     float Sigmoid(float x) {
@@ -82,6 +84,24 @@ namespace znn {
 
         input_file.close();
         return csvDatas;
+    }
+
+    template<typename T>
+    std::vector<size_t> SortIndexes(const std::vector<T> &v) {
+
+        // initialize original index locations
+        std::vector<size_t> idx(v.size());
+        std::iota(idx.begin(), idx.end(), 0);
+
+        // sort indexes based on comparing values in v
+        // using std::stable_sort instead of std::sort
+        // to avoid unnecessary index re-orderings
+        // when v contains elements of equal values
+        stable_sort(idx.begin(), idx.end(), [&v](size_t i1, size_t i2) {
+            return v[i1] > v[i2];
+        });
+
+        return idx;
     }
 }
 
