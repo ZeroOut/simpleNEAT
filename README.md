@@ -1,9 +1,14 @@
 # simpleNEAT
 
-* 为了好玩，试试`NEAT` 算法的 `C++` 简单实现，还没有写种群。
-* 最近闲得无聊想学学 `C++`，感觉挺难的，反正我自己是觉得写了个寂寞垃圾冷，之前一直想用 `Go` 实现一下这个算法，但是写错了导致占用了 `4G` 内存，干脆就重来。
-* `Python` 是不考虑的，国内把他吹成神了。
-* 线程池用的 `https://github.com/bshoshany/thread-pool/blob/master/BS_thread_pool.hpp`。
+## 致谢
+* 两位博士 `Kenneth O. Stanley` 和 `Risto Miikkulainen` [论文链接](https://nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf)
+* 接触是从 [莫烦PYTHON](https://mofanpy.com/)
+* 线程池用的 [BS_thread_pool](https://github.com/bshoshany/thread-pool/blob/master/BS_thread_pool.hpp)
+* 一时想不起来还有哪些，感谢各路大神提供灵感...
+
+## 描述
+* 完全为了好玩（不然就用现有的框架了），试着用 `C++` 简单实现 `NEAT` 算法，还没有写种群。
+* 没有做过程序员，所以写得烂。
 
 实验：
 
