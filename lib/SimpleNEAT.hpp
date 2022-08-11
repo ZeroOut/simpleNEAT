@@ -21,6 +21,8 @@ namespace znn {
             std::cerr << "Opts.FitnessThreshold <= 0, Opts.IterationTimes <= 0, cannot <= 0 both" << std::endl;
             exit(0);
         }
+
+        tPool.reset(Opts.ThreadCount);
     }
 
     void StartNew() {
