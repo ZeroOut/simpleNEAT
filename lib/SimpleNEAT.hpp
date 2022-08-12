@@ -94,7 +94,7 @@ namespace znn {
         float lastFitness = 0.f;
 
         for (; rounds <= Opts.IterationTimes || Opts.IterationTimes <= 0; ++rounds) {
-            srandom((unsigned) clock());
+//            srandom((unsigned) clock());
 
             if (populationFitness[orderedPopulation[0]] > lastFitness) {
                 lastFitness = populationFitness[orderedPopulation[0]];
@@ -224,7 +224,7 @@ namespace znn {
         float lastFitness = 0.f;
 
         for (; rounds <= Opts.IterationTimes || Opts.IterationTimes <= 0; ++rounds) {
-            srandom((unsigned) clock());
+//            srandom((unsigned) clock());
 
             if (populationFitness[orderedPopulation[0]] > lastFitness) {
                 lastFitness = populationFitness[orderedPopulation[0]];
