@@ -7,11 +7,11 @@
 
 namespace znn {
     void MutateWeightDirect(Connection &c) {
-        c.Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000;
+        c.Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000.f;
     }
 
     void MutateWeightNear(Connection &c) {
-        float tmpWeight = c.Weight + float(random() % (Opts.MutateWeightNearRange * 2000000) - Opts.MutateWeightNearRange * 1000000) / 1000000;
+        float tmpWeight = c.Weight + float(random() % (Opts.MutateWeightNearRange * 2000000) - Opts.MutateWeightNearRange * 1000000) / 1000000.f;
         if (tmpWeight > float(Opts.WeightRange)) {
             c.Weight = float(Opts.WeightRange);
             return;
@@ -28,7 +28,7 @@ namespace znn {
     }
 
     void MutateBiasNear(Neuron &o) {
-        float tmpBias = o.Bias + float(random() % (Opts.MutateBiasNearRange * 2000000) - Opts.MutateBiasNearRange * 1000000) / 1000000;
+        float tmpBias = o.Bias + float(random() % (Opts.MutateBiasNearRange * 2000000) - Opts.MutateBiasNearRange * 1000000) / 1000000.f;
         if (tmpBias > float(Opts.BiasRange)) {
             o.Bias = float(Opts.BiasRange);
             return;
@@ -85,7 +85,7 @@ namespace znn {
 
         Neuron newNeuron = {
                 .Id = newNid,
-                .Bias = float(random() % (Opts.BiasRange * 2000000) - Opts.BiasRange * 1000000) / 1000000,
+                .Bias = float(random() % (Opts.BiasRange * 2000000) - Opts.BiasRange * 1000000) / 1000000.f,
                 .Layer = (tmpNeuronMap[nid0]->Layer + tmpNeuronMap[nid1]->Layer) / 2.f,
         };
         nn.Neurons.push_back(newNeuron);
@@ -97,7 +97,7 @@ namespace znn {
                         nid0,
                         newNid,
                 },
-                .Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000,
+                .Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000.f,
                 .Enable = true,
         };
         nn.Connections.push_back(newConn0);
@@ -107,7 +107,7 @@ namespace znn {
                         newNid,
                         nid1,
                 },
-                .Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000,
+                .Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000.f,
                 .Enable = true,
         };
         nn.Connections.push_back(newConn1);
@@ -145,7 +145,7 @@ namespace znn {
                         nid0,
                         nid1,
                 },
-                .Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000,
+                .Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000.f,
                 .Enable = true,
         };
         nn.Connections.push_back(newConn);
@@ -176,8 +176,8 @@ namespace znn {
 
     void MutateNetworkGenome(NetworkGenome &nn) {
         for (auto &c : nn.Connections) {
-            if (float(random() % 1000000) / 1000000 < Opts.MutateWeightRate) {
-                if (float(random() % 1000000) / 1000000 < Opts.MutateWeightDirectOrNear) {
+            if (float(random() % 1000) / 1000.f < Opts.MutateWeightRate) {
+                if (float(random() % 1000) / 1000.f < Opts.MutateWeightDirectOrNear) {
                     MutateWeightDirect(c);
                 } else {
                     MutateWeightNear(c);
@@ -186,8 +186,8 @@ namespace znn {
         }
 
         for (auto &n : nn.Neurons) {
-            if (float(random() % 1000000) / 1000000 < Opts.MutateBiasRate && n.Layer > 0.f) {
-                if (float(random() % 1000000) / 1000000 < Opts.MutateBiasDirectOrNear) {
+            if (float(random() % 1000) / 1000.f < Opts.MutateBiasRate && n.Layer > 0.f) {
+                if (float(random() % 1000) / 1000.f < Opts.MutateBiasDirectOrNear) {
                     MutateBiasDirect(n);
                 } else {
                     MutateBiasNear(n);
@@ -195,21 +195,21 @@ namespace znn {
             }
         }
 
-        if (float(random() % 1000000) / 1000000 < Opts.MutateAddNeuronRate) {
+        if (float(random() % 1000) / 1000.f < Opts.MutateAddNeuronRate) {
             MutateAddNeuron(nn);
         }
 
-        if (float(random() % 1000000) / 1000000 < Opts.MutateAddConnectionRate) {
+        if (float(random() % 1000) / 1000.f < Opts.MutateAddConnectionRate) {
             MutateAddConnection(nn);
         }
 
-        if (float(random() % 1000000) / 1000000 < Opts.MutateEnableConnectionRate) {
+        if (float(random() % 1000) / 1000.f < Opts.MutateEnableConnectionRate) {
             MutateEnableConnection(nn);
         }
     }
 
     NetworkGenome GetChildByCrossing(NetworkGenome *nn0, NetworkGenome *nn1) {
-        if (float(random() % 1000000) / 1000000 > Opts.CrossoverRate || nn0 == nn1) {
+        if (float(random() % 1000) / 1000.f > Opts.CrossoverRate || nn0 == nn1) {
             return *nn1; // nn0 是冠军中的个体， nn1 是剩余的，冠军已经保留了原始基因，所以按照概率保留非冠军基因
         }
 
