@@ -15,6 +15,13 @@ namespace znn {
         }
     }
 
+    void CreatePopulationFC(std::vector<int> hideLayers) {
+        Population.clear();
+        for (uint i = 0; i < Opts.PopulationSize; ++i) {
+            Population.push_back(NewFCNN(hideLayers));
+        }
+    }
+
     void CreatePopulationByGiving() {
         ImportInnovations(Opts.CheckPointPath);  // 要先导入innov
         Population.clear();

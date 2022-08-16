@@ -31,6 +31,11 @@ namespace znn {
         CreatePopulation();
     }
 
+    void StartNewFC(std::vector<int> hideLayers) {
+        CheckOptions();
+        CreatePopulationFC(hideLayers);
+    }
+
     void StartWithCheckPoint() {
         CheckOptions();
         CreatePopulationByGiving();

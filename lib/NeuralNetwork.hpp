@@ -25,6 +25,7 @@ namespace znn {
 
     std::map<std::array<uint, 2>, uint> HiddenNeuronInnovations;  // 只记录插入连接左右两个神经元id对应的隐藏层神经元id，新增神经元变异的时候全部个体需要检查唯一性，使用时必须使用mutex
 //    std::map<std::array<uint, 2>, uint> ConnectionInnovations;  // 记录全部连接的两端神经元id对应的连接innov，新增连接变异的时候全部个体需要检查唯一性，使用时必须使用mutex
+    int FCHidenNeuronSize = 0;
 
     struct NetworkGenome {
         std::vector<Neuron> Neurons;
@@ -59,7 +60,7 @@ namespace znn {
             };
             newNeurons.push_back(tmpNeuron);
 
-            for (auto n : newNeurons) {
+            for (auto &n : newNeurons) {
                 if (n.Layer == 0.f) {
                     Connection tmpConnection = {
                             .ConnectedNeuronId= {n.Id, id},
@@ -73,6 +74,88 @@ namespace znn {
 //                    }
                 }
             }
+        }
+
+        return NetworkGenome{
+                .Neurons = newNeurons,
+                .Connections = newConnections,
+        };
+    }
+
+    NetworkGenome NewFCNN(std::vector<int> hideLayers) {  // 固定神经网络，输入隐藏层及对应神经元数量数
+        if (Opts.InputSize <= 0 || Opts.OutputSize <= 0) {
+            std::cerr << "Input or Output size fault: Input " << Opts.InputSize << ", Output " << Opts.OutputSize << std::endl;
+            exit(0);
+        }
+
+        if (FCHidenNeuronSize == 0) {
+            for (int &l : hideLayers) {
+                FCHidenNeuronSize += l;
+            }
+        }
+
+        std::vector<Neuron> newNeurons;
+        std::vector<Connection> newConnections;
+
+        for (uint i = 0; i < Opts.InputSize; ++i) {
+            Neuron tmpNeuron = {
+                    .Id = i,
+                    .Bias = 1.f,
+                    .Layer = 0.f,
+            };
+            newNeurons.push_back(tmpNeuron);
+        }
+
+        for (uint i = 0; i < Opts.OutputSize; ++i) {
+            uint id = i + Opts.InputSize;
+            Neuron tmpNeuron = {
+                    .Id = id,
+                    .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100,
+                    .Layer = 1.f,
+            };
+            newNeurons.push_back(tmpNeuron);
+        }
+
+        float layerStep = 1.f / float(hideLayers.size() + 1);
+        float thisLayer = 0.f;
+        uint id = Opts.InputSize + Opts.OutputSize;
+
+        for (int &l : hideLayers) {
+            thisLayer += layerStep;
+            for (uint i = 0; i < l; ++i) {
+                Neuron tmpNeuron = {
+                        .Id = id,
+                        .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100,
+                        .Layer = thisLayer,
+                };
+                newNeurons.push_back(tmpNeuron);
+                ++id;
+            }
+        }
+
+        std::map<float, std::vector<Neuron *>> tmpLayerMap;  // 记录全部层，因为记录的是神经元地址，需要的时候才能临时生成记录
+        float lastLayer = 0.f;
+        thisLayer = 0.f;
+
+        for (auto &n : newNeurons) {
+            tmpLayerMap[n.Layer].push_back(&n);
+        }
+
+        for (auto &t : tmpLayerMap) {
+            if (t.first != 0.f) {
+                for (auto &n : t.second) {
+                    for (auto &ln : tmpLayerMap[lastLayer]) {
+                        Connection tmpConnection = {
+                                .ConnectedNeuronId= {ln->Id, n->Id},
+                                .Weight = float(random() % (Opts.WeightRange * 200) - Opts.WeightRange * 100) / 100,
+                                .Enable = true,
+                        };
+                        newConnections.push_back(tmpConnection);
+                    }
+                }
+            }
+            lastLayer = thisLayer;
+            thisLayer += layerStep;
         }
 
         return NetworkGenome{
@@ -209,7 +292,7 @@ namespace znn {
         std::map<uint, uint> remainingIds;
 
         for (auto c : nn.Connections) {
-            if (c.Enable && std::abs(c.Weight) > 0.001f) {  // Weight小于0.001算成disable
+            if (c.Enable && std::abs(c.Weight) > 0.001f) {  // Weight绝对值小于0.001算成disable
                 newConnections.push_back(c);
                 remainingIds[c.ConnectedNeuronId[0]] = 0;
                 remainingIds[c.ConnectedNeuronId[1]] = 0;
@@ -425,7 +508,8 @@ namespace znn {
             for (uint i = 0; i < Opts.InputSize - InputSize; ++i) {
                 newNeurons.push_back(Neuron{
                         .Id = uint(HiddenNeuronInnovations.size()) + OutputSize + InputSize + i,
-                        .Bias = 1.f,
+//                        .Bias = 1.f,
+                        .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100,
                         .Layer = 0.f,
                 });
             }
@@ -435,7 +519,8 @@ namespace znn {
             for (uint i = 0; i < Opts.OutputSize - OutputSize; ++i) {
                 newNeurons.push_back(Neuron{
                         .Id = uint(HiddenNeuronInnovations.size()) + OutputSize + i + Opts.InputSize,
-                        .Bias = 1.f,
+//                        .Bias = 1.f,
+                        .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100,
                         .Layer = 1.f,
                 });
             }
