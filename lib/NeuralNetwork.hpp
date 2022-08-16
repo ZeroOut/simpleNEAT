@@ -386,7 +386,7 @@ namespace znn {
         return outputs;
     };
 
-    void ExportNetworkToDot(NetworkGenome &nn, std::string fileName) {
+    void ExportNNToDot(NetworkGenome &nn, std::string fileName) {
         std::string data = "digraph G {\n    rankdir=\"LR\";\n";
         uint inId = 0;
         uint outId = 0;
@@ -424,7 +424,7 @@ namespace znn {
     }
 
 
-    void ExportNetwork(NetworkGenome &nn, std::string fileName) {
+    void ExportNN(NetworkGenome &nn, std::string fileName) {
         std::string data = std::to_string(Opts.InputSize) + "," + std::to_string(Opts.OutputSize) + "\n~\n";
 
         for (auto &n : nn.Neurons) {
@@ -448,7 +448,7 @@ namespace znn {
         file.close();
     }
 
-    NetworkGenome ImportNetwork(std::string fileName) {
+    NetworkGenome ImportNN(std::string fileName) {
         std::string line;
         std::ifstream input_file(fileName + ".nn");
 
@@ -462,6 +462,7 @@ namespace znn {
 
         std::vector<Neuron> newNeurons;
         std::vector<Connection> newConnections;
+        std::map<uint, uint> tmpIdMap;
 
         int dataType = 0;
         while (getline(input_file, line)) {
@@ -480,11 +481,13 @@ namespace znn {
             if (dataType == 1) {
                 auto datas = SplitString(line, ",");
                 float nnLayer = std::stof(datas[1]);
+                uint id = uint(std::stoi(datas[0]));
                 newNeurons.push_back(Neuron{
-                        .Id = uint(std::stoi(datas[0])),
+                        .Id = id,
                         .Bias = std::stof(datas[2]),
                         .Layer = nnLayer,
                 });
+                tmpIdMap[id] = 0;
                 continue;
             }
 
@@ -504,10 +507,19 @@ namespace znn {
             exit(0);
         }
 
+        uint inInnovMapSize = 0;
+        for (auto &n : HiddenNeuronInnovations) {
+            if (tmpIdMap.contains(n.second)) {
+                ++inInnovMapSize;
+            }
+        }
+
+        FCHidenNeuronSize = newNeurons.size() - InputSize - OutputSize - inInnovMapSize;
+
         if (Opts.InputSize > InputSize) {
             for (uint i = 0; i < Opts.InputSize - InputSize; ++i) {
                 newNeurons.push_back(Neuron{
-                        .Id = uint(HiddenNeuronInnovations.size()) + OutputSize + InputSize + i,
+                        .Id = uint(HiddenNeuronInnovations.size()) + OutputSize + InputSize + i + FCHidenNeuronSize,
 //                        .Bias = 1.f,
                         .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100,
                         .Layer = 0.f,
@@ -518,7 +530,7 @@ namespace znn {
         if (Opts.OutputSize > OutputSize) {
             for (uint i = 0; i < Opts.OutputSize - OutputSize; ++i) {
                 newNeurons.push_back(Neuron{
-                        .Id = uint(HiddenNeuronInnovations.size()) + OutputSize + i + Opts.InputSize,
+                        .Id = uint(HiddenNeuronInnovations.size()) + OutputSize + i + Opts.InputSize + FCHidenNeuronSize,
 //                        .Bias = 1.f,
                         .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100,
                         .Layer = 1.f,
