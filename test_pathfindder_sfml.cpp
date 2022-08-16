@@ -200,8 +200,8 @@ int main() {
             auto simplifiedBestNN = SimplifyRemoveDisable(*orderedPopulation[0]);
             auto compressedLeftBestNN = SimplifyRemoveUselessConnectionLeft(simplifiedBestNN);
             auto compressedRightBestNN = SimplifyRemoveUselessConnectionRight(compressedLeftBestNN);
-            ExportNetwork(compressedRightBestNN, "./champion");
-//            ExportNetworkToDot(compressedRightBestNN, "./champion");
+            ExportNN(compressedRightBestNN, "./champion");
+//            ExportNNToDot(compressedRightBestNN, "./champion");
             isStart = false;
             isAllDie = false;
             canDrawChampion = true;

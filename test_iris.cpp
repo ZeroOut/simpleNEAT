@@ -356,9 +356,9 @@ int main() {
         std::cout << inputs[i][0] << " " << inputs[i][1] << inputs[i][2] << " " << inputs[i][3] << " [" << wanted[i][0] << " " << wanted[i][1] << " " << wanted[i][2] << "] " << predict[0] << " " << predict[1] << " " << predict[2] << std::endl;
     }
 
-//    znn::ExportNetwork(best.NN, "/tmp/xor00");
+//    znn::ExportNN(best.NN, "/tmp/xor00");
 //    znn::ExportInnovations("/tmp/xor00");
-//    znn::ExportNetworkToDot(best.NN, "/tmp/xxx00");
+//    znn::ExportNNToDot(best.NN, "/tmp/xxx00");
 
     return 0;
 }

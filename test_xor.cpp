@@ -54,9 +54,9 @@ int main() {
         std::cout << inputs[i][0] << " " << inputs[i][1] << " [" << wanted[i][0] << "] " << znn::FeedForwardPredict(&best.NN, inputs[i])[0] << std::endl;
     }
 
-//    znn::ExportNetwork(best.NN, "/tmp/xor00");
+//    znn::ExportNN(best.NN, "/tmp/xor00");
 //    znn::ExportInnovations("/tmp/xor00");
-//    znn::ExportNetworkToDot(best.NN, "/tmp/xxx00");
+//    znn::ExportNNToDot(best.NN, "/tmp/xxx00");
 
     return 0;
 }
