@@ -114,11 +114,11 @@ namespace znn {
 
                 if (Opts.IterationCheckPoint > 0) {
                     ExportInnovations(Opts.CheckPointPath);
-                    ExportNetwork(simplifiedBestNN, Opts.CheckPointPath); // 导出导入的格式定为没有已禁用连接，断点不需要简化孤立连接
+                    ExportNN(simplifiedBestNN, Opts.CheckPointPath); // 导出导入的格式定为没有已禁用连接，断点不需要简化孤立连接
                 }
 
-                ExportNetwork(compressedRightBestNN, "./champion");
-                ExportNetworkToDot(compressedRightBestNN, "./champion");
+                ExportNN(compressedRightBestNN, "./champion");
+                ExportNNToDot(compressedRightBestNN, "./champion");
 
                 return BestOne{
                         .Gen = rounds,
@@ -133,7 +133,7 @@ namespace znn {
 
                 if (Opts.IterationCheckPoint > 0) {
                     ExportInnovations(Opts.CheckPointPath);
-                    ExportNetwork(simplifiedBestNN, Opts.CheckPointPath); // 导出导入的格式定为没有已禁用连接，断点不需要简化孤立连接
+                    ExportNN(simplifiedBestNN, Opts.CheckPointPath); // 导出导入的格式定为没有已禁用连接，断点不需要简化孤立连接
                 }
             }
 
@@ -192,11 +192,11 @@ namespace znn {
 
         if (Opts.IterationCheckPoint > 0) {
             ExportInnovations(Opts.CheckPointPath);
-            ExportNetwork(simplifiedBestNN, Opts.CheckPointPath); // 导出导入的格式定为没有已禁用连接，断点不需要简化孤立连接
+            ExportNN(simplifiedBestNN, Opts.CheckPointPath); // 导出导入的格式定为没有已禁用连接，断点不需要简化孤立连接
         }
 
-        ExportNetwork(compressedRightBestNN, "./champion");
-        ExportNetworkToDot(compressedRightBestNN, "./champion");
+        ExportNN(compressedRightBestNN, "./champion");
+        ExportNNToDot(compressedRightBestNN, "./champion");
 
         return BestOne{
                 .Gen = rounds,
@@ -244,11 +244,11 @@ namespace znn {
 
                 if (Opts.IterationCheckPoint > 0) {
                     ExportInnovations(Opts.CheckPointPath);
-                    ExportNetwork(simplifiedBestNN, Opts.CheckPointPath); // 导出导入的格式定为没有已禁用连接，断点不需要简化孤立连接
+                    ExportNN(simplifiedBestNN, Opts.CheckPointPath); // 导出导入的格式定为没有已禁用连接，断点不需要简化孤立连接
                 }
 
-                ExportNetwork(compressedRightBestNN, "./champion");
-                ExportNetworkToDot(compressedRightBestNN, "./champion");
+                ExportNN(compressedRightBestNN, "./champion");
+                ExportNNToDot(compressedRightBestNN, "./champion");
 
                 return BestOne{
                         .Gen = rounds,
@@ -263,7 +263,7 @@ namespace znn {
 
                 if (Opts.IterationCheckPoint > 0) {
                     ExportInnovations(Opts.CheckPointPath);
-                    ExportNetwork(simplifiedBestNN, Opts.CheckPointPath); // 导出导入的格式定为没有已禁用连接，断点不需要简化孤立连接
+                    ExportNN(simplifiedBestNN, Opts.CheckPointPath); // 导出导入的格式定为没有已禁用连接，断点不需要简化孤立连接
                 }
             }
 
@@ -331,11 +331,11 @@ namespace znn {
 
         if (Opts.IterationCheckPoint > 0) {
             ExportInnovations(Opts.CheckPointPath);
-            ExportNetwork(simplifiedBestNN, Opts.CheckPointPath); // 导出导入的格式定为没有已禁用连接，断点不需要简化孤立连接
+            ExportNN(simplifiedBestNN, Opts.CheckPointPath); // 导出导入的格式定为没有已禁用连接，断点不需要简化孤立连接
         }
 
-        ExportNetwork(compressedRightBestNN, "./champion");
-        ExportNetworkToDot(compressedRightBestNN, "./champion");
+        ExportNN(compressedRightBestNN, "./champion");
+        ExportNNToDot(compressedRightBestNN, "./champion");
 
         return BestOne{
                 .Gen = rounds,
