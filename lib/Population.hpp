@@ -25,8 +25,8 @@ namespace znn {
     void CreatePopulationByGiving() {
         ImportInnovations(Opts.CheckPointPath);  // 要先导入innov
         Population.clear();
+        auto nn = znn::ImportNN(Opts.CheckPointPath);
         for (uint i = 0; i < Opts.PopulationSize; ++i) {
-            auto nn = znn::ImportNetwork(Opts.CheckPointPath);
             Population.push_back(nn);
         }
     }
