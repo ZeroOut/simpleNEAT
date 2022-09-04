@@ -6,6 +6,94 @@
 #include "NeuralNetwork.hpp"
 
 namespace znn {
+        void BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants) {
+        std::map<uint, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
+        std::map<float, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
+
+        for (auto &n : nn->Neurons) {
+            tmpNeuronMap[n.Id] = &n;
+            tmpLayerMap[n.Layer].push_back(&n);
+        }
+
+
+        if (Opts.InputSize != inputs.size()) {
+            std::cerr << "Input length " << inputs.size() << " diffrent with NN input nodes " << Opts.InputSize << std::endl;
+            std::exit(0);
+        }
+
+        std::map<uint, float> tmpNodesOutput;
+        std::map<uint, float> tmpNodesInput;
+
+        std::function<void(uint)> calculateNeuron = [&](uint nid) {
+            tmpNodesInput[nid] = 0.f;
+            for (auto &connection : nn->Connections) {
+                if (connection.ConnectedNeuronId[1] == nid && connection.Enable) {
+                    tmpNodesInput[nid] += tmpNodesOutput[connection.ConnectedNeuronId[0]] * connection.Weight;
+                }
+            }
+            tmpNodesInput[nid] += tmpNeuronMap[nid]->Bias;
+            tmpNodesOutput[nid] = Opts.ActiveFunction(tmpNodesInput[nid]);
+        };
+
+        std::vector<float> outputs;
+
+        for (auto &l : tmpLayerMap) {    // 神经元根据layer排序
+            for (auto &n : l.second) {
+                if (l.first == 0.f) {   // 初始化输入节点
+                    tmpNodesOutput[n->Id] = inputs[n->Id];
+                    continue;
+                }
+
+                calculateNeuron(n->Id);  // 计算隐藏神经元和输出神经元
+            }
+        }
+
+        // 上面是正向计算全部节点输出,接下来开始反向传播
+        // 先计算每个节点的误差,偏导数又称为误差项也称为灵敏度
+
+        std::map<uint, float> tmpNodesOutputError;
+
+        std::function<void(uint)> calculateNeuronError = [&](uint nid) {
+            tmpNodesOutputError[nid] = 0.f;
+            for (auto &connection : nn->Connections) {
+                if (connection.ConnectedNeuronId[0] == nid && connection.Enable) {
+                    tmpNodesOutputError[nid] += tmpNodesOutputError[connection.ConnectedNeuronId[1]] * connection.Weight;
+                }
+            }
+            tmpNodesOutputError[nid] *= Opts.DerivativeFunction(tmpNodesOutput[nid]) * tmpNodesOutput[nid];
+        };
+
+        uint wantsCount = 0;
+        for (std::map<float, std::vector<Neuron *>>::reverse_iterator ri = tmpLayerMap.rbegin(); ri != tmpLayerMap.rend(); ++ri) {
+            for (auto &n : ri->second) {
+                if (ri->first == 1.f) {   // 计算输出神经元点误差
+                    tmpNodesOutputError[n->Id] = Opts.DerivativeFunction(tmpNodesOutput[n->Id]) * (wants[wantsCount] - tmpNodesOutput[n->Id]);
+                    ++wantsCount;
+                    continue;
+                }
+
+                if (ri->first == 0.f) {
+                    break;
+                }
+
+                calculateNeuronError(n->Id);  // 计算隐藏神经元误差
+            }
+        }
+
+        // 更新连接权重
+        for (auto &connection : nn->Connections) {
+//            connection.Weight += Opts.LearnRate * (tmpNodesOutputError[connection.ConnectedNeuronId[1]] * tmpNodesOutput[connection.ConnectedNeuronId[0]] + connection.Weight);
+            connection.Weight += Opts.LearnRate * tmpNodesOutputError[connection.ConnectedNeuronId[1]] * tmpNodesOutput[connection.ConnectedNeuronId[0]];
+        }
+
+        // 更新神经元偏置
+        for (auto &n : nn->Neurons) {
+            if (n.Layer != 0) {
+                n.Bias += Opts.LearnRate * tmpNodesOutputError[n.Id];
+            }
+        }
+    };
+
     void MutateWeightDirect(Connection &c) {
         c.Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000.f;
     }

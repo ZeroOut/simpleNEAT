@@ -21,7 +21,8 @@ namespace znn {
         uint KeepWorstSize = 3;
         uint NewSize = 9;
         uint KeepComplexSize = 10;
-        std::function<float(float)> ActiveFunction = MySteependSigmoid;
+        std::function<float(float)> ActiveFunction = Sigmoid;
+        std::function<float(float)> DerivativeFunction = DerivativeSigmoid;
         float FitnessThreshold = 0.98f; // 如果<=0则不启用
         float MutateWeightRate = 0.95f;
         int MutateWeightNearRange = 2;
@@ -35,6 +36,7 @@ namespace znn {
         float MutateAddConnectionRate = 0.5f;
         float MutateEnableConnectionRate = 0.3f;
         float CrossoverRate = 0.9f;
+        float LearnRate = 0.03f;
         uint ThreadCount = std::thread::hardware_concurrency();
     };
 

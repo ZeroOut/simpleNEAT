@@ -7,14 +7,24 @@
 #include <iostream>
 #include <numeric>      // std::iota
 #include <algorithm>    // std::sort, std::stable_sort
+#include <utility>
 
 namespace znn {
     float Sigmoid(float x) {
         return 1.f / (1.f + std::exp(-x));
     }
 
+    float DerivativeSigmoid(float x) {
+        return x * (1.f - x);
+    }
+
     float SteependSigmoid(float x) {
         return 1.f / (1.f + std::exp(-4.9f * x));
+    }
+
+    float DerivativeSteependSigmoid(float x) {
+        float s = std::exp(-4.9 * x);
+        return std::pow(s * 4.9 / (1 + s), 2);
     }
 
     float MySteependSigmoid(float x) {
@@ -40,7 +50,11 @@ namespace znn {
         for (uint i = 0; i < outputs.size(); ++i) {
             result += std::pow(wantedOutputs[i] - outputs[i], 2.f);
         }
-        return 1.f - (result / float(outputs.size()));
+        return result / float(outputs.size());
+    }
+
+    float GetPrecision(std::vector<float> outputs, std::vector<float> wantedOutputs) {
+        return 1.f - StandardDeviation(std::move(outputs), std::move(wantedOutputs));
     }
 
     std::vector<std::string> SplitString(std::string &target, std::string delimiter) {

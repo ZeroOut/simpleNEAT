@@ -5,8 +5,9 @@ int main() {
     znn::Opts.InputSize = 2;
     znn::Opts.OutputSize = 1;
     znn::Opts.ActiveFunction = znn::SteependSigmoid;
+    znn::Opts.DerivativeFunction = znn::DerivativeSteependSigmoid;
     znn::Opts.IterationTimes = 0;
-    znn::Opts.FitnessThreshold = 0.999f;
+    znn::Opts.FitnessThreshold = 0.99f;
     znn::Opts.IterationCheckPoint = 10;
     znn::Opts.ThreadCount = 8;
 //    znn::Opts.MutateAddNeuronRate = 0.45f;

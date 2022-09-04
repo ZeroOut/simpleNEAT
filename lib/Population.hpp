@@ -31,7 +31,7 @@ namespace znn {
         }
     }
 
-    std::map<NetworkGenome *, float> CalculateFitnessByWanted(std::vector<std::vector<float>> inputs, std::vector<std::vector<float>> wantedOutputs) {  // 二位数组，第一维是实验次数，第二维输入和预期输出
+    std::map<NetworkGenome *, float> CalculateFitnessByWanted(std::vector<std::vector<float>> inputs, std::vector<std::vector<float>> wantedOutputs) {  // 二维数组，第一维是实验次数，第二维输入和预期输出
         std::map<NetworkGenome *, float> populationFitness;
 
         if (inputs.size() != wantedOutputs.size() || wantedOutputs[0].size() != Opts.OutputSize || inputs[0].size() != Opts.InputSize) {
@@ -47,7 +47,7 @@ namespace znn {
                 float fitness = 0.f;
                 for (uint i = 0; i < inputs.size(); ++i) {
                     std::vector<float> thisOutput = FeedForwardPredict(&nn, inputs[i]);
-                    fitness += StandardDeviation(thisOutput, wantedOutputs[i]);
+                    fitness += GetPrecision(thisOutput, wantedOutputs[i]);
                 }
                 mtx.lock();
                 populationFitness[&nn] = fitness / float(inputs.size());

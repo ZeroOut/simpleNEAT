@@ -322,7 +322,7 @@ namespace znn {
 
     std::vector<float> FeedForwardPredict(NetworkGenome *nn, std::vector<float> inputs) {
         std::map<uint, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
-        std::map<float, std::vector<Neuron *>> tmpLayerMap;  // 只记录隐藏层，同上因为记录的是神经元地址，需要的时候才能临时生成记录
+        std::map<float, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
         for (auto &n : nn->Neurons) {
 //            if (tmpNeuronMap.find(n.Id) == tmpNeuronMap.end()) {
@@ -367,10 +367,10 @@ namespace znn {
                 }
 
 //                if (tmpNeuronMap.find(n->Id) != tmpNeuronMap.end()) {   // 从本次临时神经元id对应的神经元记录中查询，确保id存在，避免多个神经网络混淆
-                calculateNeuron(n->Id);  // 计算隐藏神经元和输出神经元
+                calculateNeuron(n->Id);  // 计算隐藏神经元
 //                    }
 
-                if (l.first == 1.f) {
+                if (l.first == 1.f) {  // 计算输出神经元
                     outputs.push_back(tmpNodesOutput[n->Id]);
                 }
             }

@@ -43,6 +43,7 @@ int main() {
         znn::Opts.InputSize = 2;
         znn::Opts.OutputSize = outputLen;
         znn::Opts.ActiveFunction = znn::Sigmoid;
+        znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
         //    znn::Opts.IterationTimes = 3000;
         znn::Opts.FitnessThreshold = 0.999f;
         znn::Opts.IterationCheckPoint = 0;

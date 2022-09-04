@@ -8,12 +8,12 @@
 namespace znn {
     void CheckOptions() {
         if (Opts.ChampionToNewSize + Opts.KeepWorstSize + Opts.NewSize + Opts.KeepComplexSize > Opts.PopulationSize) {
-            std::cerr << "Opts.ChampionToNewSize + Opts.KeepLastSize + Opts.NewSize + Opts.KeepComplexSize > Opts.PopulationSize" << std::endl;
+            std::cerr << "Opts.ChampionToNewSize + Opts.KeepWorstSize + Opts.NewSize + Opts.KeepComplexSize > Opts.PopulationSize" << std::endl;
             exit(0);
         }
 
-        if (Opts.ChampionKeepSize > Opts.ChampionToNewSize) {
-            std::cerr << "Opts.ChampionKeepSize > Opts.ChampionToNewSize" << std::endl;
+        if (Opts.ChampionKeepSize * 2 > Opts.ChampionToNewSize) {
+            std::cerr << "Opts.ChampionKeepSize * 2 > Opts.ChampionToNewSize" << std::endl;
             exit(0);
         }
 
@@ -150,7 +150,12 @@ namespace znn {
 
                     if (index < Opts.ChampionToNewSize) {
                         nn = *orderedPopulation[index % Opts.ChampionKeepSize];  // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
-                        if (index >= Opts.ChampionKeepSize) {
+                        if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
+                            for (uint i=0;i<inputs.size();++i) {  // 保留的冠军一份副本全部进行反向传播更新weight和bias
+                                BackPropagation(&nn, inputs[i], wantedOutputs[i]);
+                            }
+                        }
+                        if (index >= Opts.ChampionKeepSize * 2) {
                             MutateNetworkGenome(nn);  // 除开原始冠军，他们的克隆体进行变异
                         }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
@@ -221,128 +226,7 @@ namespace znn {
             wantedOutputs.push_back(rawWantedOutputs[chooseIndex]);
         }
 
-        auto populationFitness = CalculateFitnessByWanted(inputs, wantedOutputs);
-        auto orderedPopulation = OrderByFitness(populationFitness);
-        auto orderedByComplex = OrderByComplex();
-
-        uint rounds = 1;
-        float lastFitness = 0.f;
-
-        for (; rounds <= Opts.IterationTimes || Opts.IterationTimes <= 0; ++rounds) {
-//            srandom((unsigned) clock());
-
-            if (populationFitness[orderedPopulation[0]] > lastFitness) {
-                lastFitness = populationFitness[orderedPopulation[0]];
-                std::cout << "gen: " << rounds << " " << orderedPopulation[0] << " " << orderedPopulation[0]->Neurons.size() << " " << orderedPopulation[0]->Connections.size() << " fitness: "
-                          << populationFitness[orderedPopulation[0]] << " " << std::endl;
-            }
-
-            if (Opts.FitnessThreshold > 0 && populationFitness[orderedPopulation[0]] >= Opts.FitnessThreshold) {
-                auto simplifiedBestNN = SimplifyRemoveDisable(*orderedPopulation[0]);
-                auto compressedLeftBestNN = SimplifyRemoveUselessConnectionLeft(simplifiedBestNN);
-                auto compressedRightBestNN = SimplifyRemoveUselessConnectionRight(compressedLeftBestNN);
-
-                if (Opts.IterationCheckPoint > 0) {
-                    ExportInnovations(Opts.CheckPointPath);
-                    ExportNN(simplifiedBestNN, Opts.CheckPointPath); // 导出导入的格式定为没有已禁用连接，断点不需要简化孤立连接
-                }
-
-                ExportNN(compressedRightBestNN, "./champion");
-                ExportNNToDot(compressedRightBestNN, "./champion");
-
-                return BestOne{
-                        .Gen = rounds,
-                        .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
-                        //                        .NN = *orderedPopulation[0],
-                        .Fit = populationFitness[orderedPopulation[0]],
-                };
-            }
-
-            if (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0) {
-                auto simplifiedBestNN = SimplifyRemoveDisable(*orderedPopulation[0]);
-
-                if (Opts.IterationCheckPoint > 0) {
-                    ExportInnovations(Opts.CheckPointPath);
-                    ExportNN(simplifiedBestNN, Opts.CheckPointPath); // 导出导入的格式定为没有已禁用连接，断点不需要简化孤立连接
-                }
-            }
-
-            std::vector<NetworkGenome> tmpPopulation(Opts.PopulationSize);
-            std::vector<std::future<void>> thisFuture;  // 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
-
-            uint indexOutside = 0;
-            for (auto &nn : tmpPopulation) {
-                thisFuture.push_back(tPool.submit([&]() {
-                    mtx.lock();
-                    uint index = indexOutside;
-                    ++indexOutside;
-                    mtx.unlock();
-
-                    if (index < Opts.ChampionToNewSize) {
-                        nn = *orderedPopulation[index % Opts.ChampionKeepSize];  // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
-                        if (index >= Opts.ChampionKeepSize) {
-                            MutateNetworkGenome(nn);  // 除开原始冠军，他们的克隆体进行变异
-                        }
-                    } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
-                        auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
-                        auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
-                        nn = GetChildByCrossing(nn0, nn1);
-                        if ((index % 2 == 0 || nn0 == nn1) && nn0->Neurons.size() < orderedByComplex[0]->Neurons.size() && nn1->Neurons.size() < orderedByComplex[0]->Neurons.size()) {
-                            MutateNetworkGenome(nn);  // 繁殖以后进行变异
-                        }
-                    } else if (index < Opts.PopulationSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
-                        nn = NewNN();
-                    } else if (index < Opts.PopulationSize - Opts.KeepWorstSize) {
-                        nn = *orderedByComplex[index % Opts.KeepComplexSize];
-                        EnableAllConnections(nn);
-                    } else {
-                        nn = *orderedPopulation[index];
-                        MutateNetworkGenome(nn);
-                    }
-                }));
-            }
-
-            for (auto &f : thisFuture) {
-                f.wait();
-            }
-
-            Population = tmpPopulation;
-
-            inputs.clear();
-            wantedOutputs.clear();
-            populationFitness.clear();
-            orderedPopulation.clear();
-            orderedByComplex.clear();
-
-            for (uint i = 0; i < chooseSize; ++i) {
-                auto chooseIndex = random() % rawInputs.size();
-                inputs.push_back(rawInputs[chooseIndex]);
-                wantedOutputs.push_back(rawWantedOutputs[chooseIndex]);
-            }
-
-            populationFitness = CalculateFitnessByWanted(inputs, wantedOutputs);
-            orderedPopulation = OrderByFitness(populationFitness);
-            orderedByComplex = OrderByComplex();
-        }
-
-        auto simplifiedBestNN = SimplifyRemoveDisable(*orderedPopulation[0]);
-        auto compressedLeftBestNN = SimplifyRemoveUselessConnectionLeft(simplifiedBestNN);
-        auto compressedRightBestNN = SimplifyRemoveUselessConnectionRight(compressedLeftBestNN);
-
-        if (Opts.IterationCheckPoint > 0) {
-            ExportInnovations(Opts.CheckPointPath);
-            ExportNN(simplifiedBestNN, Opts.CheckPointPath); // 导出导入的格式定为没有已禁用连接，断点不需要简化孤立连接
-        }
-
-        ExportNN(compressedRightBestNN, "./champion");
-        ExportNNToDot(compressedRightBestNN, "./champion");
-
-        return BestOne{
-                .Gen = rounds,
-                .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
-                //                        .NN = *orderedPopulation[0],
-                .Fit = populationFitness[orderedPopulation[0]],
-        };
+        return TrainByWanted(inputs, wantedOutputs);
     }
 }
 

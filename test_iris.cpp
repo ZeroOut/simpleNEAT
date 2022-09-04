@@ -4,16 +4,17 @@
 int main() {
     znn::Opts.InputSize = 4;
     znn::Opts.OutputSize = 3;
-    znn::Opts.ActiveFunction = znn::MySteependSigmoid;
+    znn::Opts.ActiveFunction = znn::SteependSigmoid;
+    znn::Opts.DerivativeFunction = znn::DerivativeSteependSigmoid;
     znn::Opts.IterationTimes = 0;
-    znn::Opts.FitnessThreshold = 0.979f;
+    znn::Opts.FitnessThreshold = 0.98f;
     znn::Opts.IterationCheckPoint = 1000;
 //    znn::Opts.ThreadCount = 1;
 //    znn::Opts.MutateAddNeuronRate = 0.6f;
     znn::Opts.PopulationSize = 300;
 //    znn::Opts.NewSize = 0;
 //    znn::Opts.KeepLastSize = 0;
-    znn::Opts.ChampionToNewSize = 20;
+    znn::Opts.ChampionToNewSize = 30;
     znn::Opts.ChampionKeepSize = 10;
     znn::Opts.WeightRange = 12;
     znn::Opts.BiasRange = 6;
