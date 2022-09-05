@@ -36,7 +36,7 @@ namespace znn {
         float MutateAddConnectionRate = 0.5f;
         float MutateEnableConnectionRate = 0.3f;
         float CrossoverRate = 0.9f;
-        float LearnRate = 0.03f;
+        float LearnRate = 0.3f;
         uint ThreadCount = std::thread::hardware_concurrency();
     };
 

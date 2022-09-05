@@ -124,7 +124,12 @@ int main() {
 
                 if (index < Opts.ChampionToNewSize) {
                     nn = *orderedPopulation[index % Opts.ChampionKeepSize];  // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
-                    if (index >= Opts.ChampionKeepSize) {
+                    if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
+                        for (uint i=0;i<inputs.size();++i) {  // 保留的冠军一份副本全部进行反向传播更新weight和bias
+                            BackPropagation(&nn, inputs[i], wantedOutputs[i]);
+                        }
+                    }
+                    if (index >= Opts.ChampionKeepSize * 2) {
                         MutateNetworkGenome(nn);  // 除开原始冠军，他们的克隆体进行变异
                     }
                 } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
