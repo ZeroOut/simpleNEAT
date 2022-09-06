@@ -6,7 +6,7 @@
 #include "NeuralNetwork.hpp"
 
 namespace znn {
-        void BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants) {
+        void BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants) {  // TODO: 权重和偏置范围该怎么限制?丢弃?
         std::map<uint, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
         std::map<float, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
