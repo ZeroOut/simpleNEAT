@@ -44,7 +44,7 @@ namespace znn {
         for (uint i = 0; i < Opts.InputSize; ++i) {
             Neuron tmpNeuron = {
                     .Id = i,
-                    .Bias = 1.f,
+                    .Bias = 0.f,
                     .Layer = 0.f,
             };
             newNeurons.push_back(tmpNeuron);
