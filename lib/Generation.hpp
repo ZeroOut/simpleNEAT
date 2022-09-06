@@ -6,7 +6,7 @@
 #include "NeuralNetwork.hpp"
 
 namespace znn {
-        void BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants) {  // TODO: 权重和偏置范围该怎么限制?丢弃?
+    bool BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回true TODO: 权重和偏置范围该怎么限制?丢弃?
         std::map<uint, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
         std::map<float, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
@@ -45,6 +45,10 @@ namespace znn {
                 }
 
                 calculateNeuron(n->Id);  // 计算隐藏神经元和输出神经元
+
+                if (l.first == 1.f) {
+                    outputs.push_back(tmpNodesOutput[n->Id]);
+                }
             }
         }
 
@@ -92,6 +96,19 @@ namespace znn {
                 n.Bias += Opts.LearnRate * tmpNodesOutputError[n.Id];
             }
         }
+
+        if (outputs.size() != wants.size()) {
+            std::cerr << "BackPropagation outputs.size() != wants.size()\n";
+            exit(0);
+        }
+
+        bool isSolve = false;
+
+        if (GetPrecision(outputs, wants) >= Opts.FitnessThreshold) {
+            isSolve = true;
+        }
+
+        return isSolve;
     };
 
     void MutateWeightDirect(Connection &c) {

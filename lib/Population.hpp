@@ -46,8 +46,8 @@ namespace znn {
             thisFuture.push_back(tPool.submit([&]() {
                 float fitness = 0.f;
                 for (uint i = 0; i < inputs.size(); ++i) {
-                    std::vector<float> thisOutput = FeedForwardPredict(&nn, inputs[i]);
-                    fitness += GetPrecision(thisOutput, wantedOutputs[i]);
+                    std::vector<float> thisOutputs = FeedForwardPredict(&nn, inputs[i]);
+                    fitness += GetPrecision(thisOutputs, wantedOutputs[i]);
                 }
                 mtx.lock();
                 populationFitness[&nn] = fitness / float(inputs.size());
