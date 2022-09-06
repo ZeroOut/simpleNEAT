@@ -102,13 +102,7 @@ namespace znn {
             exit(0);
         }
 
-        bool isSolve = false;
-
-        if (GetPrecision(outputs, wants) >= Opts.FitnessThreshold) {
-            isSolve = true;
-        }
-
-        return isSolve;
+        return GetPrecision(outputs, wants) >= Opts.FitnessThreshold;
     };
 
     void MutateWeightDirect(Connection &c) {

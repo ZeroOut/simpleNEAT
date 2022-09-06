@@ -54,7 +54,7 @@ namespace znn {
     }
 
     float GetPrecision(std::vector<float> outputs, std::vector<float> wantedOutputs) {
-        return 1.f - StandardDeviation(std::move(outputs), std::move(wantedOutputs));
+        return 1.f - StandardDeviation(outputs, wantedOutputs);
     }
 
     std::vector<std::string> SplitString(std::string &target, std::string delimiter) {
