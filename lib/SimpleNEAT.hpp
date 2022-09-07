@@ -160,6 +160,7 @@ namespace znn {
                         }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
                         auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
+//                        auto nn1 = orderedPopulation[random() % Opts.ChampionKeepSize];
                         auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
                         nn = GetChildByCrossing(nn0, nn1);
                         if ((index % 2 == 0 || nn0 == nn1) && nn0->Neurons.size() < orderedByComplex[0]->Neurons.size() && nn1->Neurons.size() < orderedByComplex[0]->Neurons.size()) {
