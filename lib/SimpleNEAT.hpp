@@ -75,7 +75,7 @@ namespace znn {
         std::vector<NetworkGenome *> result;
         std::vector<std::pair<NetworkGenome *, uint> > A;  // Declare vector of pairs
         for (auto &it : Population) {  // Copy key-value pair from Map to vector of pairs
-            A.push_back(std::pair{&it, it.Neurons.size()});
+            A.push_back(std::pair{&it, it.Connections.size()});
         }
         std::sort(A.begin(), A.end(), cmpc);  // Sort using comparator function
         for (auto &it : A) {
