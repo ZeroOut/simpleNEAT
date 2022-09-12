@@ -106,6 +106,8 @@ int main() {
         }
     };
 
+    znn::SimpleNeat sneat;
+
     auto createPop = [&]() {  // 构建基因种群
         znn::Opts.InputSize = 12;
         znn::Opts.OutputSize = 8;
@@ -129,13 +131,13 @@ int main() {
         znn::Opts.MutateBiasDirectOrNear = 0.5f;
         znn::Opts.MutateWeightNearRange = 6;
 
-        znn::StartNew();
+        sneat.StartNew();
 
         isCrow = true;
     };
 
     auto initPlayers = [&]() {
-        for (auto &g : znn::Population) {
+        for (auto &g : sneat.population.NeuralNetworks) {
             Player player = Player{};
             player.statusPos = beginPos;
             player.passedPath[beginPos] = 0;
@@ -183,8 +185,8 @@ int main() {
     auto singleFromLoop = [&]() {
         using namespace znn;
         auto populationFitness = getFitness();
-        auto orderedPopulation = OrderByFitness(populationFitness);
-        auto orderedByComplex = OrderByComplex();
+        auto orderedPopulation = sneat.OrderByFitness(populationFitness);
+        auto orderedByComplex = sneat.OrderByComplex();
 
         Champion = players[orderedPopulation[0]];
 
@@ -197,10 +199,10 @@ int main() {
 
 //        if (rounds >= Opts.IterationTimes || populationFitness[orderedPopulation[0]] == bestDistance) {
         if (rounds >= Opts.IterationTimes) {
-            auto simplifiedBestNN = SimplifyRemoveDisable(*orderedPopulation[0]);
-            auto compressedLeftBestNN = SimplifyRemoveUselessConnectionLeft(simplifiedBestNN);
-            auto compressedRightBestNN = SimplifyRemoveUselessConnectionRight(compressedLeftBestNN);
-            ExportNN(compressedRightBestNN, "./champion");
+            auto simplifiedBestNN = sneat.population.generation.neuralNetwork.SimplifyRemoveDisable(*orderedPopulation[0]);
+            auto compressedLeftBestNN = sneat.population.generation.neuralNetwork.SimplifyRemoveUselessConnectionLeft(simplifiedBestNN);
+            auto compressedRightBestNN = sneat.population.generation.neuralNetwork.SimplifyRemoveUselessConnectionRight(compressedLeftBestNN);
+            sneat.population.generation.neuralNetwork.ExportNN(compressedRightBestNN, "./champion");
 //            ExportNNToDot(compressedRightBestNN, "./champion");
             isStart = false;
             isAllDie = false;
@@ -228,24 +230,24 @@ int main() {
                 if (index < Opts.ChampionToNewSize) {
                     nn = *orderedPopulation[index % Opts.ChampionKeepSize];  // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
                     if (index >= Opts.ChampionKeepSize) {
-                        MutateNetworkGenome(nn);  // 除开原始冠军，他们的克隆体进行变异
+                        sneat.population.generation.MutateNetworkGenome(nn);  // 除开原始冠军，他们的克隆体进行变异
                     }
                 } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
                     auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
                     auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
-                    nn = GetChildByCrossing(nn0, nn1);
+                    nn = sneat.population.generation.GetChildByCrossing(nn0, nn1);
                     if ((index % 2 == 0 || nn0 == nn1) && nn0->Neurons.size() < orderedByComplex[0]->Neurons.size() && nn1->Neurons.size() < orderedByComplex[0]->Neurons.size()) {
-                        MutateNetworkGenome(nn);  // 繁殖以后进行变异
+                        sneat.population.generation.MutateNetworkGenome(nn);  // 繁殖以后进行变异
                     }
                     ++index;
                 } else if (index < Opts.PopulationSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
-                    nn = NewNN();
+                    nn = sneat.population.generation.neuralNetwork.NewNN();
                 } else if (index < Opts.PopulationSize - Opts.KeepWorstSize) {
                     nn = *orderedByComplex[index % Opts.KeepComplexSize];
-                    EnableAllConnections(nn);
+                    sneat.population.generation.EnableAllConnections(nn);
                 } else {
                     nn = *orderedPopulation[index];
-                    MutateNetworkGenome(nn);
+                    sneat.population.generation.MutateNetworkGenome(nn);
                 }
             }));
         }
@@ -255,7 +257,7 @@ int main() {
             f.wait();
         }
 
-        Population = tmpPopulation;
+        sneat.population.NeuralNetworks = tmpPopulation;
 
         initPlayers();
 
@@ -365,7 +367,7 @@ int main() {
             for (auto &p : players) {
                 if (!p.second.isDone) {
                     std::vector<float> around = getAround(p.second.statusPos);
-                    auto predictActions = znn::FeedForwardPredict(p.first, {float(p.second.statusPos[0]) / 800.f, float(p.second.statusPos[1]) / 800.f, float(endPos[0]) / 800.f, float(endPos[1]) / 800.f, around[0], around[1], around[2], around[3], around[4], around[5], around[6], around[7]});
+                    auto predictActions = sneat.population.generation.neuralNetwork.FeedForwardPredict(p.first, {float(p.second.statusPos[0]) / 800.f, float(p.second.statusPos[1]) / 800.f, float(endPos[0]) / 800.f, float(endPos[1]) / 800.f, around[0], around[1], around[2], around[3], around[4], around[5], around[6], around[7]});
                     std::map<float, uint> actions;
                     for (uint i = 0; i < 8; ++i) {
                         actions[predictActions[i]] = i;
