@@ -6,32 +6,40 @@
 #include "Generation.hpp"
 
 namespace znn {
-    std::vector<NetworkGenome> Population;
+    class Population {
+    public:
+        Generation generation;
+        std::vector<NetworkGenome> NeuralNetworks;
+        void CreatePopulation();
+        void CreatePopulationFC(std::vector<int> hideLayers);
+        void CreatePopulationByGiving();
+        std::map<NetworkGenome *, float> CalculateFitnessByWanted(std::vector<std::vector<float>> inputs, std::vector<std::vector<float>> wantedOutputs);
+    };
 
-    void CreatePopulation() {
-        Population.clear();
+    void Population::CreatePopulation() {
+        NeuralNetworks.clear();
         for (uint i = 0; i < Opts.PopulationSize; ++i) {
-            Population.push_back(NewNN());
+            NeuralNetworks.push_back(generation.neuralNetwork.NewNN());
         }
     }
 
-    void CreatePopulationFC(std::vector<int> hideLayers) {
-        Population.clear();
+    void Population::CreatePopulationFC(std::vector<int> hideLayers) {
+        NeuralNetworks.clear();
         for (uint i = 0; i < Opts.PopulationSize; ++i) {
-            Population.push_back(NewFCNN(hideLayers));
+            NeuralNetworks.push_back(generation.neuralNetwork.NewFCNN(hideLayers));
         }
     }
 
-    void CreatePopulationByGiving() {
-        ImportInnovations(Opts.CheckPointPath);  // 要先导入innov
-        Population.clear();
-        auto nn = znn::ImportNN(Opts.CheckPointPath);
+    void Population::CreatePopulationByGiving() {
+        generation.neuralNetwork.ImportInnovations(Opts.CheckPointPath);  // 要先导入innov
+        NeuralNetworks.clear();
+        auto nn = generation.neuralNetwork.ImportNN(Opts.CheckPointPath);
         for (uint i = 0; i < Opts.PopulationSize; ++i) {
-            Population.push_back(nn);
+            NeuralNetworks.push_back(nn);
         }
     }
 
-    std::map<NetworkGenome *, float> CalculateFitnessByWanted(std::vector<std::vector<float>> inputs, std::vector<std::vector<float>> wantedOutputs) {  // 二维数组，第一维是实验次数，第二维输入和预期输出
+    std::map<NetworkGenome *, float> Population::CalculateFitnessByWanted(std::vector<std::vector<float>> inputs, std::vector<std::vector<float>> wantedOutputs) {  // 二维数组，第一维是实验次数，第二维输入和预期输出
         std::map<NetworkGenome *, float> populationFitness;
 
         if (inputs.size() != wantedOutputs.size() || wantedOutputs[0].size() != Opts.OutputSize || inputs[0].size() != Opts.InputSize) {
@@ -42,11 +50,11 @@ namespace znn {
 
         std::vector<std::future<void>> thisFuture;  // 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
 
-        for (auto &nn : Population) {
+        for (auto &nn : NeuralNetworks) {
             thisFuture.push_back(tPool.submit([&]() {
                 float fitness = 0.f;
                 for (uint i = 0; i < inputs.size(); ++i) {
-                    std::vector<float> thisOutputs = FeedForwardPredict(&nn, inputs[i]);
+                    std::vector<float> thisOutputs = generation.neuralNetwork.FeedForwardPredict(&nn, inputs[i]);
                     fitness += GetPrecision(thisOutputs, wantedOutputs[i]);
                 }
                 mtx.lock();

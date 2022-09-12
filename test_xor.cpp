@@ -16,7 +16,8 @@ int main() {
 //    znn::Opts.KeepLastSize = 0;
 //    znn::Opts.ChampionToNewSize = 50;
 
-    znn::StartNew();
+    znn::SimpleNeat sneat;
+    sneat.StartNew();
 
     const std::vector<std::vector<float>> inputs = {
             {0.f, 0.f},
@@ -33,10 +34,10 @@ int main() {
             {1.f},
     };
 
-    auto best = znn::TrainByWanted(inputs, wanted);
+    auto best = sneat.TrainByWanted(inputs, wanted);
 
 //    std::cout << "HiddenNeuronInnovations: " << znn::HiddenNeuronInnovations.size() << " ConnectionInnovations: " << znn::ConnectionInnovations.size() << std::endl;
-    std::cout << "HiddenNeuronInnovations: " << znn::HiddenNeuronInnovations.size() << std::endl;
+std::cout << "HiddenNeuronInnovations: " << sneat.population.generation.neuralNetwork.HiddenNeuronInnovations.size() << std::endl;
 
     std::cout << "best: geration:" << best.Gen << " fitness " << best.Fit << " neurons " << best.NN.Neurons.size() << " connections " << best.NN.Connections.size() << std::endl;
 
@@ -52,7 +53,7 @@ int main() {
 
     std::cout << "predict: \n";
     for (int i = 0; i < inputs.size(); ++i) {
-        std::cout << inputs[i][0] << " " << inputs[i][1] << " [" << wanted[i][0] << "] " << znn::FeedForwardPredict(&best.NN, inputs[i])[0] << std::endl;
+        std::cout << inputs[i][0] << " " << inputs[i][1] << " [" << wanted[i][0] << "] " << sneat.population.generation.neuralNetwork.FeedForwardPredict(&best.NN, inputs[i])[0] << std::endl;
     }
 
 //    znn::ExportNN(best.NN, "/tmp/xor00");

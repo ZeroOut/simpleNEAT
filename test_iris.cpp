@@ -21,7 +21,8 @@ int main() {
     znn::Opts.MutateBiasRate = 1.f;
     znn::Opts.MutateWeightRate = 1.f;
 
-    znn::Start();
+    znn::SimpleNeat sneat;
+    sneat.Start();
 
     const std::vector<std::vector<float>> inputs = {
             {5.1f, 3.5f, 1.4f, 0.2f},
@@ -334,10 +335,10 @@ int main() {
             {0.f, 0.f, 1.f},
     };
 
-    auto best = znn::TrainByWanted(inputs, wanted);
+    auto best = sneat.TrainByWanted(inputs, wanted);
 
 //    std::cout << "HiddenNeuronInnovations: " << znn::HiddenNeuronInnovations.size() << " ConnectionInnovations: " << znn::ConnectionInnovations.size() << std::endl;
-    std::cout << "HiddenNeuronInnovations: " << znn::HiddenNeuronInnovations.size() << std::endl;
+    std::cout << "HiddenNeuronInnovations: " << sneat.population.generation.neuralNetwork.HiddenNeuronInnovations.size() << std::endl;
 
     std::cout << "best: geration:" << best.Gen << " fitness " << best.Fit << " neurons " << best.NN.Neurons.size() << " connections " << best.NN.Connections.size() << std::endl;
 
@@ -353,7 +354,7 @@ int main() {
 
     std::cout << "predict: \n";
     for (int i = 0; i < inputs.size(); ++i) {
-        auto predict = znn::FeedForwardPredict(&best.NN, inputs[i]);
+        auto predict = sneat.population.generation.neuralNetwork.FeedForwardPredict(&best.NN, inputs[i]);
         std::cout << inputs[i][0] << " " << inputs[i][1] << inputs[i][2] << " " << inputs[i][3] << " [" << wanted[i][0] << " " << wanted[i][1] << " " << wanted[i][2] << "] " << predict[0] << " " << predict[1] << " " << predict[2] << std::endl;
     }
 

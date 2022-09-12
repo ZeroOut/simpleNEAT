@@ -6,7 +6,34 @@
 #include "NeuralNetwork.hpp"
 
 namespace znn {
-    bool BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回true TODO: 权重和偏置范围该怎么限制?丢弃?
+    class Generation {
+    public:
+        NeuralNetwork neuralNetwork;
+
+        bool BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants);
+
+        void MutateWeightDirect(Connection &c);
+
+        void MutateWeightNear(Connection &c);
+
+        void MutateBiasDirect(Neuron &o);
+
+        void MutateBiasNear(Neuron &o);
+
+        void MutateAddNeuron(NetworkGenome &nn);
+
+        void MutateAddConnection(NetworkGenome &nn);
+
+        void MutateEnableConnection(NetworkGenome &nn);
+
+        void EnableAllConnections(NetworkGenome &nn);
+
+        void MutateNetworkGenome(NetworkGenome &nn);
+
+        NetworkGenome GetChildByCrossing(NetworkGenome *nn0, NetworkGenome *nn1);
+    };
+
+    bool Generation::BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回true TODO: 权重和偏置范围该怎么限制?丢弃?
         std::map<uint, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
         std::map<float, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
@@ -105,11 +132,11 @@ namespace znn {
         return GetPrecision(outputs, wants) >= Opts.FitnessThreshold;
     };
 
-    void MutateWeightDirect(Connection &c) {
+    void Generation::MutateWeightDirect(Connection &c) {
         c.Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000.f;
     }
 
-    void MutateWeightNear(Connection &c) {
+    void Generation::MutateWeightNear(Connection &c) {
         float tmpWeight = c.Weight + float(random() % (Opts.MutateWeightNearRange * 2000000) - Opts.MutateWeightNearRange * 1000000) / 1000000.f;
         if (tmpWeight > float(Opts.WeightRange)) {
             c.Weight = float(Opts.WeightRange);
@@ -122,11 +149,11 @@ namespace znn {
         c.Weight = tmpWeight;
     }
 
-    void MutateBiasDirect(Neuron &o) {
+    void Generation::MutateBiasDirect(Neuron &o) {
         o.Bias = float(random() % (Opts.BiasRange * 2000000) - Opts.BiasRange * 1000000) / 1000000;
     }
 
-    void MutateBiasNear(Neuron &o) {
+    void Generation::MutateBiasNear(Neuron &o) {
         float tmpBias = o.Bias + float(random() % (Opts.MutateBiasNearRange * 2000000) - Opts.MutateBiasNearRange * 1000000) / 1000000.f;
         if (tmpBias > float(Opts.BiasRange)) {
             o.Bias = float(Opts.BiasRange);
@@ -139,7 +166,7 @@ namespace znn {
         o.Bias = tmpBias;
     }
 
-    void MutateAddNeuron(NetworkGenome &nn) {
+    void Generation::MutateAddNeuron(NetworkGenome &nn) {
         Connection &choosingConnection = nn.Connections[random() % nn.Connections.size()];  // 选出一条连接
 
 //        if (!choosingConnection.Enable) {
@@ -166,12 +193,12 @@ namespace znn {
         }
 
         mtx.lock();
-        uint newNid = HiddenNeuronInnovations.size() + Opts.InputSize + Opts.OutputSize + FCHidenNeuronSize;  // 新的神经元id为全部藏神经元数量+输入神经元数量+输出神经元数量+全连接网络隐藏神经元数量(如有)
+        uint newNid = neuralNetwork.HiddenNeuronInnovations.size() + Opts.InputSize + Opts.OutputSize + neuralNetwork.FCHidenNeuronSize;  // 新的神经元id为全部藏神经元数量+输入神经元数量+输出神经元数量+全连接网络隐藏神经元数量(如有)
 //        if (HiddenNeuronInnovations.find({nid0, nid1}) == HiddenNeuronInnovations.end()) {  // 从全部隐藏神经元innovMap里面查看是否存在相同位置的神经元
-        if (!HiddenNeuronInnovations.contains({nid0, nid1})) {  // 从全部隐藏神经元innovMap里面查看是否存在相同位置的神经元
-            HiddenNeuronInnovations[{nid0, nid1}] = newNid;  // 如果不存在则新增记录插入连接左右两个神经元id对应的隐藏层神经元id
+if (!neuralNetwork.HiddenNeuronInnovations.contains({nid0, nid1})) {  // 从全部隐藏神经元innovMap里面查看是否存在相同位置的神经元
+    neuralNetwork.HiddenNeuronInnovations[{nid0, nid1}] = newNid;  // 如果不存在则新增记录插入连接左右两个神经元id对应的隐藏层神经元id
         } else {
-            newNid = HiddenNeuronInnovations[{nid0, nid1}];  // 如果存在则使用已有隐藏层神经元id
+    newNid = neuralNetwork.HiddenNeuronInnovations[{nid0, nid1}];  // 如果存在则使用已有隐藏层神经元id
         }
         mtx.unlock();
 
@@ -217,7 +244,7 @@ namespace znn {
 //        mtx.unlock();
     }
 
-    void MutateAddConnection(NetworkGenome &nn) {
+    void Generation::MutateAddConnection(NetworkGenome &nn) {
         Neuron &choosingNeuron0 = nn.Neurons[random() % nn.Neurons.size()];  // 选出第一个神经元
         Neuron &choosingNeuron1 = nn.Neurons[random() % nn.Neurons.size()];  // 选出第二个神经元
 
@@ -256,7 +283,7 @@ namespace znn {
 //        mtx.unlock();
     }
 
-    void MutateEnableConnection(NetworkGenome &nn) {
+    void Generation::MutateEnableConnection(NetworkGenome &nn) {
         Connection &choosingConnection = nn.Connections[random() % nn.Connections.size()];  // 选出一条连接
         if (choosingConnection.Enable) {
             choosingConnection.Enable = false;
@@ -265,7 +292,7 @@ namespace znn {
         choosingConnection.Enable = true;
     }
 
-    void EnableAllConnections(NetworkGenome &nn) {
+    void Generation::EnableAllConnections(NetworkGenome &nn) {
         for (auto &c : nn.Connections) {
             if (!c.Enable) {
                 c.Enable = true;
@@ -273,7 +300,7 @@ namespace znn {
         }
     }
 
-    void MutateNetworkGenome(NetworkGenome &nn) {
+    void Generation::MutateNetworkGenome(NetworkGenome &nn) {
         for (auto &c : nn.Connections) {
             if (float(random() % 1000) / 1000.f < Opts.MutateWeightRate) {
                 if (float(random() % 1000) / 1000.f < Opts.MutateWeightDirectOrNear) {
@@ -307,7 +334,7 @@ namespace znn {
         }
     }
 
-    NetworkGenome GetChildByCrossing(NetworkGenome *nn0, NetworkGenome *nn1) {
+    NetworkGenome Generation::GetChildByCrossing(NetworkGenome *nn0, NetworkGenome *nn1) {
         if (float(random() % 1000) / 1000.f > Opts.CrossoverRate || nn0 == nn1) {
             return *nn1; // nn0 是冠军中的个体， nn1 是剩余的，冠军已经保留了原始基因，所以按照概率保留非冠军基因
         }

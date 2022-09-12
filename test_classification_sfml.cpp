@@ -11,7 +11,6 @@ int main() {
 
     sf::Event ev{};
 
-
     std::map<znn::NetworkGenome *, float> populationFitness;
     std::vector<znn::NetworkGenome *> orderedPopulation;
     std::vector<znn::NetworkGenome *> orderedByComplex;
@@ -38,6 +37,8 @@ int main() {
 
     uint outputLen;
 
+    znn::SimpleNeat sneat;
+
     auto startTrain = [&]() {
         outputLen = targets.size();
         znn::Opts.InputSize = 2;
@@ -62,7 +63,7 @@ int main() {
         znn::Opts.MutateWeightNearRange = 6;
         znn::Opts.MutateBiasDirectOrNear = 0.36f;
 
-        znn::StartNew();
+        sneat.StartNew();
 
         if (outputLen < 2 || outputLen > 4) {
             std::cerr << "Error: outputLen " << outputLen << "\n";
@@ -99,9 +100,9 @@ int main() {
 
         isTrainingStart = true;
 
-        populationFitness = znn::CalculateFitnessByWanted(inputs, wantedOutputs);
-        orderedPopulation = znn::OrderByFitness(populationFitness);
-        orderedByComplex = znn::OrderByComplex();
+        populationFitness = sneat.population.CalculateFitnessByWanted(inputs, wantedOutputs);
+        orderedPopulation = sneat.OrderByFitness(populationFitness);
+        orderedByComplex = sneat.OrderByComplex();
     };
 
     bool isSolved = false;
@@ -125,29 +126,29 @@ int main() {
                 if (index < Opts.ChampionToNewSize) {
                     nn = *orderedPopulation[index % Opts.ChampionKeepSize];  // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
                     if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
-                        for (uint i=0;i<inputs.size();++i) {  // 保留的冠军一份副本全部进行反向传播更新weight和bias
-                            BackPropagation(&nn, inputs[i], wantedOutputs[i]);
+                        for (uint i = 0; i < inputs.size(); ++i) {  // 保留的冠军一份副本全部进行反向传播更新weight和bias
+                            sneat.population.generation.BackPropagation(&nn, inputs[i], wantedOutputs[i]);
                         }
                     }
                     if (index >= Opts.ChampionKeepSize * 2) {
-                        MutateNetworkGenome(nn);  // 除开原始冠军，他们的克隆体进行变异
+                        sneat.population.generation.MutateNetworkGenome(nn);  // 除开原始冠军，他们的克隆体进行变异
                     }
                 } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
                     auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
                     auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
-                    nn = GetChildByCrossing(nn0, nn1);
+                    nn = sneat.population.generation.GetChildByCrossing(nn0, nn1);
                     if ((index % 2 == 0 || nn0 == nn1) && nn0->Neurons.size() < orderedByComplex[0]->Neurons.size() && nn1->Neurons.size() < orderedByComplex[0]->Neurons.size()) {
-                        MutateNetworkGenome(nn);  // 繁殖以后进行变异
+                        sneat.population.generation.MutateNetworkGenome(nn);  // 繁殖以后进行变异
                     }
                     ++index;
                 } else if (index < Opts.PopulationSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
-                    nn = NewNN();
+                    nn = sneat.population.generation.neuralNetwork.NewNN();
                 } else if (index < Opts.PopulationSize - Opts.KeepWorstSize) {
                     nn = *orderedByComplex[index % Opts.KeepComplexSize];
-                    EnableAllConnections(nn);
+                    sneat.population.generation.EnableAllConnections(nn);
                 } else {
                     nn = *orderedPopulation[index];
-                    MutateNetworkGenome(nn);
+                    sneat.population.generation.MutateNetworkGenome(nn);
                 }
             }));
         }
@@ -157,13 +158,13 @@ int main() {
             f.wait();
         }
 
-        Population = tmpPopulation;
+        sneat.population.NeuralNetworks = tmpPopulation;
         populationFitness.clear();
         orderedPopulation.clear();
         orderedByComplex.clear();
-        populationFitness = CalculateFitnessByWanted(inputs, wantedOutputs);
-        orderedPopulation = OrderByFitness(populationFitness);
-        orderedByComplex = OrderByComplex();
+        populationFitness = sneat.population.CalculateFitnessByWanted(inputs, wantedOutputs);
+        orderedPopulation = sneat.OrderByFitness(populationFitness);
+        orderedByComplex = sneat.OrderByComplex();
 
         if (rounds % 100 == 0 || populationFitness[orderedPopulation[0]] > Opts.FitnessThreshold) {
             std::cout << "gen: " << rounds << " " << orderedPopulation[0] << " " << orderedPopulation[0]->Neurons.size() << " " << orderedPopulation[0]->Connections.size() << " fitness: "
@@ -177,11 +178,11 @@ int main() {
         };
 
         if (populationFitness[orderedPopulation[0]] > Opts.FitnessThreshold) {
-            auto simplifiedBestNN = SimplifyRemoveDisable(*orderedPopulation[0]);
-            auto compressedLeftBestNN = SimplifyRemoveUselessConnectionLeft(simplifiedBestNN);
-            auto compressedRightBestNN = SimplifyRemoveUselessConnectionRight(compressedLeftBestNN);
+            auto simplifiedBestNN = sneat.population.generation.neuralNetwork.SimplifyRemoveDisable(*orderedPopulation[0]);
+            auto compressedLeftBestNN = sneat.population.generation.neuralNetwork.SimplifyRemoveUselessConnectionLeft(simplifiedBestNN);
+            auto compressedRightBestNN = sneat.population.generation.neuralNetwork.SimplifyRemoveUselessConnectionRight(compressedLeftBestNN);
 //            ExportNN(compressedRightBestNN, "./champion");
-            ExportNNToDot(compressedRightBestNN, "./champion");
+            sneat.population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
             isTrainingStart = false;
             isSolved = true;
             return result{
@@ -261,7 +262,7 @@ int main() {
                 pos.x += 4.f;
                 pos.y += 4.f;
                 if (!markedBlocks.contains({pos.x, pos.y})) {
-                    auto outputs = znn::FeedForwardPredict(&bestNN, {pos.x / 1024.f, pos.y / 1024.f});
+                    auto outputs = sneat.population.generation.neuralNetwork.FeedForwardPredict(&bestNN, {pos.x / 1024.f, pos.y / 1024.f});
                     switch (outputLen) {
                         case 2: {
 //                            std::cout << outputs[0] << " " << outputs[1] << "\n";

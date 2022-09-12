@@ -23,16 +23,29 @@ namespace znn {
         bool Enable;
     };
 
-    std::map<std::array<uint, 2>, uint> HiddenNeuronInnovations;  // 只记录插入连接左右两个神经元id对应的隐藏层神经元id，新增神经元变异的时候全部个体需要检查唯一性，使用时必须使用mutex
-//    std::map<std::array<uint, 2>, uint> ConnectionInnovations;  // 记录全部连接的两端神经元id对应的连接innov，新增连接变异的时候全部个体需要检查唯一性，使用时必须使用mutex
-    int FCHidenNeuronSize = 0;
-
     struct NetworkGenome {
         std::vector<Neuron> Neurons;
         std::vector<Connection> Connections;
     };
 
-    NetworkGenome NewNN() {
+    class NeuralNetwork {
+    public:
+        std::map<std::array<uint, 2>, uint> HiddenNeuronInnovations;  // 只记录插入连接左右两个神经元id对应的隐藏层神经元id，新增神经元变异的时候全部个体需要检查唯一性，使用时必须使用mutex
+        int FCHidenNeuronSize = 0;
+        NetworkGenome NewNN();
+        NetworkGenome NewFCNN(std::vector<int> hideLayers);
+        NetworkGenome SimplifyRemoveUselessConnectionRight(NetworkGenome nn);
+        NetworkGenome SimplifyRemoveUselessConnectionLeft(NetworkGenome nn);
+        NetworkGenome SimplifyRemoveDisable(NetworkGenome nn);
+        std::vector<float> FeedForwardPredict(NetworkGenome *nn, std::vector<float> inputs);
+        void ExportNNToDot(NetworkGenome &nn, std::string fileName);
+        void ExportNN(NetworkGenome &nn, std::string fileName);
+        NetworkGenome ImportNN(std::string fileName);
+        void ExportInnovations(std::string fileName);
+        void ImportInnovations(std::string fileName);
+    };
+
+    NetworkGenome NeuralNetwork::NewNN() {
         if (Opts.InputSize <= 0 || Opts.OutputSize <= 0) {
             std::cerr << "Input or Output size fault: Input " << Opts.InputSize << ", Output " << Opts.OutputSize << std::endl;
             exit(0);
@@ -82,7 +95,7 @@ namespace znn {
         };
     }
 
-    NetworkGenome NewFCNN(std::vector<int> hideLayers) {  // 固定神经网络，输入隐藏层及对应神经元数量数
+    NetworkGenome NeuralNetwork::NewFCNN(std::vector<int> hideLayers) {  // 固定神经网络，输入隐藏层及对应神经元数量数
         if (Opts.InputSize <= 0 || Opts.OutputSize <= 0) {
             std::cerr << "Input or Output size fault: Input " << Opts.InputSize << ", Output " << Opts.OutputSize << std::endl;
             exit(0);
@@ -164,7 +177,7 @@ namespace znn {
         };
     }
 
-    NetworkGenome SimplifyRemoveUselessConnectionRight(NetworkGenome nn) { //合并中途凭空出现节点到右边的连接
+    NetworkGenome NeuralNetwork::SimplifyRemoveUselessConnectionRight(NetworkGenome nn) { //合并中途凭空出现节点到右边的连接
         std::map<uint, std::vector<Connection *>> remainingLeftIds;
         std::map<uint, std::vector<Connection *>> remainingRightIds;
         std::map<uint, std::vector<Connection *>> removeIds;
@@ -229,7 +242,7 @@ namespace znn {
         return nn;
     }
 
-    NetworkGenome SimplifyRemoveUselessConnectionLeft(NetworkGenome nn) { // 实现从左到右的无效连接移除
+    NetworkGenome NeuralNetwork::SimplifyRemoveUselessConnectionLeft(NetworkGenome nn) { // 实现从左到右的无效连接移除
         std::map<uint, std::vector<Connection *>> remainingLeftIds;
         std::map<uint, std::vector<Connection *>> remainingRightIds;
         std::map<uint, Neuron> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
@@ -287,7 +300,7 @@ namespace znn {
         return nn;
     }
 
-    NetworkGenome SimplifyRemoveDisable(NetworkGenome nn) {
+    NetworkGenome NeuralNetwork::SimplifyRemoveDisable(NetworkGenome nn) {
         std::vector<Connection> newConnections;
         std::map<uint, uint> remainingIds;
 
@@ -320,7 +333,7 @@ namespace znn {
         };
     }
 
-    std::vector<float> FeedForwardPredict(NetworkGenome *nn, std::vector<float> inputs) {
+    std::vector<float> NeuralNetwork::FeedForwardPredict(NetworkGenome *nn, std::vector<float> inputs) {
         std::map<uint, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
         std::map<float, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
@@ -386,7 +399,7 @@ namespace znn {
         return outputs;
     };
 
-    void ExportNNToDot(NetworkGenome &nn, std::string fileName) {
+    void NeuralNetwork::ExportNNToDot(NetworkGenome &nn, std::string fileName) {
         std::string data = "digraph G {\n    rankdir=\"LR\";\n";
         uint inId = 0;
         uint outId = 0;
@@ -423,8 +436,7 @@ namespace znn {
         file.close();
     }
 
-
-    void ExportNN(NetworkGenome &nn, std::string fileName) {
+    void NeuralNetwork::ExportNN(NetworkGenome &nn, std::string fileName) {
         std::string data = std::to_string(Opts.InputSize) + "," + std::to_string(Opts.OutputSize) + "\n~\n";
 
         for (auto &n : nn.Neurons) {
@@ -448,7 +460,7 @@ namespace znn {
         file.close();
     }
 
-    NetworkGenome ImportNN(std::string fileName) {
+    NetworkGenome NeuralNetwork::ImportNN(std::string fileName) {
         std::string line;
         std::ifstream input_file(fileName + ".nn");
 
@@ -544,7 +556,7 @@ namespace znn {
         };
     }
 
-    void ExportInnovations(std::string fileName) {
+    void NeuralNetwork::ExportInnovations(std::string fileName) {
         std::string data;
 
         for (auto &i : HiddenNeuronInnovations) {
@@ -555,7 +567,7 @@ namespace znn {
         file.close();
     }
 
-    void ImportInnovations(std::string fileName) {
+    void NeuralNetwork::ImportInnovations(std::string fileName) {
         std::string line;
         std::ifstream input_file(fileName + ".innov");
 
