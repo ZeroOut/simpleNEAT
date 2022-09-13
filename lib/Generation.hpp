@@ -125,7 +125,7 @@ namespace znn {
         }
 
         if (outputs.size() != wants.size()) {
-            std::cerr << "BackPropagation outputs.size() != wants.size()\n";
+            std::cerr << "BackPropagation outputs.size(" << outputs.size() << ") != wants.size(" << wants.size() << ")\n";
             exit(0);
         }
 
@@ -195,10 +195,10 @@ namespace znn {
         mtx.lock();
         uint newNid = neuralNetwork.HiddenNeuronInnovations.size() + Opts.InputSize + Opts.OutputSize + neuralNetwork.FCHidenNeuronSize;  // 新的神经元id为全部藏神经元数量+输入神经元数量+输出神经元数量+全连接网络隐藏神经元数量(如有)
 //        if (HiddenNeuronInnovations.find({nid0, nid1}) == HiddenNeuronInnovations.end()) {  // 从全部隐藏神经元innovMap里面查看是否存在相同位置的神经元
-if (!neuralNetwork.HiddenNeuronInnovations.contains({nid0, nid1})) {  // 从全部隐藏神经元innovMap里面查看是否存在相同位置的神经元
-    neuralNetwork.HiddenNeuronInnovations[{nid0, nid1}] = newNid;  // 如果不存在则新增记录插入连接左右两个神经元id对应的隐藏层神经元id
+        if (!neuralNetwork.HiddenNeuronInnovations.contains({nid0, nid1})) {  // 从全部隐藏神经元innovMap里面查看是否存在相同位置的神经元
+            neuralNetwork.HiddenNeuronInnovations[{nid0, nid1}] = newNid;  // 如果不存在则新增记录插入连接左右两个神经元id对应的隐藏层神经元id
         } else {
-    newNid = neuralNetwork.HiddenNeuronInnovations[{nid0, nid1}];  // 如果存在则使用已有隐藏层神经元id
+            newNid = neuralNetwork.HiddenNeuronInnovations[{nid0, nid1}];  // 如果存在则使用已有隐藏层神经元id
         }
         mtx.unlock();
 
