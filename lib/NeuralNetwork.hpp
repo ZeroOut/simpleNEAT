@@ -347,7 +347,7 @@ namespace znn {
 
 
         if (Opts.InputSize != inputs.size()) {
-            std::cerr << "Input length " << inputs.size() << " diffrent with NN input nodes " << Opts.InputSize << std::endl;
+            std::cerr << "FeedForwardPredict: Input length " << inputs.size() << " diffrent with NN input nodes " << Opts.InputSize << std::endl;
             std::exit(0);
         }
 

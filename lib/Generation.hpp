@@ -10,7 +10,7 @@ namespace znn {
     public:
         NeuralNetwork neuralNetwork;
 
-        bool BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants);
+        std::vector<float> BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants);
 
         void MutateWeightDirect(Connection &c);
 
@@ -33,7 +33,7 @@ namespace znn {
         NetworkGenome GetChildByCrossing(NetworkGenome *nn0, NetworkGenome *nn1);
     };
 
-    bool Generation::BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回true TODO: 权重和偏置范围该怎么限制?丢弃?
+    std::vector<float> Generation::BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回计算结果 TODO: 权重和偏置范围该怎么限制?丢弃?
         std::map<uint, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
         std::map<float, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
@@ -44,7 +44,7 @@ namespace znn {
 
 
         if (Opts.InputSize != inputs.size()) {
-            std::cerr << "Input length " << inputs.size() << " diffrent with NN input nodes " << Opts.InputSize << std::endl;
+            std::cerr << "BackPropagation: Input length " << inputs.size() << " diffrent with NN input nodes " << Opts.InputSize << std::endl;
             std::exit(0);
         }
 
@@ -125,11 +125,11 @@ namespace znn {
         }
 
         if (outputs.size() != wants.size()) {
-            std::cerr << "BackPropagation outputs.size(" << outputs.size() << ") != wants.size(" << wants.size() << ")\n";
+            std::cerr << "BackPropagation: outputs.size(" << outputs.size() << ") != wants.size(" << wants.size() << ")\n";
             exit(0);
         }
 
-        return GetPrecision(outputs, wants) >= Opts.FitnessThreshold;
+        return outputs;
     };
 
     void Generation::MutateWeightDirect(Connection &c) {

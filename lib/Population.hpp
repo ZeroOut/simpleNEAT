@@ -10,9 +10,13 @@ namespace znn {
     public:
         Generation generation;
         std::vector<NetworkGenome> NeuralNetworks;
+
         void CreatePopulation();
+
         void CreatePopulationFC(std::vector<int> hideLayers);
+
         void CreatePopulationByGiving();
+
         std::map<NetworkGenome *, float> CalculateFitnessByWanted(std::vector<std::vector<float>> inputs, std::vector<std::vector<float>> wantedOutputs);
     };
 

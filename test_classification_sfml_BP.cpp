@@ -95,7 +95,7 @@ int main() {
         float solveCount = 0;
 
         for (uint i = 0; i < inputs.size(); ++i) {
-            if (sneat.population.generation.BackPropagation(&nn, inputs[i], wantedOutputs[i])) {
+            if (znn::GetPrecision(sneat.population.generation.BackPropagation(&nn, inputs[i], wantedOutputs[i]), wantedOutputs[i]) >= znn::Opts.FitnessThreshold) {
                 ++solveCount;
             }
         }
