@@ -194,8 +194,8 @@ namespace znn {
 
         mtx.lock();
         uint newNid = neuralNetwork.HiddenNeuronInnovations.size() + Opts.InputSize + Opts.OutputSize + neuralNetwork.FCHidenNeuronSize;  // 新的神经元id为全部藏神经元数量+输入神经元数量+输出神经元数量+全连接网络隐藏神经元数量(如有)
-//        if (HiddenNeuronInnovations.find({nid0, nid1}) == HiddenNeuronInnovations.end()) {  // 从全部隐藏神经元innovMap里面查看是否存在相同位置的神经元
-        if (!neuralNetwork.HiddenNeuronInnovations.contains({nid0, nid1})) {  // 从全部隐藏神经元innovMap里面查看是否存在相同位置的神经元
+        if (neuralNetwork.HiddenNeuronInnovations.find({nid0, nid1}) == neuralNetwork.HiddenNeuronInnovations.end()) {  // 从全部隐藏神经元innovMap里面查看是否存在相同位置的神经元
+//        if (!neuralNetwork.HiddenNeuronInnovations.contains({nid0, nid1})) {  // 从全部隐藏神经元innovMap里面查看是否存在相同位置的神经元
             neuralNetwork.HiddenNeuronInnovations[{nid0, nid1}] = newNid;  // 如果不存在则新增记录插入连接左右两个神经元id对应的隐藏层神经元id
         } else {
             newNid = neuralNetwork.HiddenNeuronInnovations[{nid0, nid1}];  // 如果存在则使用已有隐藏层神经元id
@@ -391,10 +391,10 @@ namespace znn {
         std::vector<Neuron> newNeurons;
 
         for (auto &i : remainingIds) {
-//            bool isNeuronIn0 = (tmpNeuron0Map.find(i.first) != tmpNeuron0Map.end());
-            bool isNeuronIn0 = (tmpNeuron0Map.contains(i.first));
-//            bool isNeuronIn1 = (tmpNeuron1Map.find(i.first) != tmpNeuron1Map.end());
-            bool isNeuronIn1 = (tmpNeuron1Map.contains(i.first));
+            bool isNeuronIn0 = (tmpNeuron0Map.find(i.first) != tmpNeuron0Map.end());
+//            bool isNeuronIn0 = (tmpNeuron0Map.contains(i.first));
+            bool isNeuronIn1 = (tmpNeuron1Map.find(i.first) != tmpNeuron1Map.end());
+//            bool isNeuronIn1 = (tmpNeuron1Map.contains(i.first));
 
             if (isNeuronIn0 && isNeuronIn1) {
                 if (random() % 2 == 0) {

@@ -4,6 +4,7 @@
 #define MYNEAT_SIMPLENEAT_HPP
 
 #include "Population.hpp"
+#include <unistd.h>
 
 namespace znn {
     struct BestOne {

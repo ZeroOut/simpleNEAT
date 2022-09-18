@@ -32,16 +32,27 @@ namespace znn {
     public:
         std::map<std::array<uint, 2>, uint> HiddenNeuronInnovations;  // 只记录插入连接左右两个神经元id对应的隐藏层神经元id，新增神经元变异的时候全部个体需要检查唯一性，使用时必须使用mutex
         int FCHidenNeuronSize = 0;
+
         NetworkGenome NewNN();
+
         NetworkGenome NewFCNN(std::vector<int> hideLayers);
+
         NetworkGenome SimplifyRemoveUselessConnectionRight(NetworkGenome nn);
+
         NetworkGenome SimplifyRemoveUselessConnectionLeft(NetworkGenome nn);
+
         NetworkGenome SimplifyRemoveDisable(NetworkGenome nn);
+
         std::vector<float> FeedForwardPredict(NetworkGenome *nn, std::vector<float> inputs);
+
         void ExportNNToDot(NetworkGenome &nn, std::string fileName);
+
         void ExportNN(NetworkGenome &nn, std::string fileName);
+
         NetworkGenome ImportNN(std::string fileName);
+
         void ExportInnovations(std::string fileName);
+
         void ImportInnovations(std::string fileName);
     };
 
@@ -197,8 +208,8 @@ namespace znn {
             }
 
             for (auto &n : nn.Connections) {
-//                if (remainingRightIds.find(n.ConnectedNeuronId[0]) != remainingRightIds.end() || tmpNeuronMap[n.ConnectedNeuronId[0]].Layer == 0.f) {
-                if (remainingRightIds.contains(n.ConnectedNeuronId[0]) || tmpNeuronMap[n.ConnectedNeuronId[0]].Layer == 0.f) {
+                if (remainingRightIds.find(n.ConnectedNeuronId[0]) != remainingRightIds.end() || tmpNeuronMap[n.ConnectedNeuronId[0]].Layer == 0.f) {  // c++17
+//if (remainingRightIds.contains(n.ConnectedNeuronId[0]) || tmpNeuronMap[n.ConnectedNeuronId[0]].Layer == 0.f) {   // c++20
                     remainingLeftIds[n.ConnectedNeuronId[0]].push_back(&n);  // 添加所左边的神经元id（可作为另外一条连接的右边神经元）(左边还有连接)
                 } else {
                     removeIds[n.ConnectedNeuronId[0]].push_back(&n);
@@ -233,8 +244,8 @@ namespace znn {
         }
 
         for (auto &n : tmpNeuronMap) {
-//            if ((remainingLeftIds.find(n.first) == remainingLeftIds.end() && n.second.Layer == 0.f) || (remainingRightIds.find(n.first) == remainingRightIds.end() && n.second.Layer == 1.f) || (n.second.Layer == 1.f)) {
-            if ((!remainingLeftIds.contains(n.first) && n.second.Layer == 0.f) || (remainingRightIds.contains(n.first) && n.second.Layer == 1.f) || (n.second.Layer == 1.f)) {
+            if ((remainingLeftIds.find(n.first) == remainingLeftIds.end() && n.second.Layer == 0.f) || (remainingRightIds.find(n.first) == remainingRightIds.end() && n.second.Layer == 1.f) || (n.second.Layer == 1.f)) {
+//            if ((!remainingLeftIds.contains(n.first) && n.second.Layer == 0.f) || (remainingRightIds.contains(n.first) && n.second.Layer == 1.f) || (n.second.Layer == 1.f)) {
                 nn.Neurons.push_back(n.second);
             }
         }
@@ -262,8 +273,8 @@ namespace znn {
 
 
             for (auto &n : nn.Connections) {
-//                if (remainingLeftIds.find(n.ConnectedNeuronId[1]) != remainingLeftIds.end() || tmpNeuronMap[n.ConnectedNeuronId[1]].Layer == 1.f) {
-                if (remainingLeftIds.contains(n.ConnectedNeuronId[1]) || tmpNeuronMap[n.ConnectedNeuronId[1]].Layer == 1.f) {
+                if (remainingLeftIds.find(n.ConnectedNeuronId[1]) != remainingLeftIds.end() || tmpNeuronMap[n.ConnectedNeuronId[1]].Layer == 1.f) {
+//                if (remainingLeftIds.contains(n.ConnectedNeuronId[1]) || tmpNeuronMap[n.ConnectedNeuronId[1]].Layer == 1.f) {
                     remainingRightIds[n.ConnectedNeuronId[1]].push_back(&n);  // 添加所右边的神经元id（可作为另外一条连接的左边神经元）(右边还有连接)
                 } else {
                     isFinished = false;
@@ -291,8 +302,8 @@ namespace znn {
         }
 
         for (auto &n : tmpNeuronMap) {
-//            if ((remainingLeftIds.find(n.first) != remainingLeftIds.end() && remainingRightIds.find(n.first) == remainingRightIds.end()) || (n.second.Layer == 0.f) || (remainingRightIds.find(n.first) == remainingRightIds.end() && n.second.Layer == 1.f)) {
-            if ((remainingLeftIds.contains(n.first) && !remainingRightIds.contains(n.first)) || (n.second.Layer == 0.f) || (!remainingRightIds.contains(n.first) && n.second.Layer == 1.f)) {
+            if ((remainingLeftIds.find(n.first) != remainingLeftIds.end() && remainingRightIds.find(n.first) == remainingRightIds.end()) || (n.second.Layer == 0.f) || (remainingRightIds.find(n.first) == remainingRightIds.end() && n.second.Layer == 1.f)) {
+//            if ((remainingLeftIds.contains(n.first) && !remainingRightIds.contains(n.first)) || (n.second.Layer == 0.f) || (!remainingRightIds.contains(n.first) && n.second.Layer == 1.f)) {
                 nn.Neurons.push_back(n.second);
             }
         }
@@ -521,7 +532,8 @@ namespace znn {
 
         uint inInnovMapSize = 0;
         for (auto &n : HiddenNeuronInnovations) {
-            if (tmpIdMap.contains(n.second)) {
+//            if (tmpIdMap.contains(n.second)) {
+            if (tmpIdMap.find(n.second) != tmpIdMap.end()) {
                 ++inInnovMapSize;
             }
         }
