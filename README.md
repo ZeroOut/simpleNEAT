@@ -50,6 +50,9 @@ predict:
 `Fitness` 达到 `0.979` 的神经网络有 `18` 个神经元和 `111` 条神经连接:
 ![image](https://user-images.githubusercontent.com/19900527/183610656-188c724e-5b41-4df4-8b3d-54ff73c88e5d.png)
 
+实时显示神经网络结构
+![image](https://user-images.githubusercontent.com/19900527/200239416-576b786c-e0af-466f-9810-0d72cdfdf612.png)
+
 #### 基于 `sfml` 的分类实验（test_classification_sfml.cpp）
 
 两个类型：
