@@ -33,7 +33,9 @@ namespace znn {
 
         std::vector<NetworkGenome *> OrderByComplex();
 
-        BestOne TrainByInteractive(const std::function<std::vector<std::vector<float>>()> &inputFunc, const std::function<std::map<NetworkGenome *, float>(std::vector<std::vector<float>>)> &fitnessFunc, const std::function<bool()> &isBreakFunc);
+        BestOne
+        TrainByInteractive(const std::function<std::vector<std::vector<float>>()> &inputFunc, const std::function<std::map<NetworkGenome *, float>(std::vector<std::vector<float>>)> &fitnessFunc,
+                           const std::function<bool()> &isBreakFunc);
     };
 
 
@@ -54,6 +56,10 @@ namespace znn {
 
         tPool.reset(Opts.ThreadCount);
         srandom((unsigned) clock());
+
+        if (Opts.Enable3dNN) {
+            tPool.push_task(show3dNN);
+        }
     }
 
     void SimpleNeat::StartNew() {
@@ -125,7 +131,7 @@ namespace znn {
         for (; rounds <= Opts.IterationTimes || Opts.IterationTimes <= 0; ++rounds) {
 //            srandom((unsigned) clock());
 
-if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
+            if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
                 lastFitness = populationFitness[orderedPopulation[0]];
                 std::cout << "gen: " << rounds << " " << orderedPopulation[0] << " " << orderedPopulation[0]->Neurons.size() << " " << orderedPopulation[0]->Connections.size() << " fitness: "
                           << populationFitness[orderedPopulation[0]] << " " << std::endl;
@@ -143,6 +149,13 @@ if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationChec
 
                 population.generation.neuralNetwork.ExportNN(compressedRightBestNN, "./champion");
                 population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
+
+                if (Opts.Enable3dNN) {
+                    tPool.push_task([compressedRightBestNN]() {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                        update3dNN(compressedRightBestNN);
+                    });
+                }
 
                 return BestOne{
                         .Gen = rounds,
@@ -204,6 +217,13 @@ if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationChec
 
             for (auto &f : thisFuture) {
                 f.wait();
+            }
+
+            // if (Opts.Enable3dNN && rounds % 20 == 0) {
+            if (Opts.Enable3dNN) {
+                tPool.push_task([&]() {
+                    update3dNN(*orderedPopulation[0]);
+                });
             }
 
             population.NeuralNetworks = tmpPopulation;
@@ -280,6 +300,13 @@ if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationChec
                 population.generation.neuralNetwork.ExportNN(compressedRightBestNN, "./champion");
                 population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
 
+                if (Opts.Enable3dNN) {
+                    tPool.push_task([compressedRightBestNN]() {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                        update3dNN(compressedRightBestNN);
+                    });
+                }
+
                 return BestOne{
                         .Gen = rounds,
                         .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
@@ -341,6 +368,13 @@ if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationChec
                 f.wait();
             }
 
+            // if (Opts.Enable3dNN && rounds % 20 == 0) {
+            if (Opts.Enable3dNN) {
+                tPool.push_task([&]() {
+                    update3dNN(*orderedPopulation[0]);
+                });
+            }
+
             population.NeuralNetworks = tmpPopulation;
 
             populationFitness.clear();
@@ -381,7 +415,8 @@ if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationChec
         };
     }
 
-    BestOne SimpleNeat::TrainByInteractive(const std::function<std::vector<std::vector<float>>()> &inputFunc, const std::function<std::map<NetworkGenome *, float>(std::vector<std::vector<float>>)> &fitnessFunc, const std::function<bool()> &isBreakFunc) {
+    BestOne SimpleNeat::TrainByInteractive(const std::function<std::vector<std::vector<float>>()> &inputFunc,
+                                           const std::function<std::map<NetworkGenome *, float>(std::vector<std::vector<float>>)> &fitnessFunc, const std::function<bool()> &isBreakFunc) {
         auto inputs = inputFunc();
         auto populationFitness = fitnessFunc(inputs);
         auto orderedPopulation = OrderByFitness(populationFitness);
@@ -411,6 +446,13 @@ if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationChec
 
                 population.generation.neuralNetwork.ExportNN(compressedRightBestNN, "./champion");
                 population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
+
+                if (Opts.Enable3dNN) {
+                    tPool.push_task([compressedRightBestNN]() {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                        update3dNN(compressedRightBestNN);
+                    });
+                }
 
                 return BestOne{
                         .Gen = rounds,
@@ -475,6 +517,13 @@ if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationChec
                 f.wait();
             }
 
+            // if (Opts.Enable3dNN && rounds % 20 == 0) {
+            if (Opts.Enable3dNN) {
+                tPool.push_task([&]() {
+                    update3dNN(*orderedPopulation[0]);
+                });
+            }
+
             population.NeuralNetworks = tmpPopulation;
 
             populationFitness.clear();
@@ -505,7 +554,6 @@ if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationChec
                 .Fit = populationFitness[orderedPopulation[0]],
         };
     }
-
 }
 
 #endif //MYNEAT_SIMPLENEAT_HPP

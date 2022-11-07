@@ -15,6 +15,7 @@ int main() {
 //    znn::Opts.NewSize = 0;
 //    znn::Opts.KeepLastSize = 0;
 //    znn::Opts.ChampionToNewSize = 50;
+    znn::Opts.Enable3dNN = true;
 
     znn::SimpleNeat sneat;
     sneat.StartNew();
@@ -37,7 +38,7 @@ int main() {
     auto best = sneat.TrainByWanted(inputs, wanted);
 
 //    std::cout << "HiddenNeuronInnovations: " << znn::HiddenNeuronInnovations.size() << " ConnectionInnovations: " << znn::ConnectionInnovations.size() << std::endl;
-std::cout << "HiddenNeuronInnovations: " << sneat.population.generation.neuralNetwork.HiddenNeuronInnovations.size() << std::endl;
+    std::cout << "HiddenNeuronInnovations: " << sneat.population.generation.neuralNetwork.HiddenNeuronInnovations.size() << std::endl;
 
     std::cout << "best: geration:" << best.Gen << " fitness " << best.Fit << " neurons " << best.NN.Neurons.size() << " connections " << best.NN.Connections.size() << std::endl;
 
@@ -56,9 +57,8 @@ std::cout << "HiddenNeuronInnovations: " << sneat.population.generation.neuralNe
         std::cout << inputs[i][0] << " " << inputs[i][1] << " [" << wanted[i][0] << "] " << sneat.population.generation.neuralNetwork.FeedForwardPredict(&best.NN, inputs[i])[0] << std::endl;
     }
 
-//    znn::ExportNN(best.NN, "/tmp/xor00");
-//    znn::ExportInnovations("/tmp/xor00");
-//    znn::ExportNNToDot(best.NN, "/tmp/xxx00");
+    sneat.population.generation.neuralNetwork.ExportNNToDot(best.NN, "/tmp/xor");
+    sneat.population.generation.neuralNetwork.ExportNN(best.NN, "/tmp/xor");
 
     return 0;
 }

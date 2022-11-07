@@ -38,6 +38,7 @@ namespace znn {
         float CrossoverRate = 0.9f;
         float LearnRate = 0.3f;
         uint ThreadCount = std::thread::hardware_concurrency();
+        bool Enable3dNN = false;
     };
 
     static Option Opts;

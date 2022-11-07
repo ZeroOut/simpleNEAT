@@ -8,6 +8,7 @@
 #include <array>
 #include <functional>
 #include <fstream>
+#include "raylib.h"
 #include "Option.hpp"
 
 namespace znn {
@@ -78,7 +79,7 @@ namespace znn {
             uint id = i + Opts.InputSize;
             Neuron tmpNeuron = {
                     .Id = id,
-//                    .Bias = 1.f,
+                    //                    .Bias = 1.f,
                     .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100,
                     .Layer = 1.f,
             };
@@ -88,14 +89,14 @@ namespace znn {
                 if (n.Layer == 0.f) {
                     Connection tmpConnection = {
                             .ConnectedNeuronId= {n.Id, id},
-//                            .Weight = 1.f,
+                            //                            .Weight = 1.f,
                             .Weight = float(random() % (Opts.WeightRange * 200) - Opts.WeightRange * 100) / 100,
                             .Enable = true,
                     };
                     newConnections.push_back(tmpConnection);
-//                    if (ConnectionInnovations.find({n.Id, tmpNeuron.Id}) == ConnectionInnovations.end()) {
-//                        ConnectionInnovations[{n.Id, tmpNeuron.Id}] = ConnectionInnovations.size();
-//                    }
+                    //                    if (ConnectionInnovations.find({n.Id, tmpNeuron.Id}) == ConnectionInnovations.end()) {
+                    //                        ConnectionInnovations[{n.Id, tmpNeuron.Id}] = ConnectionInnovations.size();
+                    //                    }
                 }
             }
         }
@@ -209,7 +210,7 @@ namespace znn {
 
             for (auto &n : nn.Connections) {
                 if (remainingRightIds.find(n.ConnectedNeuronId[0]) != remainingRightIds.end() || tmpNeuronMap[n.ConnectedNeuronId[0]].Layer == 0.f) {  // c++17
-//if (remainingRightIds.contains(n.ConnectedNeuronId[0]) || tmpNeuronMap[n.ConnectedNeuronId[0]].Layer == 0.f) {   // c++20
+                    //if (remainingRightIds.contains(n.ConnectedNeuronId[0]) || tmpNeuronMap[n.ConnectedNeuronId[0]].Layer == 0.f) {   // c++20
                     remainingLeftIds[n.ConnectedNeuronId[0]].push_back(&n);  // 添加所左边的神经元id（可作为另外一条连接的右边神经元）(左边还有连接)
                 } else {
                     removeIds[n.ConnectedNeuronId[0]].push_back(&n);
@@ -244,8 +245,9 @@ namespace znn {
         }
 
         for (auto &n : tmpNeuronMap) {
-            if ((remainingLeftIds.find(n.first) == remainingLeftIds.end() && n.second.Layer == 0.f) || (remainingRightIds.find(n.first) == remainingRightIds.end() && n.second.Layer == 1.f) || (n.second.Layer == 1.f)) {
-//            if ((!remainingLeftIds.contains(n.first) && n.second.Layer == 0.f) || (remainingRightIds.contains(n.first) && n.second.Layer == 1.f) || (n.second.Layer == 1.f)) {
+            if ((remainingLeftIds.find(n.first) == remainingLeftIds.end() && n.second.Layer == 0.f) || (remainingRightIds.find(n.first) == remainingRightIds.end() && n.second.Layer == 1.f) ||
+                (n.second.Layer == 1.f)) {
+                //            if ((!remainingLeftIds.contains(n.first) && n.second.Layer == 0.f) || (remainingRightIds.contains(n.first) && n.second.Layer == 1.f) || (n.second.Layer == 1.f)) {
                 nn.Neurons.push_back(n.second);
             }
         }
@@ -274,7 +276,7 @@ namespace znn {
 
             for (auto &n : nn.Connections) {
                 if (remainingLeftIds.find(n.ConnectedNeuronId[1]) != remainingLeftIds.end() || tmpNeuronMap[n.ConnectedNeuronId[1]].Layer == 1.f) {
-//                if (remainingLeftIds.contains(n.ConnectedNeuronId[1]) || tmpNeuronMap[n.ConnectedNeuronId[1]].Layer == 1.f) {
+                    //                if (remainingLeftIds.contains(n.ConnectedNeuronId[1]) || tmpNeuronMap[n.ConnectedNeuronId[1]].Layer == 1.f) {
                     remainingRightIds[n.ConnectedNeuronId[1]].push_back(&n);  // 添加所右边的神经元id（可作为另外一条连接的左边神经元）(右边还有连接)
                 } else {
                     isFinished = false;
@@ -302,8 +304,9 @@ namespace znn {
         }
 
         for (auto &n : tmpNeuronMap) {
-            if ((remainingLeftIds.find(n.first) != remainingLeftIds.end() && remainingRightIds.find(n.first) == remainingRightIds.end()) || (n.second.Layer == 0.f) || (remainingRightIds.find(n.first) == remainingRightIds.end() && n.second.Layer == 1.f)) {
-//            if ((remainingLeftIds.contains(n.first) && !remainingRightIds.contains(n.first)) || (n.second.Layer == 0.f) || (!remainingRightIds.contains(n.first) && n.second.Layer == 1.f)) {
+            if ((remainingLeftIds.find(n.first) != remainingLeftIds.end() && remainingRightIds.find(n.first) == remainingRightIds.end()) || (n.second.Layer == 0.f) ||
+                (remainingRightIds.find(n.first) == remainingRightIds.end() && n.second.Layer == 1.f)) {
+                //            if ((remainingLeftIds.contains(n.first) && !remainingRightIds.contains(n.first)) || (n.second.Layer == 0.f) || (!remainingRightIds.contains(n.first) && n.second.Layer == 1.f)) {
                 nn.Neurons.push_back(n.second);
             }
         }
@@ -349,10 +352,10 @@ namespace znn {
         std::map<float, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
         for (auto &n : nn->Neurons) {
-//            if (tmpNeuronMap.find(n.Id) == tmpNeuronMap.end()) {
+            //            if (tmpNeuronMap.find(n.Id) == tmpNeuronMap.end()) {
             tmpNeuronMap[n.Id] = &n;
-//            }
-//            if (n.NNLayer > 0.f && n.NNLayer < 1.f && tmpLayerMap.find(n.NNLayer) == tmpLayerMap.end()) {
+            //            }
+            //            if (n.NNLayer > 0.f && n.NNLayer < 1.f && tmpLayerMap.find(n.NNLayer) == tmpLayerMap.end()) {
             tmpLayerMap[n.Layer].push_back(&n);
         }
 
@@ -364,11 +367,11 @@ namespace znn {
 
         std::map<uint, float> tmpNodesOutput;
 
-//        for (Neuron &n : nn.Neurons) { // 初始化输入节点
-//            if (n.NNLayer == 0.f) {
-//                tmpNodesOutput[n.Id] = inputs[n.Id];
-//            }
-//        }
+        //        for (Neuron &n : nn.Neurons) { // 初始化输入节点
+        //            if (n.NNLayer == 0.f) {
+        //                tmpNodesOutput[n.Id] = inputs[n.Id];
+        //            }
+        //        }
 
         std::function<void(uint)> calculateNeuron = [&](uint nid) {
             tmpNodesOutput[nid] = 0.f;
@@ -382,7 +385,7 @@ namespace znn {
 
         std::vector<float> outputs;
 
-//        if (!tmpLayerMap.empty()) {
+        //        if (!tmpLayerMap.empty()) {
         for (auto &l : tmpLayerMap) {    // 神经元根据layer排序
             for (auto &n : l.second) {
                 if (l.first == 0.f) {   // 初始化输入节点
@@ -390,22 +393,22 @@ namespace znn {
                     continue;
                 }
 
-//                if (tmpNeuronMap.find(n->Id) != tmpNeuronMap.end()) {   // 从本次临时神经元id对应的神经元记录中查询，确保id存在，避免多个神经网络混淆
+                //                if (tmpNeuronMap.find(n->Id) != tmpNeuronMap.end()) {   // 从本次临时神经元id对应的神经元记录中查询，确保id存在，避免多个神经网络混淆
                 calculateNeuron(n->Id);  // 计算隐藏神经元
-//                    }
+                //                    }
 
                 if (l.first == 1.f) {  // 计算输出神经元
                     outputs.push_back(tmpNodesOutput[n->Id]);
                 }
             }
         }
-//        }
+        //        }
 
-//        for (uint i = 0; i < Opts.OutputSize; ++i) {  // 计算输出神经元
-//            uint id = i + Opts.InputSize;
-//            calculateNeuron(id);
-//            outputs.push_back(tmpNodesOutput[id]);
-//        }
+        //        for (uint i = 0; i < Opts.OutputSize; ++i) {  // 计算输出神经元
+        //            uint id = i + Opts.InputSize;
+        //            calculateNeuron(id);
+        //            outputs.push_back(tmpNodesOutput[id]);
+        //        }
 
         return outputs;
     };
@@ -429,7 +432,7 @@ namespace znn {
                 ++outId;
             } else {
                 streamBias << std::setprecision(3) << n.Bias;
-//                line = "    subgraph cluster" + std::to_string(int(n.Layer * float(1000000000))) + "{" + std::to_string(n.Id) + " [fontsize=27,width=0,height=0,color=lightgreen,style=filled,shape=box,width=1,height=1,label=\"(" + streamBias.str() + ")\"]}\n";
+                //                line = "    subgraph cluster" + std::to_string(int(n.Layer * float(1000000000))) + "{" + std::to_string(n.Id) + " [fontsize=27,width=0,height=0,color=lightgreen,style=filled,shape=box,width=1,height=1,label=\"(" + streamBias.str() + ")\"]}\n";
                 line = "    " + std::to_string(n.Id) + " [fontsize=27,width=0,height=0,color=lightgreen,style=filled,shape=box,width=1,height=1,label=\"(" + streamBias.str() + ")\"]\n";
             }
             data += line;
@@ -532,7 +535,7 @@ namespace znn {
 
         uint inInnovMapSize = 0;
         for (auto &n : HiddenNeuronInnovations) {
-//            if (tmpIdMap.contains(n.second)) {
+            //            if (tmpIdMap.contains(n.second)) {
             if (tmpIdMap.find(n.second) != tmpIdMap.end()) {
                 ++inInnovMapSize;
             }
@@ -544,7 +547,7 @@ namespace znn {
             for (uint i = 0; i < Opts.InputSize - InputSize; ++i) {
                 newNeurons.push_back(Neuron{
                         .Id = uint(HiddenNeuronInnovations.size()) + OutputSize + InputSize + i + FCHidenNeuronSize,
-//                        .Bias = 1.f,
+                        //                        .Bias = 1.f,
                         .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100,
                         .Layer = 0.f,
                 });
@@ -555,7 +558,7 @@ namespace znn {
             for (uint i = 0; i < Opts.OutputSize - OutputSize; ++i) {
                 newNeurons.push_back(Neuron{
                         .Id = uint(HiddenNeuronInnovations.size()) + OutputSize + i + Opts.InputSize + FCHidenNeuronSize,
-//                        .Bias = 1.f,
+                        //                        .Bias = 1.f,
                         .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100,
                         .Layer = 1.f,
                 });
@@ -591,6 +594,170 @@ namespace znn {
         while (getline(input_file, line)) {
             auto datas = SplitString(line, ",");
             HiddenNeuronInnovations[{uint(std::stoi(datas[0])), uint(std::stoi(datas[1]))}] = uint(std::stoi(datas[2]));
+        }
+    }
+
+    struct lineInfo {
+        uint IdA;
+        uint IdB;
+        float R;
+        Color C;
+    };
+
+    std::map<uint, Vector3> NodeId2Pos;
+    std::map<uint, Color> NodId2Color;
+    std::vector<lineInfo> connectedNodesInfo;
+
+    void show3dNN() {
+        const int screenWidth = 1280;
+        const int screenHeight = 720;
+
+        SetConfigFlags(FLAG_MSAA_4X_HINT);
+        SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+
+        InitWindow(screenWidth, screenHeight, "SimpleNEAT NN");
+
+        // Define the camera to look into our 3d world
+        Camera3D camera = {0};
+        camera.position = (Vector3) {0.0f, 0.0f, 12.0f}; // Camera position
+        camera.target = (Vector3) {0.0f, 0.0f, 0.0f};      // Camera looking at point
+        camera.up = (Vector3) {0.0f, 1.0f, 0.0f};          // Camera up vector (rotation towards target)
+        camera.fovy = 60.0f;                                // Camera field-of-view Y
+        camera.projection = CAMERA_PERSPECTIVE;                   // Camera mode type
+
+        SetCameraMode(camera, CAMERA_FREE); // Set a free camera mode
+        SetCameraAltControl(KEY_LEFT_SHIFT);
+        SetCameraPanControl(MOUSE_BUTTON_RIGHT);
+
+        SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
+
+        srandom((unsigned) clock());
+
+        // Main game loop
+        while (!WindowShouldClose()) {     // Detect window close button or ESC key
+            // Update
+            //----------------------------------------------------------------------------------
+            UpdateCamera(&camera);
+
+            if (IsKeyDown('Z')) camera.target = (Vector3) {0.0f, 0.0f, 0.0f};
+            //----------------------------------------------------------------------------------
+
+            // Draw
+            //----------------------------------------------------------------------------------
+            BeginDrawing();
+            ClearBackground(BLACK);
+
+            BeginMode3D(camera);
+
+            //                DrawCubeV({1.f, 0.f, 0.f}, {0.03f, 0.03f, 0.03f}, RED);
+            //                DrawCubeV({0.f, 1.f, 0.f}, {0.03f, 0.03f, 0.03f}, YELLOW);
+            //                DrawCubeV({0.f, 0.f, 1.f}, {0.03f, 0.03f, 0.03f}, BLUE);
+            //
+            //                DrawLine3D({-1.f, 0.f, 0.f}, {1.f, 0.f, 0.f}, RED);
+            //                DrawLine3D({0.f, -1.f, 0.f}, {0.f, 1.f, 0.f}, YELLOW);
+            //                DrawLine3D({0.f, 0.f, -1.f}, {0.f, 0.f, 1.f}, BLUE);
+
+            for (auto &n : NodeId2Pos) {
+                DrawCubeV(n.second, {0.1f, 0.1f, 0.1f}, NodId2Color[n.first]);
+            }
+
+            for (auto &c : connectedNodesInfo) {
+                //                DrawLine3D(NodeId2Pos[c.IdA], NodeId2Pos[c.IdB], c.C);
+                DrawCylinderEx(NodeId2Pos[c.IdA], NodeId2Pos[c.IdB], c.R, c.R, 3, c.C);
+            }
+
+            EndMode3D();
+
+            DrawFPS(10, 10);
+            EndDrawing();
+            //----------------------------------------------------------------------------------
+        }
+
+        // De-Initialization
+        //--------------------------------------------------------------------------------------
+        CloseWindow();        // Close window and OpenGL context
+        //--------------------------------------------------------------------------------------
+    }
+
+    bool update3dLock = false;
+
+    void update3dNN(znn::NetworkGenome NN) {
+        znn::mtx.lock();
+        if (update3dLock) {
+            znn::mtx.unlock();
+        } else {
+            update3dLock = true;
+            znn::mtx.unlock();
+
+            std::map<float, std::vector<uint>> layer2Ids;
+
+            for (auto &n : NN.Neurons) {
+                layer2Ids[n.Layer].push_back(n.Id);
+            }
+
+            float setZyInterval = 1.f;
+            //    float setXInterval = 8.f / float(layer2Ids.size());
+            float setXInterval = 1.f;
+            float layerCount = 0;
+
+            NodeId2Pos.clear();
+            connectedNodesInfo.clear();
+
+            for (auto &l2i : layer2Ids) {
+                int rows = int(std::sqrt(float(l2i.second.size())));
+                int columns = int(l2i.second.size() / rows);
+                float startY = -float(rows - 1) * setZyInterval / 2.f;
+                float thisY = startY;
+                float startZ0 = -float(columns) * setZyInterval / 2.f;
+                float startZ1 = -float(columns - 1) * setZyInterval / 2.f;
+                float thisZ;
+                int reMainColumns = l2i.second.size() % rows;
+                int row = 0;
+
+                for (uint i = 0; i < l2i.second.size(); ++i) {
+                    if (l2i.first == 0.f) {
+                        NodId2Color[l2i.second[i]] = BLUE;
+                    } else if (l2i.first == 1.f) {
+                        NodId2Color[l2i.second[i]] = RED;
+                    } else {
+                        NodId2Color[l2i.second[i]] = YELLOW;
+                    }
+
+                    if (i % rows < reMainColumns && l2i.second.size() % rows != 0) {
+                        thisZ = startZ0 + setZyInterval * float(row);
+                    } else {
+                        thisZ = startZ1 + setZyInterval * float(row);
+                    }
+
+                    NodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * setXInterval / 2.f + (float(random() % 30) / 100.f - 0.15f) * setXInterval) + setXInterval * layerCount,
+                                                 thisY + (float(random() % 30) / 100.f - 0.15f) * setZyInterval, thisZ + (float(random() % 30) / 100.f - 0.15f) * setZyInterval};
+                    thisY += setZyInterval;
+
+                    if ((i + 1) % rows == 0) {
+                        thisY = startY;
+                        ++row;
+                    }
+                }
+                ++layerCount;
+            }
+
+            for (auto &conn : NN.Connections) {
+                if (conn.Enable) {
+                    if (conn.Weight > 0) {
+                        connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], conn.Weight * 0.0015f + 0.0001f, ColorAlpha(RED, 0.5f)});
+                    } else {
+                        connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], -conn.Weight * 0.0015f + 0.0001f, ColorAlpha(BLUE, 0.5f)});
+                    }
+                    //            } else {
+                    //                connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], 0.0001f, ColorAlpha(GRAY, 0.3f)});
+                }
+            }
+
+            std::this_thread::sleep_for(std::chrono::seconds (1));
+
+            znn::mtx.lock();
+            update3dLock = false;
+            znn::mtx.unlock();
         }
     }
 }

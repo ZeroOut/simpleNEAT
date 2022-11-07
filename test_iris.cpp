@@ -20,9 +20,10 @@ int main() {
     znn::Opts.BiasRange = 6;
     znn::Opts.MutateBiasRate = 1.f;
     znn::Opts.MutateWeightRate = 1.f;
+    znn::Opts.Enable3dNN = true;
 
     znn::SimpleNeat sneat;
-    sneat.Start();
+    sneat.StartNew();
 
     const std::vector<std::vector<float>> inputs = {
             {5.1f, 3.5f, 1.4f, 0.2f},
@@ -357,10 +358,6 @@ int main() {
         auto predict = sneat.population.generation.neuralNetwork.FeedForwardPredict(&best.NN, inputs[i]);
         std::cout << inputs[i][0] << " " << inputs[i][1] << inputs[i][2] << " " << inputs[i][3] << " [" << wanted[i][0] << " " << wanted[i][1] << " " << wanted[i][2] << "] " << predict[0] << " " << predict[1] << " " << predict[2] << std::endl;
     }
-
-//    znn::ExportNN(best.NN, "/tmp/xor00");
-//    znn::ExportInnovations("/tmp/xor00");
-//    znn::ExportNNToDot(best.NN, "/tmp/xxx00");
 
     return 0;
 }
