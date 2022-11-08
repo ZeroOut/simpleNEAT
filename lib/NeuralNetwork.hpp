@@ -755,9 +755,7 @@ namespace znn {
 
             std::this_thread::sleep_for(std::chrono::seconds (1));
 
-            znn::mtx.lock();
             update3dLock = false;
-            znn::mtx.unlock();
         }
     }
 }
