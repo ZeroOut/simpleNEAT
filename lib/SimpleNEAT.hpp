@@ -129,7 +129,7 @@ namespace znn {
         float lastFitness = 0.f;
 
         for (; rounds <= Opts.IterationTimes || Opts.IterationTimes <= 0; ++rounds) {
-//            srandom((unsigned) clock());
+            //            srandom((unsigned) clock());
 
             if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
                 lastFitness = populationFitness[orderedPopulation[0]];
@@ -151,16 +151,16 @@ namespace znn {
                 population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
 
                 if (Opts.Enable3dNN) {
-                    tPool.push_task([compressedRightBestNN]() {
+                    while (update3dLock) {
                         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                        update3dNN(compressedRightBestNN);
-                    });
+                    }
+                    update3dNN(compressedRightBestNN);   // TODO 幽灵方块bug
                 }
 
                 return BestOne{
                         .Gen = rounds,
                         .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
-//                        .NN = *orderedPopulation[0],
+                        //                        .NN = *orderedPopulation[0],
                         .Fit = populationFitness[orderedPopulation[0]],
                 };
             }
@@ -197,7 +197,7 @@ namespace znn {
                         }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
                         auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
-//                        auto nn1 = orderedPopulation[random() % Opts.ChampionKeepSize];
+                        //                        auto nn1 = orderedPopulation[random() % Opts.ChampionKeepSize];
                         auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
                         nn = population.generation.GetChildByCrossing(nn0, nn1);
                         if ((index % 2 == 0 || nn0 == nn1) && nn0->Neurons.size() < orderedByComplex[0]->Neurons.size() && nn1->Neurons.size() < orderedByComplex[0]->Neurons.size()) {
@@ -301,10 +301,10 @@ namespace znn {
                 population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
 
                 if (Opts.Enable3dNN) {
-                    tPool.push_task([compressedRightBestNN]() {
+                    while (update3dLock) {
                         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                        update3dNN(compressedRightBestNN);
-                    });
+                    }
+                    update3dNN(compressedRightBestNN);   // TODO 幽灵方块bug
                 }
 
                 return BestOne{
@@ -448,10 +448,10 @@ namespace znn {
                 population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
 
                 if (Opts.Enable3dNN) {
-                    tPool.push_task([compressedRightBestNN]() {
+                    while (update3dLock) {
                         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                        update3dNN(compressedRightBestNN);
-                    });
+                    }
+                    update3dNN(compressedRightBestNN);   // TODO 幽灵方块bug
                 }
 
                 return BestOne{

@@ -204,16 +204,16 @@ namespace znn {
             remainingRightIds.clear();
             removeIds.clear();
 
-            for (auto &n : nn.Connections) {
-                remainingRightIds[n.ConnectedNeuronId[1]].push_back(&n);   // 添加所有连接右边的神经元id
+            for (auto &c : nn.Connections) {
+                remainingRightIds[c.ConnectedNeuronId[1]].push_back(&c);   // 添加所有连接右边的神经元id
             }
 
-            for (auto &n : nn.Connections) {
-                if (remainingRightIds.find(n.ConnectedNeuronId[0]) != remainingRightIds.end() || tmpNeuronMap[n.ConnectedNeuronId[0]].Layer == 0.f) {  // c++17
+            for (auto &c : nn.Connections) {
+                if (remainingRightIds.find(c.ConnectedNeuronId[0]) != remainingRightIds.end() || tmpNeuronMap[c.ConnectedNeuronId[0]].Layer == 0.f) {  // c++17
                     //if (remainingRightIds.contains(n.ConnectedNeuronId[0]) || tmpNeuronMap[n.ConnectedNeuronId[0]].Layer == 0.f) {   // c++20
-                    remainingLeftIds[n.ConnectedNeuronId[0]].push_back(&n);  // 添加所左边的神经元id（可作为另外一条连接的右边神经元）(左边还有连接)
+                    remainingLeftIds[c.ConnectedNeuronId[0]].push_back(&c);  // 添加所左边的神经元id（可作为另外一条连接的右边神经元）(左边还有连接)
                 } else {
-                    removeIds[n.ConnectedNeuronId[0]].push_back(&n);
+                    removeIds[c.ConnectedNeuronId[0]].push_back(&c);
                 }
             }
 
@@ -245,9 +245,7 @@ namespace znn {
         }
 
         for (auto &n : tmpNeuronMap) {
-            if ((remainingLeftIds.find(n.first) == remainingLeftIds.end() && n.second.Layer == 0.f) || (remainingRightIds.find(n.first) == remainingRightIds.end() && n.second.Layer == 1.f) ||
-                (n.second.Layer == 1.f)) {
-                //            if ((!remainingLeftIds.contains(n.first) && n.second.Layer == 0.f) || (remainingRightIds.contains(n.first) && n.second.Layer == 1.f) || (n.second.Layer == 1.f)) {
+            if (n.second.Layer == 1.f) {
                 nn.Neurons.push_back(n.second);
             }
         }
@@ -269,15 +267,15 @@ namespace znn {
             remainingLeftIds.clear();
             remainingRightIds.clear();
 
-            for (auto &n : nn.Connections) {
-                remainingLeftIds[n.ConnectedNeuronId[0]].push_back(&n);   // 添加所有连接左边的神经元id
+            for (auto &c : nn.Connections) {
+                remainingLeftIds[c.ConnectedNeuronId[0]].push_back(&c);   // 添加所有连接左边的神经元id
             }
 
 
-            for (auto &n : nn.Connections) {
-                if (remainingLeftIds.find(n.ConnectedNeuronId[1]) != remainingLeftIds.end() || tmpNeuronMap[n.ConnectedNeuronId[1]].Layer == 1.f) {
+            for (auto &c : nn.Connections) {
+                if (remainingLeftIds.find(c.ConnectedNeuronId[1]) != remainingLeftIds.end() || tmpNeuronMap[c.ConnectedNeuronId[1]].Layer == 1.f) {
                     //                if (remainingLeftIds.contains(n.ConnectedNeuronId[1]) || tmpNeuronMap[n.ConnectedNeuronId[1]].Layer == 1.f) {
-                    remainingRightIds[n.ConnectedNeuronId[1]].push_back(&n);  // 添加所右边的神经元id（可作为另外一条连接的左边神经元）(右边还有连接)
+                    remainingRightIds[c.ConnectedNeuronId[1]].push_back(&c);  // 添加所右边的神经元id（可作为另外一条连接的左边神经元）(右边还有连接)
                 } else {
                     isFinished = false;
                 }
@@ -304,9 +302,7 @@ namespace znn {
         }
 
         for (auto &n : tmpNeuronMap) {
-            if ((remainingLeftIds.find(n.first) != remainingLeftIds.end() && remainingRightIds.find(n.first) == remainingRightIds.end()) || (n.second.Layer == 0.f) ||
-                (remainingRightIds.find(n.first) == remainingRightIds.end() && n.second.Layer == 1.f)) {
-                //            if ((remainingLeftIds.contains(n.first) && !remainingRightIds.contains(n.first)) || (n.second.Layer == 0.f) || (!remainingRightIds.contains(n.first) && n.second.Layer == 1.f)) {
+            if (n.second.Layer == 0.f) {
                 nn.Neurons.push_back(n.second);
             }
         }
@@ -718,15 +714,15 @@ namespace znn {
                 NodeId2Pos.clear();
 
                 for (auto &l2i : layer2Ids) {
-                    int rows = int(std::sqrt(float(l2i.second.size())));
-                    int columns = int(l2i.second.size() / rows);
+                    uint rows = int(std::sqrt(float(l2i.second.size())));
+                    uint columns = int(l2i.second.size() / rows);
                     float startY = -float(rows - 1) * Opts.Zy_Interval3d / 2.f;
                     float thisY = startY;
                     float startZ0 = -float(columns) * Opts.Zy_Interval3d / 2.f;
                     float startZ1 = -float(columns - 1) * Opts.Zy_Interval3d / 2.f;
                     float thisZ;
-                    int reMainColumns = l2i.second.size() % rows;
-                    int row = 0;
+                    uint reMainColumns = l2i.second.size() % rows;
+                    uint row = 0;
 
                     for (uint i = 0; i < l2i.second.size(); ++i) {
                         if (l2i.first == 0.f) {
@@ -745,6 +741,7 @@ namespace znn {
 
                         NodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f + (float(random() % 30) / 100.f - 0.15f) * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount,
                                                      thisY + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d, thisZ + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d};
+
                         thisY += Opts.Zy_Interval3d;
 
                         if ((i + 1) % rows == 0) {
