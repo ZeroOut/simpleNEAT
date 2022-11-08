@@ -713,9 +713,6 @@ namespace znn {
                     layer2Ids[n.Layer].push_back(n.Id);
                 }
 
-                float setZyInterval = 1.f;
-//                    float setXInterval = 8.f / float(layer2Ids.size());
-                float setXInterval = 1.f;
                 float layerCount = 0;
 
                 NodeId2Pos.clear();
@@ -723,10 +720,10 @@ namespace znn {
                 for (auto &l2i : layer2Ids) {
                     int rows = int(std::sqrt(float(l2i.second.size())));
                     int columns = int(l2i.second.size() / rows);
-                    float startY = -float(rows - 1) * setZyInterval / 2.f;
+                    float startY = -float(rows - 1) * Opts.Zy_Interval3d / 2.f;
                     float thisY = startY;
-                    float startZ0 = -float(columns) * setZyInterval / 2.f;
-                    float startZ1 = -float(columns - 1) * setZyInterval / 2.f;
+                    float startZ0 = -float(columns) * Opts.Zy_Interval3d / 2.f;
+                    float startZ1 = -float(columns - 1) * Opts.Zy_Interval3d / 2.f;
                     float thisZ;
                     int reMainColumns = l2i.second.size() % rows;
                     int row = 0;
@@ -741,14 +738,14 @@ namespace znn {
                         }
 
                         if (i % rows < reMainColumns && l2i.second.size() % rows != 0) {
-                            thisZ = startZ0 + setZyInterval * float(row);
+                            thisZ = startZ0 + Opts.Zy_Interval3d * float(row);
                         } else {
-                            thisZ = startZ1 + setZyInterval * float(row);
+                            thisZ = startZ1 + Opts.Zy_Interval3d * float(row);
                         }
 
-                        NodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * setXInterval / 2.f + (float(random() % 30) / 100.f - 0.15f) * setXInterval) + setXInterval * layerCount,
-                                                     thisY + (float(random() % 30) / 100.f - 0.15f) * setZyInterval, thisZ + (float(random() % 30) / 100.f - 0.15f) * setZyInterval};
-                        thisY += setZyInterval;
+                        NodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f + (float(random() % 30) / 100.f - 0.15f) * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount,
+                                                     thisY + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d, thisZ + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d};
+                        thisY += Opts.Zy_Interval3d;
 
                         if ((i + 1) % rows == 0) {
                             thisY = startY;

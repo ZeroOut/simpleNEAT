@@ -39,6 +39,8 @@ namespace znn {
         float LearnRate = 0.3f;
         uint ThreadCount = std::thread::hardware_concurrency();
         bool Enable3dNN = false;
+        float X_Interval3d = 1.f;
+        float Zy_Interval3d = 1.f;
     };
 
     static Option Opts;
