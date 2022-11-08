@@ -680,66 +680,86 @@ namespace znn {
     }
 
     bool update3dLock = false;
+    NetworkGenome last3dNN;
 
-    void update3dNN(znn::NetworkGenome NN) {
-        znn::mtx.lock();
+    bool isLast3dNN(NetworkGenome &NN) {
+        if (NN.Neurons.size() != last3dNN.Neurons.size()) {
+            last3dNN = NN;
+            return false;
+        }
+
+        for (uint i = 0; i < NN.Neurons.size(); ++i) {
+            if (NN.Neurons[i].Id != last3dNN.Neurons[i].Id) {
+                last3dNN = NN;
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    void update3dNN(NetworkGenome NN) {
+        mtx.lock();
         if (update3dLock) {
-            znn::mtx.unlock();
+            mtx.unlock();
         } else {
             update3dLock = true;
-            znn::mtx.unlock();
+            mtx.unlock();
 
-            std::map<float, std::vector<uint>> layer2Ids;
+            if (!isLast3dNN(NN)) {
+                std::map<float, std::vector<uint>> layer2Ids;
 
-            for (auto &n : NN.Neurons) {
-                layer2Ids[n.Layer].push_back(n.Id);
-            }
-
-            float setZyInterval = 1.f;
-            //    float setXInterval = 8.f / float(layer2Ids.size());
-            float setXInterval = 1.f;
-            float layerCount = 0;
-
-            NodeId2Pos.clear();
-            connectedNodesInfo.clear();
-
-            for (auto &l2i : layer2Ids) {
-                int rows = int(std::sqrt(float(l2i.second.size())));
-                int columns = int(l2i.second.size() / rows);
-                float startY = -float(rows - 1) * setZyInterval / 2.f;
-                float thisY = startY;
-                float startZ0 = -float(columns) * setZyInterval / 2.f;
-                float startZ1 = -float(columns - 1) * setZyInterval / 2.f;
-                float thisZ;
-                int reMainColumns = l2i.second.size() % rows;
-                int row = 0;
-
-                for (uint i = 0; i < l2i.second.size(); ++i) {
-                    if (l2i.first == 0.f) {
-                        NodId2Color[l2i.second[i]] = BLUE;
-                    } else if (l2i.first == 1.f) {
-                        NodId2Color[l2i.second[i]] = RED;
-                    } else {
-                        NodId2Color[l2i.second[i]] = YELLOW;
-                    }
-
-                    if (i % rows < reMainColumns && l2i.second.size() % rows != 0) {
-                        thisZ = startZ0 + setZyInterval * float(row);
-                    } else {
-                        thisZ = startZ1 + setZyInterval * float(row);
-                    }
-
-                    NodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * setXInterval / 2.f + (float(random() % 30) / 100.f - 0.15f) * setXInterval) + setXInterval * layerCount,
-                                                 thisY + (float(random() % 30) / 100.f - 0.15f) * setZyInterval, thisZ + (float(random() % 30) / 100.f - 0.15f) * setZyInterval};
-                    thisY += setZyInterval;
-
-                    if ((i + 1) % rows == 0) {
-                        thisY = startY;
-                        ++row;
-                    }
+                for (auto &n : NN.Neurons) {
+                    layer2Ids[n.Layer].push_back(n.Id);
                 }
-                ++layerCount;
+
+                float setZyInterval = 1.f;
+//                    float setXInterval = 8.f / float(layer2Ids.size());
+                float setXInterval = 1.f;
+                float layerCount = 0;
+
+                NodeId2Pos.clear();
+
+                for (auto &l2i : layer2Ids) {
+                    int rows = int(std::sqrt(float(l2i.second.size())));
+                    int columns = int(l2i.second.size() / rows);
+                    float startY = -float(rows - 1) * setZyInterval / 2.f;
+                    float thisY = startY;
+                    float startZ0 = -float(columns) * setZyInterval / 2.f;
+                    float startZ1 = -float(columns - 1) * setZyInterval / 2.f;
+                    float thisZ;
+                    int reMainColumns = l2i.second.size() % rows;
+                    int row = 0;
+
+                    for (uint i = 0; i < l2i.second.size(); ++i) {
+                        if (l2i.first == 0.f) {
+                            NodId2Color[l2i.second[i]] = BLUE;
+                        } else if (l2i.first == 1.f) {
+                            NodId2Color[l2i.second[i]] = RED;
+                        } else {
+                            NodId2Color[l2i.second[i]] = YELLOW;
+                        }
+
+                        if (i % rows < reMainColumns && l2i.second.size() % rows != 0) {
+                            thisZ = startZ0 + setZyInterval * float(row);
+                        } else {
+                            thisZ = startZ1 + setZyInterval * float(row);
+                        }
+
+                        NodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * setXInterval / 2.f + (float(random() % 30) / 100.f - 0.15f) * setXInterval) + setXInterval * layerCount,
+                                                     thisY + (float(random() % 30) / 100.f - 0.15f) * setZyInterval, thisZ + (float(random() % 30) / 100.f - 0.15f) * setZyInterval};
+                        thisY += setZyInterval;
+
+                        if ((i + 1) % rows == 0) {
+                            thisY = startY;
+                            ++row;
+                        }
+                    }
+                    ++layerCount;
+                }
             }
+
+            connectedNodesInfo.clear();
 
             for (auto &conn : NN.Connections) {
                 if (conn.Enable) {
@@ -753,7 +773,7 @@ namespace znn {
                 }
             }
 
-            std::this_thread::sleep_for(std::chrono::seconds (1));
+            std::this_thread::sleep_for(std::chrono::seconds(1));
 
             update3dLock = false;
         }
