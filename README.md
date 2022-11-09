@@ -4,11 +4,12 @@
 * 两位博士 `Kenneth O. Stanley` 和 `Risto Miikkulainen` [论文链接](https://nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf)
 * 接触是从 [莫烦PYTHON](https://mofanpy.com/)
 * 线程池用的 [BS_thread_pool](https://github.com/bshoshany/thread-pool/blob/master/BS_thread_pool.hpp)
-* 一时想不起来还有哪些，感谢各路大神提供灵感...
+* 3D显示用的 `raylib`
+* 待补充...
 
 ## 描述
-* 完全为了好玩（不然就用现有的框架了），试着用 `C++` 简单实现 `NEAT` 算法，还没有写种群。
-* 没有做过程序员，所以写得烂。
+* JSF，试着用 `C++` 简单实现 `NEAT` 算法，还没有写种群。
+* 没有做过程序员，而且感觉 `C++` 是真的难，实在不会用高级写法。
 
 ### 实验
 
@@ -50,7 +51,7 @@ predict:
 `Fitness` 达到 `0.979` 的神经网络有 `18` 个神经元和 `111` 条神经连接:
 ![image](https://user-images.githubusercontent.com/19900527/183610656-188c724e-5b41-4df4-8b3d-54ff73c88e5d.png)
 
-实时显示神经网络结构
+raylib 实时显示神经网络结构
 ![image](https://user-images.githubusercontent.com/19900527/200239416-576b786c-e0af-466f-9810-0d72cdfdf612.png)
 
 #### 基于 `sfml` 的分类实验（test_classification_sfml.cpp）
