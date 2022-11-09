@@ -87,16 +87,16 @@ namespace znn {
     }
 
     bool cmpf(std::pair<NetworkGenome *, float> &a, std::pair<NetworkGenome *, float> &b) {
-        return a.second > b.second;  // 从大到小排列
+        return a.second > b.second;// 从大到小排列
     }
 
     std::vector<NetworkGenome *> SimpleNeat::OrderByFitness(std::map<NetworkGenome *, float> &M) {  // Comparator function to sort pairs according to second value
         std::vector<NetworkGenome *> result;
-        std::vector<std::pair<NetworkGenome *, float> > A;  // Declare vector of pairs
+        std::vector<std::pair<NetworkGenome *, float> > A;// Declare vector of pairs
         for (auto &it : M) {  // Copy key-value pair from Map to vector of pairs
             A.push_back(it);
         }
-        std::sort(A.begin(), A.end(), cmpf);  // Sort using comparator function
+        std::sort(A.begin(), A.end(), cmpf);// Sort using comparator function
         for (auto &it : A) {
             result.push_back(it.first);
         }
@@ -104,16 +104,16 @@ namespace znn {
     }
 
     bool cmpc(std::pair<NetworkGenome *, uint> &a, std::pair<NetworkGenome *, uint> &b) {
-        return a.second > b.second;  // 从大到小排列
+        return a.second > b.second;// 从大到小排列
     }
 
     std::vector<NetworkGenome *> SimpleNeat::OrderByComplex() {  // Comparator function to sort pairs according to second value
         std::vector<NetworkGenome *> result;
-        std::vector<std::pair<NetworkGenome *, uint> > A;  // Declare vector of pairs
+        std::vector<std::pair<NetworkGenome *, uint> > A;// Declare vector of pairs
         for (auto &it : population.NeuralNetworks) {  // Copy key-value pair from Map to vector of pairs
             A.push_back(std::pair{&it, it.Connections.size()});
         }
-        std::sort(A.begin(), A.end(), cmpc);  // Sort using comparator function
+        std::sort(A.begin(), A.end(), cmpc);// Sort using comparator function
         for (auto &it : A) {
             result.push_back(it.first);
         }
@@ -154,7 +154,8 @@ namespace znn {
                     while (update3dLock) {
                         std::this_thread::sleep_for(std::chrono::milliseconds(100));
                     }
-                    update3dNN(compressedRightBestNN);   // TODO 幽灵方块bug
+                    update3dNN(compressedRightBestNN);
+                    std::cout << "需保持主线程不退出,防止3d显示bug\n";
                 }
 
                 return BestOne{
@@ -175,7 +176,7 @@ namespace znn {
             }
 
             std::vector<NetworkGenome> tmpPopulation(Opts.PopulationSize);
-            std::vector<std::future<void>> thisFuture;  // 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
+            std::vector<std::future<void>> thisFuture;// 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
 
             uint indexOutside = 0;
             for (auto &nn : tmpPopulation) {
@@ -186,14 +187,14 @@ namespace znn {
                     mtx.unlock();
 
                     if (index < Opts.ChampionToNewSize) {
-                        nn = *orderedPopulation[index % Opts.ChampionKeepSize];  // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
+                        nn = *orderedPopulation[index % Opts.ChampionKeepSize];// 选取ChampionKeepSize个个体填满前ChampionToNewSize个
                         if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
                             for (uint i = 0; i < inputs.size(); ++i) {  // 保留的冠军一份副本全部进行反向传播更新weight和bias
                                 population.generation.BackPropagation(&nn, inputs[i], wantedOutputs[i]);
                             }
                         }
                         if (index >= Opts.ChampionKeepSize * 2) {
-                            population.generation.MutateNetworkGenome(nn);  // 除开原始冠军，他们的克隆体进行变异
+                            population.generation.MutateNetworkGenome(nn);// 除开原始冠军，他们的克隆体进行变异
                         }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
                         auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
@@ -201,7 +202,7 @@ namespace znn {
                         auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
                         nn = population.generation.GetChildByCrossing(nn0, nn1);
                         if ((index % 2 == 0 || nn0 == nn1) && nn0->Neurons.size() < orderedByComplex[0]->Neurons.size() && nn1->Neurons.size() < orderedByComplex[0]->Neurons.size()) {
-                            population.generation.MutateNetworkGenome(nn);  // 繁殖以后进行变异
+                            population.generation.MutateNetworkGenome(nn);// 繁殖以后进行变异
                         }
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
                         nn = population.generation.neuralNetwork.NewNN();
@@ -219,7 +220,6 @@ namespace znn {
                 f.wait();
             }
 
-            // if (Opts.Enable3dNN && rounds % 20 == 0) {
             if (Opts.Enable3dNN) {
                 tPool.push_task([&]() {
                     update3dNN(*orderedPopulation[0]);
@@ -247,6 +247,10 @@ namespace znn {
 
         population.generation.neuralNetwork.ExportNN(compressedRightBestNN, "./champion");
         population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
+
+        if (Opts.Enable3dNN) {
+            std::cout << "需保持主线程不退出,防止3d显示bug\n";
+        }
 
         return BestOne{
                 .Gen = rounds,
@@ -304,7 +308,8 @@ namespace znn {
                     while (update3dLock) {
                         std::this_thread::sleep_for(std::chrono::milliseconds(100));
                     }
-                    update3dNN(compressedRightBestNN);   // TODO 幽灵方块bug
+                    update3dNN(compressedRightBestNN);
+                    std::cout << "需保持主线程不退出,防止3d显示bug\n";
                 }
 
                 return BestOne{
@@ -325,7 +330,7 @@ namespace znn {
             }
 
             std::vector<NetworkGenome> tmpPopulation(Opts.PopulationSize);
-            std::vector<std::future<void>> thisFuture;  // 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
+            std::vector<std::future<void>> thisFuture;// 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
 
             uint indexOutside = 0;
             for (auto &nn : tmpPopulation) {
@@ -336,21 +341,21 @@ namespace znn {
                     mtx.unlock();
 
                     if (index < Opts.ChampionToNewSize) {
-                        nn = *orderedPopulation[index % Opts.ChampionKeepSize];  // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
+                        nn = *orderedPopulation[index % Opts.ChampionKeepSize];// 选取ChampionKeepSize个个体填满前ChampionToNewSize个
                         if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
                             for (uint i = 0; i < inputs.size(); ++i) {  // 保留的冠军一份副本全部进行反向传播更新weight和bias
                                 population.generation.BackPropagation(&nn, inputs[i], wantedOutputs[i]);
                             }
                         }
                         if (index >= Opts.ChampionKeepSize * 2) {
-                            population.generation.MutateNetworkGenome(nn);  // 除开原始冠军，他们的克隆体进行变异
+                            population.generation.MutateNetworkGenome(nn);// 除开原始冠军，他们的克隆体进行变异
                         }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
                         auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
                         auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
                         nn = population.generation.GetChildByCrossing(nn0, nn1);
                         if ((index % 2 == 0 || nn0 == nn1) && nn0->Neurons.size() < orderedByComplex[0]->Neurons.size() && nn1->Neurons.size() < orderedByComplex[0]->Neurons.size()) {
-                            population.generation.MutateNetworkGenome(nn);  // 繁殖以后进行变异
+                            population.generation.MutateNetworkGenome(nn);// 繁殖以后进行变异
                         }
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
                         nn = population.generation.neuralNetwork.NewNN();
@@ -368,7 +373,7 @@ namespace znn {
                 f.wait();
             }
 
-            // if (Opts.Enable3dNN && rounds % 20 == 0) {
+
             if (Opts.Enable3dNN) {
                 tPool.push_task([&]() {
                     update3dNN(*orderedPopulation[0]);
@@ -406,6 +411,10 @@ namespace znn {
 
         population.generation.neuralNetwork.ExportNN(compressedRightBestNN, "./champion");
         population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
+
+        if (Opts.Enable3dNN) {
+            std::cout << "需保持主线程不退出,防止3d显示bug\n";
+        }
 
         return BestOne{
                 .Gen = rounds,
@@ -451,7 +460,8 @@ namespace znn {
                     while (update3dLock) {
                         std::this_thread::sleep_for(std::chrono::milliseconds(100));
                     }
-                    update3dNN(compressedRightBestNN);   // TODO 幽灵方块bug
+                    update3dNN(compressedRightBestNN);
+                    std::cout << "需保持主线程不退出,防止3d显示bug\n";
                 }
 
                 return BestOne{
@@ -472,7 +482,7 @@ namespace znn {
             }
 
             std::vector<NetworkGenome> tmpPopulation(Opts.PopulationSize);
-            std::vector<std::future<void>> thisFuture;  // 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
+            std::vector<std::future<void>> thisFuture;// 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
 
             uint indexOutside = 0;
             for (auto &nn : tmpPopulation) {
@@ -483,7 +493,7 @@ namespace znn {
                     mtx.unlock();
 
                     if (index < Opts.ChampionToNewSize) {
-                        nn = *orderedPopulation[index % Opts.ChampionKeepSize];  // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
+                        nn = *orderedPopulation[index % Opts.ChampionKeepSize];// 选取ChampionKeepSize个个体填满前ChampionToNewSize个
                         if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
                             for (uint i = 0; i < inputs.size(); ++i) {  // 保留的冠军一份副本互相交配
                                 auto nn0 = orderedPopulation[Opts.ChampionKeepSize % (index - (random() % (Opts.ChampionKeepSize - 1)))];
@@ -491,7 +501,7 @@ namespace znn {
                             }
                         }
                         if (index >= Opts.ChampionKeepSize * 2) {
-                            population.generation.MutateNetworkGenome(nn);  // 除开原始冠军，他们的克隆体进行变异
+                            population.generation.MutateNetworkGenome(nn);// 除开原始冠军，他们的克隆体进行变异
                         }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
                         auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
@@ -499,7 +509,7 @@ namespace znn {
                         auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
                         nn = population.generation.GetChildByCrossing(nn0, nn1);
                         if ((index % 2 == 0 || nn0 == nn1) && nn0->Neurons.size() < orderedByComplex[0]->Neurons.size() && nn1->Neurons.size() < orderedByComplex[0]->Neurons.size()) {
-                            population.generation.MutateNetworkGenome(nn);  // 繁殖以后进行变异
+                            population.generation.MutateNetworkGenome(nn);// 繁殖以后进行变异
                         }
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
                         nn = population.generation.neuralNetwork.NewNN();
@@ -517,7 +527,6 @@ namespace znn {
                 f.wait();
             }
 
-            // if (Opts.Enable3dNN && rounds % 20 == 0) {
             if (Opts.Enable3dNN) {
                 tPool.push_task([&]() {
                     update3dNN(*orderedPopulation[0]);
@@ -546,6 +555,10 @@ namespace znn {
 
         population.generation.neuralNetwork.ExportNN(compressedRightBestNN, "./champion");
         population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
+
+        if (Opts.Enable3dNN) {
+            std::cout << "需保持主线程不退出,防止3d显示bug\n";
+        }
 
         return BestOne{
                 .Gen = rounds,
