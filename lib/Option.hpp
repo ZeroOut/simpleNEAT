@@ -41,6 +41,7 @@ namespace znn {
         bool Enable3dNN = false;
         float X_Interval3d = 1.f;
         float Zy_Interval3d = 1.f;
+        bool Enable3dRandPos = true;
     };
 
     static Option Opts;

@@ -604,7 +604,7 @@ namespace znn {
     std::map<uint, Color> NodId2Color;
     std::vector<lineInfo> connectedNodesInfo;
 
-    void show3dNN() {
+    void Show3dNN() {
         const int screenWidth = 1280;
         const int screenHeight = 720;
 
@@ -694,7 +694,7 @@ namespace znn {
         return true;
     };
 
-    void update3dNN(NetworkGenome NN) {
+    void Update3dNN(NetworkGenome NN) {
         mtx.lock();
         if (update3dLock) {
             mtx.unlock();
@@ -739,8 +739,11 @@ namespace znn {
                             thisZ = startZ1 + Opts.Zy_Interval3d * float(row);
                         }
 
-                        NodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f + (float(random() % 30) / 100.f - 0.15f) * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount,
-                                                     thisY + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d, thisZ + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d};
+                        if (Opts.Enable3dRandPos) {
+                            NodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f + (float(random() % 30) / 100.f - 0.15f) * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount, thisY + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d, thisZ + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d};
+                        } else {
+                            NodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, thisY, thisZ};
+                        }
 
                         thisY += Opts.Zy_Interval3d;
 

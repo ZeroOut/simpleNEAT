@@ -58,7 +58,7 @@ namespace znn {
         srandom((unsigned) clock());
 
         if (Opts.Enable3dNN) {
-            tPool.push_task(show3dNN);
+            tPool.push_task(Show3dNN);
         }
     }
 
@@ -154,7 +154,7 @@ namespace znn {
                     while (update3dLock) {
                         std::this_thread::sleep_for(std::chrono::milliseconds(100));
                     }
-                    update3dNN(compressedRightBestNN);
+                    Update3dNN(compressedRightBestNN);
                     std::cout << "需保持主线程不退出,防止3d显示bug\n";
                 }
 
@@ -222,7 +222,7 @@ namespace znn {
 
             if (Opts.Enable3dNN) {
                 tPool.push_task([&]() {
-                    update3dNN(*orderedPopulation[0]);
+                    Update3dNN(*orderedPopulation[0]);
                 });
             }
 
@@ -308,7 +308,7 @@ namespace znn {
                     while (update3dLock) {
                         std::this_thread::sleep_for(std::chrono::milliseconds(100));
                     }
-                    update3dNN(compressedRightBestNN);
+                    Update3dNN(compressedRightBestNN);
                     std::cout << "需保持主线程不退出,防止3d显示bug\n";
                 }
 
@@ -376,7 +376,7 @@ namespace znn {
 
             if (Opts.Enable3dNN) {
                 tPool.push_task([&]() {
-                    update3dNN(*orderedPopulation[0]);
+                    Update3dNN(*orderedPopulation[0]);
                 });
             }
 
@@ -424,8 +424,7 @@ namespace znn {
         };
     }
 
-    BestOne SimpleNeat::TrainByInteractive(const std::function<std::vector<std::vector<float>>()> &inputFunc,
-                                           const std::function<std::map<NetworkGenome *, float>(std::vector<std::vector<float>>)> &fitnessFunc, const std::function<bool()> &isBreakFunc) {
+    BestOne SimpleNeat::TrainByInteractive(const std::function<std::vector<std::vector<float>>()> &inputFunc, const std::function<std::map<NetworkGenome *, float>(std::vector<std::vector<float>>)> &fitnessFunc, const std::function<bool()> &isBreakFunc) {
         auto inputs = inputFunc();
         auto populationFitness = fitnessFunc(inputs);
         auto orderedPopulation = OrderByFitness(populationFitness);
@@ -460,7 +459,7 @@ namespace znn {
                     while (update3dLock) {
                         std::this_thread::sleep_for(std::chrono::milliseconds(100));
                     }
-                    update3dNN(compressedRightBestNN);
+                    Update3dNN(compressedRightBestNN);
                     std::cout << "需保持主线程不退出,防止3d显示bug\n";
                 }
 
@@ -529,7 +528,7 @@ namespace znn {
 
             if (Opts.Enable3dNN) {
                 tPool.push_task([&]() {
-                    update3dNN(*orderedPopulation[0]);
+                    Update3dNN(*orderedPopulation[0]);
                 });
             }
 
