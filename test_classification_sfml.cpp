@@ -45,23 +45,25 @@ int main() {
         znn::Opts.OutputSize = outputLen;
         znn::Opts.ActiveFunction = znn::Sigmoid;
         znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
-        //    znn::Opts.IterationTimes = 3000;
+        znn::Opts.IterationTimes = 0;
         znn::Opts.FitnessThreshold = 0.999f;
         znn::Opts.IterationCheckPoint = 0;
 //        znn::Opts.ThreadCount = 16;
-//        znn::Opts.MutateAddNeuronRate = 0.5f;
+        znn::Opts.MutateAddNeuronRate = 0.1f;
         znn::Opts.MutateAddConnectionRate = 0.99f;
-        znn::Opts.PopulationSize = 300;
-        znn::Opts.ChampionKeepSize = 30;
-        znn::Opts.NewSize = 10;
+        znn::Opts.PopulationSize = 16;
+        znn::Opts.ChampionKeepSize = 1;
+        znn::Opts.NewSize = 0;
         znn::Opts.KeepWorstSize = 0;
-        znn::Opts.ChampionToNewSize = 90;
-        znn::Opts.KeepComplexSize = 30;
+        znn::Opts.ChampionToNewSize = 3;
+        znn::Opts.KeepComplexSize = 1;
         znn::Opts.WeightRange = 16.f;
         znn::Opts.BiasRange = 8.f;
         znn::Opts.MutateWeightDirectOrNear = 0.36f;
         znn::Opts.MutateWeightNearRange = 6;
         znn::Opts.MutateBiasDirectOrNear = 0.36f;
+        znn::Opts.Enable3dNN = true;
+        znn::Opts.X_Interval3d = 0.3f;
 
         sneat.StartNew();
 
@@ -244,6 +246,7 @@ int main() {
             for (int cc = 0; cc < 32; ++cc) {
                 auto best = singleFromLoop();
                 bestNN = best.nn;
+                znn::tPool.push_task(znn::Update3dNN, best.nn);
                 if (best.isOver) {
                     break;
                 }
