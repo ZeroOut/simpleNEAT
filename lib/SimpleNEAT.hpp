@@ -33,9 +33,7 @@ namespace znn {
 
         std::vector<NetworkGenome *> OrderByComplex();
 
-        BestOne
-        TrainByInteractive(const std::function<std::vector<std::vector<float>>()> &inputFunc, const std::function<std::map<NetworkGenome *, float>(std::vector<std::vector<float>>)> &fitnessFunc,
-                           const std::function<bool()> &isBreakFunc);
+        BestOne TrainByInteractive(const std::function<std::map<NetworkGenome *, float>()> &interactiveFunc, const std::function<bool()> &isBreakFunc);
     };
 
 
@@ -424,9 +422,8 @@ namespace znn {
         };
     }
 
-    BestOne SimpleNeat::TrainByInteractive(const std::function<std::vector<std::vector<float>>()> &inputFunc, const std::function<std::map<NetworkGenome *, float>(std::vector<std::vector<float>>)> &fitnessFunc, const std::function<bool()> &isBreakFunc) {
-        auto inputs = inputFunc();
-        auto populationFitness = fitnessFunc(inputs);
+    BestOne SimpleNeat::TrainByInteractive(const std::function<std::map<NetworkGenome *, float>()> &interactiveFunc, const std::function<bool()> &isBreakFunc) {
+        auto populationFitness = interactiveFunc();
         auto orderedPopulation = OrderByFitness(populationFitness);
         auto orderedByComplex = OrderByComplex();
 
@@ -494,10 +491,8 @@ namespace znn {
                     if (index < Opts.ChampionToNewSize) {
                         nn = *orderedPopulation[index % Opts.ChampionKeepSize];// 选取ChampionKeepSize个个体填满前ChampionToNewSize个
                         if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
-                            for (uint i = 0; i < inputs.size(); ++i) {  // 保留的冠军一份副本互相交配
-                                auto nn0 = orderedPopulation[Opts.ChampionKeepSize % (index - (random() % (Opts.ChampionKeepSize - 1)))];
-                                nn = population.generation.GetChildByCrossing(nn0, &nn);
-                            }
+                            auto nn0 = orderedPopulation[Opts.ChampionKeepSize % (index - (random() % (Opts.ChampionKeepSize - 1)))];  // 保留的冠军一份副本互相交配
+                            nn = population.generation.GetChildByCrossing(nn0, &nn);
                         }
                         if (index >= Opts.ChampionKeepSize * 2) {
                             population.generation.MutateNetworkGenome(nn);// 除开原始冠军，他们的克隆体进行变异
@@ -537,8 +532,7 @@ namespace znn {
             populationFitness.clear();
             orderedPopulation.clear();
             orderedByComplex.clear();
-            inputs = inputFunc();
-            populationFitness = fitnessFunc(inputs);
+            populationFitness = interactiveFunc();
             orderedPopulation = OrderByFitness(populationFitness);
             orderedByComplex = OrderByComplex();
         }
