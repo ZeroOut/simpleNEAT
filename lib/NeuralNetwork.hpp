@@ -603,79 +603,9 @@ namespace znn {
     std::map<uint, Vector3> NodeId2Pos;
     std::map<uint, Color> NodId2Color;
     std::vector<lineInfo> connectedNodesInfo;
-
-    void Show3dNN() {
-        const int screenWidth = 1280;
-        const int screenHeight = 720;
-
-        SetConfigFlags(FLAG_MSAA_4X_HINT);
-        SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-
-        InitWindow(screenWidth, screenHeight, "SimpleNEAT NN");
-
-        // Define the camera to look into our 3d world
-        Camera3D camera = {0};
-        camera.position = (Vector3) {0.0f, 0.0f, 12.0f}; // Camera position
-        camera.target = (Vector3) {0.0f, 0.0f, 0.0f};      // Camera looking at point
-        camera.up = (Vector3) {0.0f, 1.0f, 0.0f};          // Camera up vector (rotation towards target)
-        camera.fovy = 60.0f;                                // Camera field-of-view Y
-        camera.projection = CAMERA_PERSPECTIVE;                   // Camera mode type
-
-        SetCameraMode(camera, CAMERA_FREE); // Set a free camera mode
-        SetCameraAltControl(KEY_LEFT_SHIFT);
-        SetCameraPanControl(MOUSE_BUTTON_RIGHT);
-
-        SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
-
-        srandom((unsigned) clock());
-
-        // Main game loop
-        while (!WindowShouldClose()) {     // Detect window close button or ESC key
-            // Update
-            //----------------------------------------------------------------------------------
-            UpdateCamera(&camera);
-
-            if (IsKeyDown('Z')) camera.target = (Vector3) {0.0f, 0.0f, 0.0f};
-            //----------------------------------------------------------------------------------
-
-            // Draw
-            //----------------------------------------------------------------------------------
-            BeginDrawing();
-            ClearBackground(BLACK);
-
-            BeginMode3D(camera);
-
-            //                DrawCubeV({1.f, 0.f, 0.f}, {0.03f, 0.03f, 0.03f}, RED);
-            //                DrawCubeV({0.f, 1.f, 0.f}, {0.03f, 0.03f, 0.03f}, YELLOW);
-            //                DrawCubeV({0.f, 0.f, 1.f}, {0.03f, 0.03f, 0.03f}, BLUE);
-            //
-            //                DrawLine3D({-1.f, 0.f, 0.f}, {1.f, 0.f, 0.f}, RED);
-            //                DrawLine3D({0.f, -1.f, 0.f}, {0.f, 1.f, 0.f}, YELLOW);
-            //                DrawLine3D({0.f, 0.f, -1.f}, {0.f, 0.f, 1.f}, BLUE);
-
-            for (auto &n : NodeId2Pos) {
-                DrawCubeV(n.second, {0.1f, 0.1f, 0.1f}, NodId2Color[n.first]);
-            }
-
-            for (auto &c : connectedNodesInfo) {
-                //                DrawLine3D(NodeId2Pos[c.IdA], NodeId2Pos[c.IdB], c.C);
-                DrawCylinderEx(NodeId2Pos[c.IdA], NodeId2Pos[c.IdB], c.R, c.R, 3, c.C);
-            }
-
-            EndMode3D();
-
-            DrawFPS(10, 10);
-            EndDrawing();
-            //----------------------------------------------------------------------------------
-        }
-
-        // De-Initialization
-        //--------------------------------------------------------------------------------------
-        CloseWindow();        // Close window and OpenGL context
-        //--------------------------------------------------------------------------------------
-    }
-
+    bool is3dChanged = false;
     bool update3dLock = false;
+    bool canBeUnlock = true;
     NetworkGenome last3dNN;
 
     bool isLast3dNN(NetworkGenome &NN) {
@@ -700,9 +630,11 @@ namespace znn {
             mtx.unlock();
         } else {
             update3dLock = true;
+            canBeUnlock = false;
             mtx.unlock();
 
-            if (!isLast3dNN(NN)) {
+            if (!isLast3dNN(NN) || is3dChanged) {
+                is3dChanged = false;
                 std::map<float, std::vector<uint>> layer2Ids;
 
                 for (auto &n : NN.Neurons) {
@@ -740,7 +672,9 @@ namespace znn {
                         }
 
                         if (Opts.Enable3dRandPos) {
-                            NodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f + (float(random() % 30) / 100.f - 0.15f) * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount, thisY + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d, thisZ + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d};
+                            NodeId2Pos[l2i.second[i]] = {
+                                    -(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f + (float(random() % 30) / 100.f - 0.15f) * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount,
+                                    thisY + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d, thisZ + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d};
                         } else {
                             NodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, thisY, thisZ};
                         }
@@ -765,15 +699,129 @@ namespace znn {
                     } else {
                         connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], -conn.Weight * 0.0015f + 0.0001f, ColorAlpha(BLUE, 0.5f)});
                     }
-                    //            } else {
-                    //                connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], 0.0001f, ColorAlpha(GRAY, 0.3f)});
                 }
             }
 
-            std::this_thread::sleep_for(std::chrono::milliseconds (Opts.Update3dIntercalMs));
-
+            canBeUnlock = true;
+            std::this_thread::sleep_for(std::chrono::milliseconds(Opts.Update3dIntercalMs));
             update3dLock = false;
         }
+    }
+
+    void Show3dNN() {
+        const int screenWidth = 1280;
+        const int screenHeight = 720;
+
+        SetConfigFlags(FLAG_MSAA_4X_HINT);
+        SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+
+        InitWindow(screenWidth, screenHeight, "SimpleNEAT NN");
+
+        // Define the camera to look into our 3d world
+        Camera3D camera = {0};
+        camera.position = (Vector3) {0.0f, 0.0f, 12.0f}; // Camera position
+        camera.target = (Vector3) {0.0f, 0.0f, 0.0f};      // Camera looking at point
+        camera.up = (Vector3) {0.0f, 1.0f, 0.0f};          // Camera up vector (rotation towards target)
+        camera.fovy = 60.0f;                                // Camera field-of-view Y
+        camera.projection = CAMERA_PERSPECTIVE;                   // Camera mode type
+
+        SetCameraMode(camera, CAMERA_FREE); // Set a free camera mode
+        SetCameraAltControl(KEY_LEFT_SHIFT);
+        SetCameraPanControl(MOUSE_BUTTON_RIGHT);
+
+        SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
+
+        srandom((unsigned) clock());
+
+        float setX_Interval3d = Opts.X_Interval3d;
+        float setZy_Interval3d = Opts.Zy_Interval3d;
+
+        while (!WindowShouldClose()) {     // Detect window close button or ESC key
+            // Update
+            UpdateCamera(&camera);
+
+            if (IsKeyDown('Z')) {
+                camera.target = (Vector3) {0.0f, 0.0f, 0.0f};
+            }
+            if (IsKeyPressed('R')) {
+                Opts.X_Interval3d = setX_Interval3d;
+                Opts.Zy_Interval3d = setZy_Interval3d;
+                is3dChanged = true;
+                if (canBeUnlock) {
+                    Update3dNN(last3dNN);
+                }
+            }
+            if (IsKeyDown('A')) {
+                Opts.X_Interval3d -= .01f;
+                is3dChanged = true;
+                if (canBeUnlock) {
+                    Update3dNN(last3dNN);
+                }
+            }
+            if (IsKeyDown('D')) {
+                Opts.X_Interval3d += .01f;
+                is3dChanged = true;
+                if (canBeUnlock) {
+                    Update3dNN(last3dNN);
+                }
+            }
+            if (IsKeyDown('W')) {
+                Opts.Zy_Interval3d += .01f;
+                is3dChanged = true;
+                if (canBeUnlock) {
+                    Update3dNN(last3dNN);
+                }
+            }
+            if (IsKeyDown('S')) {
+                Opts.Zy_Interval3d -= .01f;
+                is3dChanged = true;
+                if (canBeUnlock) {
+                    Update3dNN(last3dNN);
+                }
+            }
+            if (IsKeyPressed(KEY_SPACE)) {
+                if (Opts.Enable3dRandPos) {
+                    Opts.Enable3dRandPos = false;
+                } else {
+                    Opts.Enable3dRandPos = true;
+                }
+                is3dChanged = true;
+                if (canBeUnlock) {
+                    Update3dNN(last3dNN);
+                }
+            }
+
+            // Draw
+            BeginDrawing();
+            ClearBackground(BLACK);
+
+            BeginMode3D(camera);
+
+            //                DrawCubeV({1.f, 0.f, 0.f}, {0.03f, 0.03f, 0.03f}, RED);
+            //                DrawCubeV({0.f, 1.f, 0.f}, {0.03f, 0.03f, 0.03f}, YELLOW);
+            //                DrawCubeV({0.f, 0.f, 1.f}, {0.03f, 0.03f, 0.03f}, BLUE);
+            //
+            //                DrawLine3D({-1.f, 0.f, 0.f}, {1.f, 0.f, 0.f}, RED);
+            //                DrawLine3D({0.f, -1.f, 0.f}, {0.f, 1.f, 0.f}, YELLOW);
+            //                DrawLine3D({0.f, 0.f, -1.f}, {0.f, 0.f, 1.f}, BLUE);
+
+            for (auto &n : NodeId2Pos) {
+                DrawCubeV(n.second, {0.1f, 0.1f, 0.1f}, NodId2Color[n.first]);
+            }
+
+            for (auto &c : connectedNodesInfo) {
+                //                DrawLine3D(NodeId2Pos[c.IdA], NodeId2Pos[c.IdB], c.C);
+                DrawCylinderEx(NodeId2Pos[c.IdA], NodeId2Pos[c.IdB], c.R, c.R, 3, c.C);
+            }
+
+            EndMode3D();
+
+            DrawFPS(10, 10);
+            EndDrawing();
+        }
+
+        // De-Initialization
+        CloseWindow();        // Close window and OpenGL context
     }
 }
 
