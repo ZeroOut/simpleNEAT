@@ -149,10 +149,7 @@ namespace znn {
                 population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
 
                 if (Opts.Enable3dNN) {
-                    while (update3dLock) {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                    }
-                    Update3dNN(compressedRightBestNN);
+                    tPool.push_task(Update3dNN, compressedRightBestNN, false);
                     std::cout << "需保持主线程不退出,防止3d显示bug\n";
                 }
 
@@ -219,9 +216,7 @@ namespace znn {
             }
 
             if (Opts.Enable3dNN) {
-                tPool.push_task([&]() {
-                    Update3dNN(*orderedPopulation[0]);
-                });
+                tPool.push_task(Update3dNN, *orderedPopulation[0], false);
             }
 
             population.NeuralNetworks = tmpPopulation;
@@ -303,10 +298,7 @@ namespace znn {
                 population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
 
                 if (Opts.Enable3dNN) {
-                    while (update3dLock) {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                    }
-                    Update3dNN(compressedRightBestNN);
+                    tPool.push_task(Update3dNN, compressedRightBestNN, false);
                     std::cout << "需保持主线程不退出,防止3d显示bug\n";
                 }
 
@@ -373,9 +365,7 @@ namespace znn {
 
 
             if (Opts.Enable3dNN) {
-                tPool.push_task([&]() {
-                    Update3dNN(*orderedPopulation[0]);
-                });
+                tPool.push_task(Update3dNN, *orderedPopulation[0], false);
             }
 
             population.NeuralNetworks = tmpPopulation;
@@ -453,10 +443,7 @@ namespace znn {
                 population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
 
                 if (Opts.Enable3dNN) {
-                    while (update3dLock) {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                    }
-                    Update3dNN(compressedRightBestNN);
+                    tPool.push_task(Update3dNN, compressedRightBestNN, false);
                     std::cout << "需保持主线程不退出,防止3d显示bug\n";
                 }
 
@@ -522,9 +509,7 @@ namespace znn {
             }
 
             if (Opts.Enable3dNN) {
-                tPool.push_task([&]() {
-                    Update3dNN(*orderedPopulation[0]);
-                });
+                tPool.push_task(Update3dNN, *orderedPopulation[0], false);
             }
 
             population.NeuralNetworks = tmpPopulation;

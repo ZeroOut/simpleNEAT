@@ -603,9 +603,8 @@ namespace znn {
     std::map<uint, Vector3> NodeId2Pos;
     std::map<uint, Color> NodId2Color;
     std::vector<lineInfo> connectedNodesInfo;
-    bool is3dChanged = false;
     bool update3dLock = false;
-    bool canBeUnlock = true;
+    bool canForceUnlock = false;
     NetworkGenome last3dNN;
 
     bool isLast3dNN(NetworkGenome &NN) {
@@ -624,17 +623,14 @@ namespace znn {
         return true;
     };
 
-    void Update3dNN(NetworkGenome NN) {
+    void Update3dNN(NetworkGenome NN, bool forceUnlock) {
         mtx.lock();
-        if (update3dLock) {
-            mtx.unlock();
-        } else {
+        if ((forceUnlock && canForceUnlock) || !update3dLock) {
             update3dLock = true;
-            canBeUnlock = false;
+            canForceUnlock = false;
             mtx.unlock();
 
-            if (!isLast3dNN(NN) || is3dChanged) {
-                is3dChanged = false;
+            if (!isLast3dNN(NN) || forceUnlock) {
                 std::map<float, std::vector<uint>> layer2Ids;
 
                 for (auto &n : NN.Neurons) {
@@ -702,13 +698,15 @@ namespace znn {
                 }
             }
 
-            canBeUnlock = true;
+            canForceUnlock = true;
             std::this_thread::sleep_for(std::chrono::milliseconds(Opts.Update3dIntercalMs));
             update3dLock = false;
+        } else {
+            mtx.unlock();
         }
     }
 
-    void Show3dNN() {
+    void Show3dNN() {  // TODO: 非主线程raylib按键没反应
         const int screenWidth = 1280;
         const int screenHeight = 720;
 
@@ -740,44 +738,30 @@ namespace znn {
             // Update
             UpdateCamera(&camera);
 
-            if (IsKeyDown('Z')) {
+            if (IsKeyPressed('Z')) {
                 camera.target = (Vector3) {0.0f, 0.0f, 0.0f};
+                Update3dNN(last3dNN, true);
             }
             if (IsKeyPressed('R')) {
                 Opts.X_Interval3d = setX_Interval3d;
                 Opts.Zy_Interval3d = setZy_Interval3d;
-                is3dChanged = true;
-                if (canBeUnlock) {
-                    Update3dNN(last3dNN);
-                }
+                Update3dNN(last3dNN, true);
             }
             if (IsKeyDown('A')) {
                 Opts.X_Interval3d -= .01f;
-                is3dChanged = true;
-                if (canBeUnlock) {
-                    Update3dNN(last3dNN);
-                }
+                Update3dNN(last3dNN, true);
             }
             if (IsKeyDown('D')) {
                 Opts.X_Interval3d += .01f;
-                is3dChanged = true;
-                if (canBeUnlock) {
-                    Update3dNN(last3dNN);
-                }
+                Update3dNN(last3dNN, true);
             }
             if (IsKeyDown('W')) {
                 Opts.Zy_Interval3d += .01f;
-                is3dChanged = true;
-                if (canBeUnlock) {
-                    Update3dNN(last3dNN);
-                }
+                Update3dNN(last3dNN, true);
             }
             if (IsKeyDown('S')) {
                 Opts.Zy_Interval3d -= .01f;
-                is3dChanged = true;
-                if (canBeUnlock) {
-                    Update3dNN(last3dNN);
-                }
+                Update3dNN(last3dNN, true);
             }
             if (IsKeyPressed(KEY_SPACE)) {
                 if (Opts.Enable3dRandPos) {
@@ -785,10 +769,7 @@ namespace znn {
                 } else {
                     Opts.Enable3dRandPos = true;
                 }
-                is3dChanged = true;
-                if (canBeUnlock) {
-                    Update3dNN(last3dNN);
-                }
+                Update3dNN(last3dNN, true);
             }
 
             // Draw
