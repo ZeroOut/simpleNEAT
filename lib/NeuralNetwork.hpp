@@ -8,8 +8,8 @@
 #include <array>
 #include <functional>
 #include <fstream>
-#include "raylib.h"
 #include "Option.hpp"
+#include "raylib.h"
 
 namespace znn {
     struct Neuron {
@@ -602,20 +602,24 @@ namespace znn {
 
     std::map<uint, Vector3> NodeId2Pos;
     std::map<uint, Color> NodId2Color;
-    std::vector<lineInfo> connectedNodesInfo;
+    std::vector<lineInfo> ConnectedNodesInfo;
     bool update3dLock = false;
     bool canForceUnlock = false;
     NetworkGenome last3dNN;
 
     bool isLast3dNN(NetworkGenome &NN) {
         if (NN.Neurons.size() != last3dNN.Neurons.size()) {
+            mtx.lock();
             last3dNN = NN;
+            mtx.unlock();
             return false;
         }
 
         for (uint i = 0; i < NN.Neurons.size(); ++i) {
             if (NN.Neurons[i].Id != last3dNN.Neurons[i].Id) {
+                mtx.lock();
                 last3dNN = NN;
+                mtx.unlock();
                 return false;
             }
         }
@@ -623,14 +627,14 @@ namespace znn {
         return true;
     };
 
-    void Update3dNN(NetworkGenome NN, bool forceUnlock) {
+    void Update3dNN(NetworkGenome NN, bool FL) {
         mtx.lock();
-        if ((forceUnlock && canForceUnlock) || !update3dLock) {
+        if ((FL && canForceUnlock) || !update3dLock) {
             update3dLock = true;
             canForceUnlock = false;
             mtx.unlock();
 
-            if (!isLast3dNN(NN) || forceUnlock) {
+            if (!isLast3dNN(NN) || FL) {
                 std::map<float, std::vector<uint>> layer2Ids;
 
                 for (auto &n : NN.Neurons) {
@@ -639,7 +643,7 @@ namespace znn {
 
                 float layerCount = 0;
 
-                NodeId2Pos.clear();
+                std::map<uint, Vector3> nodeId2Pos;
 
                 for (auto &l2i : layer2Ids) {
                     uint rows = int(std::sqrt(float(l2i.second.size())));
@@ -668,11 +672,11 @@ namespace znn {
                         }
 
                         if (Opts.Enable3dRandPos) {
-                            NodeId2Pos[l2i.second[i]] = {
+                            nodeId2Pos[l2i.second[i]] = {
                                     -(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f + (float(random() % 30) / 100.f - 0.15f) * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount,
                                     thisY + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d, thisZ + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d};
                         } else {
-                            NodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, thisY, thisZ};
+                            nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, thisY, thisZ};
                         }
 
                         thisY += Opts.Zy_Interval3d;
@@ -684,9 +688,12 @@ namespace znn {
                     }
                     ++layerCount;
                 }
+                mtx.lock();
+                NodeId2Pos = nodeId2Pos;
+                mtx.unlock();
             }
 
-            connectedNodesInfo.clear();
+            std::vector<lineInfo> connectedNodesInfo;
 
             for (auto &conn : NN.Connections) {
                 if (conn.Enable) {
@@ -698,15 +705,26 @@ namespace znn {
                 }
             }
 
+            mtx.lock();
+            ConnectedNodesInfo = connectedNodesInfo;
+            mtx.unlock();
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(33));
+            mtx.lock();
             canForceUnlock = true;
-            std::this_thread::sleep_for(std::chrono::milliseconds(Opts.Update3dIntercalMs));
+            if (!FL) {
+                mtx.unlock();
+                std::this_thread::sleep_for(std::chrono::milliseconds(Opts.Update3dIntercalMs));
+                mtx.lock();
+            }
             update3dLock = false;
+            mtx.unlock();
         } else {
             mtx.unlock();
         }
     }
 
-    void Show3dNN() {  // TODO: 非主线程raylib按键没反应
+    void Show3dNN() {
         const int screenWidth = 1280;
         const int screenHeight = 720;
 
@@ -717,7 +735,7 @@ namespace znn {
 
         // Define the camera to look into our 3d world
         Camera3D camera = {0};
-        camera.position = (Vector3) {0.0f, 0.0f, 12.0f}; // Camera position
+        camera.position = (Vector3) {0.0f, 12.0f, 0.0f}; // Camera position
         camera.target = (Vector3) {0.0f, 0.0f, 0.0f};      // Camera looking at point
         camera.up = (Vector3) {0.0f, 1.0f, 0.0f};          // Camera up vector (rotation towards target)
         camera.fovy = 60.0f;                                // Camera field-of-view Y
@@ -725,7 +743,7 @@ namespace znn {
 
         SetCameraMode(camera, CAMERA_FREE); // Set a free camera mode
         SetCameraAltControl(KEY_LEFT_SHIFT);
-        SetCameraPanControl(MOUSE_BUTTON_RIGHT);
+        SetCameraPanControl(MOUSE_BUTTON_LEFT);
 
         SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
 
@@ -740,28 +758,27 @@ namespace znn {
 
             if (IsKeyPressed('Z')) {
                 camera.target = (Vector3) {0.0f, 0.0f, 0.0f};
-                Update3dNN(last3dNN, true);
             }
             if (IsKeyPressed('R')) {
                 Opts.X_Interval3d = setX_Interval3d;
                 Opts.Zy_Interval3d = setZy_Interval3d;
-                Update3dNN(last3dNN, true);
+                tPool.push_task(Update3dNN, last3dNN, true);
             }
             if (IsKeyDown('A')) {
                 Opts.X_Interval3d -= .01f;
-                Update3dNN(last3dNN, true);
+                tPool.push_task(Update3dNN, last3dNN, true);
             }
             if (IsKeyDown('D')) {
                 Opts.X_Interval3d += .01f;
-                Update3dNN(last3dNN, true);
+                tPool.push_task(Update3dNN, last3dNN, true);
             }
             if (IsKeyDown('W')) {
                 Opts.Zy_Interval3d += .01f;
-                Update3dNN(last3dNN, true);
+                tPool.push_task(Update3dNN, last3dNN, true);
             }
             if (IsKeyDown('S')) {
                 Opts.Zy_Interval3d -= .01f;
-                Update3dNN(last3dNN, true);
+                tPool.push_task(Update3dNN, last3dNN, true);
             }
             if (IsKeyPressed(KEY_SPACE)) {
                 if (Opts.Enable3dRandPos) {
@@ -769,7 +786,7 @@ namespace znn {
                 } else {
                     Opts.Enable3dRandPos = true;
                 }
-                Update3dNN(last3dNN, true);
+                tPool.push_task(Update3dNN, last3dNN, true);
             }
 
             // Draw
@@ -786,13 +803,16 @@ namespace znn {
             //                DrawLine3D({0.f, -1.f, 0.f}, {0.f, 1.f, 0.f}, YELLOW);
             //                DrawLine3D({0.f, 0.f, -1.f}, {0.f, 0.f, 1.f}, BLUE);
 
-            for (auto &n : NodeId2Pos) {
+            auto nodeId2Pos = NodeId2Pos;
+            auto connectedNodesInfo = ConnectedNodesInfo;
+
+            for (auto &n : nodeId2Pos) {
                 DrawCubeV(n.second, {0.1f, 0.1f, 0.1f}, NodId2Color[n.first]);
             }
 
             for (auto &c : connectedNodesInfo) {
-                //                DrawLine3D(NodeId2Pos[c.IdA], NodeId2Pos[c.IdB], c.C);
-                DrawCylinderEx(NodeId2Pos[c.IdA], NodeId2Pos[c.IdB], c.R, c.R, 3, c.C);
+                //                DrawLine3D(nodeId2Pos[c.IdA], nodeId2Pos[c.IdB], c.C);
+                DrawCylinderEx(nodeId2Pos[c.IdA], nodeId2Pos[c.IdB], c.R, c.R, 3, c.C);
             }
 
             EndMode3D();

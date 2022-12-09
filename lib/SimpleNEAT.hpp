@@ -3,6 +3,8 @@
 #ifndef MYNEAT_SIMPLENEAT_HPP
 #define MYNEAT_SIMPLENEAT_HPP
 
+//#define USING_RAYLIB
+
 #include "Population.hpp"
 #include <unistd.h>
 
@@ -54,7 +56,7 @@ namespace znn {
 
         tPool.reset(Opts.ThreadCount);
         srandom((unsigned) clock());
-
+        
         if (Opts.Enable3dNN) {
             tPool.push_task(Show3dNN);
         }
