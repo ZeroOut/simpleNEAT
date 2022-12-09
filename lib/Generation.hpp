@@ -35,7 +35,7 @@ namespace znn {
 
     std::vector<float> Generation::BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回计算结果 TODO: 权重和偏置范围该怎么限制?丢弃?
         std::map<uint, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
-        std::map<float, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
+        std::map<double, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
         for (auto &n : nn->Neurons) {
             tmpNeuronMap[n.Id] = &n;
@@ -95,7 +95,7 @@ namespace znn {
         };
 
         uint wantsCount = 0;
-        for (std::map<float, std::vector<Neuron *>>::reverse_iterator ri = tmpLayerMap.rbegin(); ri != tmpLayerMap.rend(); ++ri) {
+        for (std::map<double, std::vector<Neuron *>>::reverse_iterator ri = tmpLayerMap.rbegin(); ri != tmpLayerMap.rend(); ++ri) {
             for (auto &n : ri->second) {
                 if (ri->first == 1.f) {   // 计算输出神经元点误差
                     tmpNodesOutputError[n->Id] = Opts.DerivativeFunction(tmpNodesOutput[n->Id]) * (wants[wantsCount] - tmpNodesOutput[n->Id]);
@@ -119,7 +119,7 @@ namespace znn {
 
         // 更新神经元偏置
         for (auto &n : nn->Neurons) {
-            if (n.Layer != 0) {
+            if (n.Layer != 0.) {
                 n.Bias += Opts.LearnRate * tmpNodesOutputError[n.Id];
             }
         }
@@ -212,7 +212,7 @@ namespace znn {
         Neuron newNeuron = {
                 .Id = newNid,
                 .Bias = float(random() % (Opts.BiasRange * 2000000) - Opts.BiasRange * 1000000) / 1000000.f,
-                .Layer = (tmpNeuronMap[nid0]->Layer + tmpNeuronMap[nid1]->Layer) / 2.f,
+                .Layer = (tmpNeuronMap[nid0]->Layer + tmpNeuronMap[nid1]->Layer) / 2.,
         };
         nn.Neurons.push_back(newNeuron);
 
@@ -312,7 +312,7 @@ namespace znn {
         }
 
         for (auto &n : nn.Neurons) {
-            if (float(random() % 1000) / 1000.f < Opts.MutateBiasRate && n.Layer > 0.f) {
+            if (float(random() % 1000) / 1000.f < Opts.MutateBiasRate && n.Layer > 0.) {
                 if (float(random() % 1000) / 1000.f < Opts.MutateBiasDirectOrNear) {
                     MutateBiasDirect(n);
                 } else {

@@ -15,7 +15,7 @@ namespace znn {
     struct Neuron {
         uint Id;
         float Bias;
-        float Layer;
+        double Layer;
     };
 
     struct Connection {
@@ -70,7 +70,7 @@ namespace znn {
             Neuron tmpNeuron = {
                     .Id = i,
                     .Bias = 0.f,
-                    .Layer = 0.f,
+                    .Layer = 0.,
             };
             newNeurons.push_back(tmpNeuron);
         }
@@ -81,12 +81,12 @@ namespace znn {
                     .Id = id,
                     //                    .Bias = 1.f,
                     .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100,
-                    .Layer = 1.f,
+                    .Layer = 1.,
             };
             newNeurons.push_back(tmpNeuron);
 
             for (auto &n : newNeurons) {
-                if (n.Layer == 0.f) {
+                if (n.Layer == 0.) {
                     Connection tmpConnection = {
                             .ConnectedNeuronId= {n.Id, id},
                             //                            .Weight = 1.f,
@@ -126,7 +126,7 @@ namespace znn {
             Neuron tmpNeuron = {
                     .Id = i,
                     .Bias = 1.f,
-                    .Layer = 0.f,
+                    .Layer = 0.,
             };
             newNeurons.push_back(tmpNeuron);
         }
@@ -136,13 +136,13 @@ namespace znn {
             Neuron tmpNeuron = {
                     .Id = id,
                     .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100,
-                    .Layer = 1.f,
+                    .Layer = 1.,
             };
             newNeurons.push_back(tmpNeuron);
         }
 
-        float layerStep = 1.f / float(hideLayers.size() + 1);
-        float thisLayer = 0.f;
+        double layerStep = 1. / double(hideLayers.size() + 1);
+        double thisLayer = 0.;
         uint id = Opts.InputSize + Opts.OutputSize;
 
         for (int &l : hideLayers) {
@@ -158,7 +158,7 @@ namespace znn {
             }
         }
 
-        std::map<float, std::vector<Neuron *>> tmpLayerMap;  // 记录全部层，因为记录的是神经元地址，需要的时候才能临时生成记录
+        std::map<double, std::vector<Neuron *>> tmpLayerMap;  // 记录全部层，因为记录的是神经元地址，需要的时候才能临时生成记录
         float lastLayer = 0.f;
         thisLayer = 0.f;
 
@@ -209,7 +209,7 @@ namespace znn {
             }
 
             for (auto &c : nn.Connections) {
-                if (remainingRightIds.find(c.ConnectedNeuronId[0]) != remainingRightIds.end() || tmpNeuronMap[c.ConnectedNeuronId[0]].Layer == 0.f) {  // c++17
+                if (remainingRightIds.find(c.ConnectedNeuronId[0]) != remainingRightIds.end() || tmpNeuronMap[c.ConnectedNeuronId[0]].Layer == 0.) {  // c++17
                     //if (remainingRightIds.contains(n.ConnectedNeuronId[0]) || tmpNeuronMap[n.ConnectedNeuronId[0]].Layer == 0.f) {   // c++20
                     remainingLeftIds[c.ConnectedNeuronId[0]].push_back(&c);  // 添加所左边的神经元id（可作为另外一条连接的右边神经元）(左边还有连接)
                 } else {
@@ -245,7 +245,7 @@ namespace znn {
         }
 
         for (auto &n : tmpNeuronMap) {
-            if (n.second.Layer == 1.f) {
+            if (n.second.Layer == 1.) {
                 nn.Neurons.push_back(n.second);
             }
         }
@@ -273,7 +273,7 @@ namespace znn {
 
 
             for (auto &c : nn.Connections) {
-                if (remainingLeftIds.find(c.ConnectedNeuronId[1]) != remainingLeftIds.end() || tmpNeuronMap[c.ConnectedNeuronId[1]].Layer == 1.f) {
+                if (remainingLeftIds.find(c.ConnectedNeuronId[1]) != remainingLeftIds.end() || tmpNeuronMap[c.ConnectedNeuronId[1]].Layer == 1.) {
                     //                if (remainingLeftIds.contains(n.ConnectedNeuronId[1]) || tmpNeuronMap[n.ConnectedNeuronId[1]].Layer == 1.f) {
                     remainingRightIds[c.ConnectedNeuronId[1]].push_back(&c);  // 添加所右边的神经元id（可作为另外一条连接的左边神经元）(右边还有连接)
                 } else {
@@ -302,7 +302,7 @@ namespace znn {
         }
 
         for (auto &n : tmpNeuronMap) {
-            if (n.second.Layer == 0.f) {
+            if (n.second.Layer == 0.) {
                 nn.Neurons.push_back(n.second);
             }
         }
@@ -326,7 +326,7 @@ namespace znn {
 
         for (auto &n : nn.Neurons) {
             tmpNeuronMap[n.Id] = &n;
-            if (n.Layer == 0.f || n.Layer == 1.f) {
+            if (n.Layer == 0. || n.Layer == 1.) {
                 remainingIds[n.Id] = 0;
             }
         }
@@ -345,7 +345,7 @@ namespace znn {
 
     std::vector<float> NeuralNetwork::FeedForwardPredict(NetworkGenome *nn, std::vector<float> inputs) {
         std::map<uint, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
-        std::map<float, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
+        std::map<double, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
         for (auto &n : nn->Neurons) {
             //            if (tmpNeuronMap.find(n.Id) == tmpNeuronMap.end()) {
@@ -417,11 +417,11 @@ namespace znn {
         for (auto &n : nn.Neurons) {
             std::string line;
             std::stringstream streamBias;
-            if (n.Layer == 0.f) {
+            if (n.Layer == 0.) {
                 line = "    subgraph cluster0{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightblue,style=filled,shape=component,width=1,height=1,label=\"Input_" +
                        std::to_string(inId) + "\"]}\n";
                 ++inId;
-            } else if (n.Layer == 1.f) {
+            } else if (n.Layer == 1.) {
                 streamBias << std::setprecision(3) << n.Bias;
                 line = "    subgraph cluster1{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightgray,style=filled,shape=diamond,width=1,height=1,label=\"Output_" +
                        std::to_string(outId) + "\\n(" + streamBias.str() + ")\"]}\n";
@@ -502,7 +502,7 @@ namespace znn {
 
             if (dataType == 1) {
                 auto datas = SplitString(line, ",");
-                float nnLayer = std::stof(datas[1]);
+                double nnLayer = std::stod(datas[1]);
                 uint id = uint(std::stoi(datas[0]));
                 newNeurons.push_back(Neuron{
                         .Id = id,
@@ -545,7 +545,7 @@ namespace znn {
                         .Id = uint(HiddenNeuronInnovations.size()) + OutputSize + InputSize + i + FCHidenNeuronSize,
                         //                        .Bias = 1.f,
                         .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100,
-                        .Layer = 0.f,
+                        .Layer = 0.,
                 });
             }
         }
@@ -556,7 +556,7 @@ namespace znn {
                         .Id = uint(HiddenNeuronInnovations.size()) + OutputSize + i + Opts.InputSize + FCHidenNeuronSize,
                         //                        .Bias = 1.f,
                         .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100,
-                        .Layer = 1.f,
+                        .Layer = 1.,
                 });
             }
         }
@@ -635,7 +635,7 @@ namespace znn {
             mtx.unlock();
 
             if (!isLast3dNN(NN) || FL) {
-                std::map<float, std::vector<uint>> layer2Ids;
+                std::map<double, std::vector<uint>> layer2Ids;
 
                 for (auto &n : NN.Neurons) {
                     layer2Ids[n.Layer].push_back(n.Id);
