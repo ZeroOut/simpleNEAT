@@ -12,15 +12,15 @@
 namespace znn {
     float Tanh(float x) {
 //        return (exp(x) - exp(-x)) / (exp(x) + exp(-x));
-        return 2.f / (1.f + exp(-2.f * x)) - 1.f;
+        return 2.f / (1.f + std::exp(-2.f * x)) - 1.f;
     }
 
     float DerivativeTanh(float fx) {
-        return 1.f - pow(fx, 2.f);
+        return 1.f - std::pow(fx, 2.f);
     }
 
     float Sigmoid(float x) {
-        return 1.f / (1.f + exp(-x));
+        return 1.f / (1.f + std::exp(-x));
     }
 
     float DerivativeSigmoid(float fx) {
@@ -28,20 +28,20 @@ namespace znn {
     }
 
     float SteependSigmoid(float x) {
-        return 1.f / (1.f + exp(-4.9f * x));
+        return 1.f / (1.f + std::exp(-4.9f * x));
     }
 
     float DerivativeSteependSigmoid(float fx) {
-        float s = exp(-4.9f * fx);
-        return pow(s * 4.9f / (1.f + s), 2.f);
+        float s = std::exp(-4.9f * fx);
+        return std::pow(s * 4.9f / (1.f + s), 2.f);
     }
 
     float MySteependSigmoid(float x) {
-        return 1.f / (1.f + exp(-9.9f * x));
+        return 1.f / (1.f + std::exp(-9.9f * x));
     }
 
     float MyGentleSigmoid(float x) {
-        return 1.f / (1.f + exp(-x / 3.f));
+        return 1.f / (1.f + std::exp(-x / 3.f));
     }
 
     float MyWtfSigmoid(float x) {
