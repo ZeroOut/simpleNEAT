@@ -13,7 +13,7 @@ namespace znn {
 
         void CreatePopulation();
 
-        void CreatePopulationFC(std::vector<int> hideLayers);
+        void CreatePopulationFC(std::vector<int>& hideLayers);
 
         void CreatePopulationByGiving();
 
@@ -27,7 +27,7 @@ namespace znn {
         }
     }
 
-    void Population::CreatePopulationFC(std::vector<int> hideLayers) {
+    void Population::CreatePopulationFC(std::vector<int>& hideLayers) {
         NeuralNetworks.clear();
         for (uint i = 0; i < Opts.PopulationSize; ++i) {
             NeuralNetworks.push_back(generation.neuralNetwork.NewFCNN(hideLayers));

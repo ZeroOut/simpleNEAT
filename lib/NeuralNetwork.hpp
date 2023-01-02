@@ -36,7 +36,7 @@ namespace znn {
 
         NetworkGenome NewNN();
 
-        NetworkGenome NewFCNN(std::vector<int> hideLayers);
+        NetworkGenome NewFCNN(std::vector<int>& hideLayers);
 
         NetworkGenome SimplifyRemoveUselessConnectionRight(NetworkGenome nn);
 
@@ -107,7 +107,7 @@ namespace znn {
         };
     }
 
-    NetworkGenome NeuralNetwork::NewFCNN(std::vector<int> hideLayers) {  // 固定神经网络，输入隐藏层及对应神经元数量数
+    NetworkGenome NeuralNetwork::NewFCNN(std::vector<int>& hideLayers) {  // 固定神经网络，输入隐藏层及对应神经元数量数
         if (Opts.InputSize <= 0 || Opts.OutputSize <= 0) {
             std::cerr << "Input or Output size fault: Input " << Opts.InputSize << ", Output " << Opts.OutputSize << std::endl;
             exit(0);
@@ -159,8 +159,8 @@ namespace znn {
         }
 
         std::map<double, std::vector<Neuron *>> tmpLayerMap;  // 记录全部层，因为记录的是神经元地址，需要的时候才能临时生成记录
-        float lastLayer = 0.f;
-        thisLayer = 0.f;
+        double lastLayer = 0.;
+        thisLayer = 0.;
 
         for (auto &n : newNeurons) {
             tmpLayerMap[n.Layer].push_back(&n);
