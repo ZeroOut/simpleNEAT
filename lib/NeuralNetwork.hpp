@@ -167,7 +167,7 @@ namespace znn {
         }
 
         for (auto &t : tmpLayerMap) {
-            if (t.first != 0.f) {
+            if (t.first != 0.) {
                 for (auto &n : t.second) {
                     for (auto &ln : tmpLayerMap[lastLayer]) {
                         Connection tmpConnection = {
@@ -351,7 +351,7 @@ namespace znn {
             //            if (tmpNeuronMap.find(n.Id) == tmpNeuronMap.end()) {
             tmpNeuronMap[n.Id] = &n;
             //            }
-            //            if (n.NNLayer > 0.f && n.NNLayer < 1.f && tmpLayerMap.find(n.NNLayer) == tmpLayerMap.end()) {
+            //            if (n.NNLayer > 0. && n.NNLayer < 1. && tmpLayerMap.find(n.NNLayer) == tmpLayerMap.end()) {
             tmpLayerMap[n.Layer].push_back(&n);
         }
 
@@ -384,7 +384,7 @@ namespace znn {
         //        if (!tmpLayerMap.empty()) {
         for (auto &l : tmpLayerMap) {    // 神经元根据layer排序
             for (auto &n : l.second) {
-                if (l.first == 0.f) {   // 初始化输入节点
+                if (l.first == 0.) {   // 初始化输入节点
                     tmpNodesOutput[n->Id] = inputs[n->Id];
                     continue;
                 }
@@ -393,7 +393,7 @@ namespace znn {
                 calculateNeuron(n->Id);  // 计算隐藏神经元
                 //                    }
 
-                if (l.first == 1.f) {  // 计算输出神经元
+                if (l.first == 1.) {  // 计算输出神经元
                     outputs.push_back(tmpNodesOutput[n->Id]);
                 }
             }
