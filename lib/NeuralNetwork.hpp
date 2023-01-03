@@ -13,13 +13,13 @@
 
 namespace znn {
     struct Neuron {
-        uint Id;
+        long Id;
         float Bias;
         double Layer;
     };
 
     struct Connection {
-        std::array<uint, 2> ConnectedNeuronId;
+        std::array<long, 2> ConnectedNeuronId;
         float Weight;
         bool Enable;
     };
@@ -32,7 +32,7 @@ namespace znn {
     class NeuralNetwork {
     public:
         std::map<std::array<uint, 2>, uint> HiddenNeuronInnovations;  // 只记录插入连接左右两个神经元id对应的隐藏层神经元id，新增神经元变异的时候全部个体需要检查唯一性，使用时必须使用mutex
-        int FCHidenNeuronSize = 0;
+        long FCHidenNeuronSize = 0;
 
         NetworkGenome NewNN();
 
@@ -479,12 +479,12 @@ namespace znn {
             exit(0);
         }
 
-        uint InputSize = 0;
-        uint OutputSize = 0;
+        long InputSize = 0;
+        long OutputSize = 0;
 
         std::vector<Neuron> newNeurons;
         std::vector<Connection> newConnections;
-        std::map<uint, uint> tmpIdMap;
+        std::map<long, long> tmpIdMap;
 
         int dataType = 0;
         while (getline(input_file, line)) {
@@ -594,14 +594,14 @@ namespace znn {
     }
 
     struct lineInfo {
-        uint IdA;
-        uint IdB;
+        long IdA;
+        long IdB;
         float R;
         Color C;
     };
 
-    std::map<uint, Vector3> NodeId2Pos;
-    std::map<uint, Color> NodId2Color;
+    std::map<long, Vector3> NodeId2Pos;
+    std::map<long, Color> NodId2Color;
     std::vector<lineInfo> ConnectedNodesInfo;
     bool update3dLock = false;
     bool canForceUnlock = false;
@@ -643,11 +643,11 @@ namespace znn {
 
                 float layerCount = 0;
 
-                std::map<uint, Vector3> nodeId2Pos;
+                std::map<long, Vector3> nodeId2Pos;
 
                 for (auto &l2i : layer2Ids) {
-                    uint rows = int(std::sqrt(float(l2i.second.size())));
-                    uint columns = int(l2i.second.size() / rows);
+                    long rows = long(std::sqrt(float(l2i.second.size())));
+                    long columns = long(l2i.second.size() / rows);
                     float startY = -float(rows - 1) * Opts.Zy_Interval3d / 2.f;
                     float thisY = startY;
                     float startZ0 = -float(columns) * Opts.Zy_Interval3d / 2.f;
