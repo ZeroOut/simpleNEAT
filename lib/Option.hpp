@@ -10,8 +10,8 @@
 
 namespace znn {
     struct Option {
-        uint InputSize = 0;
-        uint OutputSize = 0;
+        ulong InputSize = 0;
+        ulong OutputSize = 0;
         uint PopulationSize = 100;
         uint IterationTimes = 500;  // 如果<=0则无限循环
         uint IterationCheckPoint = 0; // 如果<=0则不启用

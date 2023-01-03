@@ -34,7 +34,7 @@ namespace znn {
     };
 
     std::vector<float> Generation::BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回计算结果 TODO: 权重和偏置范围该怎么限制?丢弃?
-        std::map<uint, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
+        std::map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
         std::map<double, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
         for (auto &n : nn->Neurons) {
@@ -48,10 +48,10 @@ namespace znn {
             std::exit(0);
         }
 
-        std::map<uint, float> tmpNodesOutput;
-        std::map<uint, float> tmpNodesInput;
+        std::map<ulong, float> tmpNodesOutput;
+        std::map<ulong, float> tmpNodesInput;
 
-        std::function<void(uint)> calculateNeuron = [&](uint nid) {
+        std::function<void(ulong)> calculateNeuron = [&](ulong nid) {
             tmpNodesInput[nid] = 0.f;
             for (auto &connection : nn->Connections) {
                 if (connection.ConnectedNeuronId[1] == nid && connection.Enable) {
@@ -82,9 +82,9 @@ namespace znn {
         // 上面是正向计算全部节点输出,接下来开始反向传播
         // 先计算每个节点的误差,偏导数又称为误差项也称为灵敏度
 
-        std::map<uint, float> tmpNodesOutputError;
+        std::map<ulong, float> tmpNodesOutputError;
 
-        std::function<void(uint)> calculateNeuronError = [&](uint nid) {
+        std::function<void(ulong)> calculateNeuronError = [&](ulong nid) {
             tmpNodesOutputError[nid] = 0.f;
             for (auto &connection : nn->Connections) {
                 if (connection.ConnectedNeuronId[0] == nid && connection.Enable) {
@@ -173,10 +173,10 @@ namespace znn {
 //            return;  // 如果连接被禁用就。。。算了不用这个判断
 //        }
 
-        uint nid0 = choosingConnection.ConnectedNeuronId[0];  // 获取连接左边的神经元的id
-        uint nid1 = choosingConnection.ConnectedNeuronId[1];  // 获取连接右边的神经元的id
+        ulong nid0 = choosingConnection.ConnectedNeuronId[0];  // 获取连接左边的神经元的id
+        ulong nid1 = choosingConnection.ConnectedNeuronId[1];  // 获取连接右边的神经元的id
 
-        std::vector<uint> tmpRightNeuronIds;
+        std::vector<ulong> tmpRightNeuronIds;
         for (auto &n : nn.Connections) {
             if (n.ConnectedNeuronId[0] == nid0) {
                 tmpRightNeuronIds.push_back(n.ConnectedNeuronId[1]);
@@ -193,7 +193,7 @@ namespace znn {
         }
 
         mtx.lock();
-        uint newNid = neuralNetwork.HiddenNeuronInnovations.size() + Opts.InputSize + Opts.OutputSize + neuralNetwork.FCHidenNeuronSize;  // 新的神经元id为全部藏神经元数量+输入神经元数量+输出神经元数量+全连接网络隐藏神经元数量(如有)
+        ulong newNid = neuralNetwork.HiddenNeuronInnovations.size() + Opts.InputSize + Opts.OutputSize + neuralNetwork.FCHidenNeuronSize;  // 新的神经元id为全部藏神经元数量+输入神经元数量+输出神经元数量+全连接网络隐藏神经元数量(如有)
         if (neuralNetwork.HiddenNeuronInnovations.find({nid0, nid1}) == neuralNetwork.HiddenNeuronInnovations.end()) {  // 从全部隐藏神经元innovMap里面查看是否存在相同位置的神经元
 //        if (!neuralNetwork.HiddenNeuronInnovations.contains({nid0, nid1})) {  // 从全部隐藏神经元innovMap里面查看是否存在相同位置的神经元
             neuralNetwork.HiddenNeuronInnovations[{nid0, nid1}] = newNid;  // 如果不存在则新增记录插入连接左右两个神经元id对应的隐藏层神经元id
@@ -202,7 +202,7 @@ namespace znn {
         }
         mtx.unlock();
 
-        std::map<uint, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
+        std::map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
         for (auto &o : nn.Neurons) {
 //            if (tmpNeuronMap.find(o.Id) == tmpNeuronMap.end()) {
             tmpNeuronMap[o.Id] = &o;
@@ -252,8 +252,8 @@ namespace znn {
             return;
         }
 
-        uint nid0 = choosingNeuron0.Id;
-        uint nid1 = choosingNeuron1.Id;
+        ulong nid0 = choosingNeuron0.Id;
+        ulong nid1 = choosingNeuron1.Id;
 
         if (choosingNeuron0.Layer > choosingNeuron1.Layer) { // 保持从左到右编号
             nid0 = choosingNeuron1.Id;
@@ -374,15 +374,15 @@ namespace znn {
             }
         } // 两个for循环选出全部连接
 
-        std::map<uint, uint> remainingIds;  // 记录所有涉及的神经元id
-        std::map<uint, Neuron *> tmpNeuron0Map;
+        std::map<ulong, uint> remainingIds;  // 记录所有涉及的神经元id
+        std::map<ulong, Neuron *> tmpNeuron0Map;
 
         for (auto &n : nn0->Neurons) {
             tmpNeuron0Map[n.Id] = &n;
             remainingIds[n.Id] = 0;
         }
 
-        std::map<uint, Neuron *> tmpNeuron1Map;
+        std::map<ulong, Neuron *> tmpNeuron1Map;
         for (auto &n : nn1->Neurons) {
             tmpNeuron1Map[n.Id] = &n;
             remainingIds[n.Id] = 0;

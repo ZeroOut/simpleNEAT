@@ -21,7 +21,7 @@ namespace znn {
 
         void StartNew();
 
-        void StartNewFC(std::vector<int> hideLayers);
+        void StartNewFC(std::vector<ulong> hideLayers);
 
         void StartWithCheckPoint();
 
@@ -67,7 +67,7 @@ namespace znn {
         population.CreatePopulation();
     }
 
-    void SimpleNeat::StartNewFC(std::vector<int> hideLayers) {
+    void SimpleNeat::StartNewFC(std::vector<ulong> hideLayers) {
         CheckOptions();
         population.CreatePopulationFC(hideLayers);
     }
@@ -103,13 +103,13 @@ namespace znn {
         return result;
     }
 
-    bool cmpc(std::pair<NetworkGenome *, uint> &a, std::pair<NetworkGenome *, uint> &b) {
+    bool cmpc(std::pair<NetworkGenome *, ulong> &a, std::pair<NetworkGenome *, ulong> &b) {
         return a.second > b.second;// 从大到小排列
     }
 
     std::vector<NetworkGenome *> SimpleNeat::OrderByComplex() {  // Comparator function to sort pairs according to second value
         std::vector<NetworkGenome *> result;
-        std::vector<std::pair<NetworkGenome *, uint> > A;// Declare vector of pairs
+        std::vector<std::pair<NetworkGenome *, ulong> > A;// Declare vector of pairs
         for (auto &it : population.NeuralNetworks) {  // Copy key-value pair from Map to vector of pairs
             A.push_back(std::pair{&it, it.Connections.size()});
         }
