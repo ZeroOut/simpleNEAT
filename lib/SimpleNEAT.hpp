@@ -480,11 +480,11 @@ namespace znn {
                     if (index < Opts.ChampionToNewSize) {
                         nn = *orderedPopulation[index % Opts.ChampionKeepSize];// 选取ChampionKeepSize个个体填满前ChampionToNewSize个
                         if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
-                            auto nn0 = orderedPopulation[Opts.ChampionKeepSize % (index - (random() % (Opts.ChampionKeepSize - 1)))];  // 保留的冠军一份副本互相交配
-                            nn = population.generation.GetChildByCrossing(nn0, &nn);
+                            population.generation.MutateNetworkGenome(nn);// 冠军一份副本进行变异
                         }
                         if (index >= Opts.ChampionKeepSize * 2) {
-                            population.generation.MutateNetworkGenome(nn);// 除开原始冠军，他们的克隆体进行变异
+                            auto nn0 = orderedPopulation[(random() % (Opts.ChampionKeepSize - 1))];  // 原始冠军互相交配
+                            nn = population.generation.GetChildByCrossing(nn0, &nn);
                         }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
                         auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
