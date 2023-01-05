@@ -40,6 +40,11 @@ namespace znn {
 
 
     void CheckOptions() {
+        if (Opts.ChampionKeepSize < 2) {
+            std::cerr << "Opts.ChampionKeepSize at least 2, for crossing over" << std::endl;
+            exit(0);
+        }
+
         if (Opts.ChampionToNewSize + Opts.KeepWorstSize + Opts.NewSize + Opts.KeepComplexSize > Opts.PopulationSize) {
             std::cerr << "Opts.ChampionToNewSize + Opts.KeepWorstSize + Opts.NewSize + Opts.KeepComplexSize > Opts.PopulationSize" << std::endl;
             exit(0);
@@ -56,7 +61,7 @@ namespace znn {
 
         tPool.reset(Opts.ThreadCount);
         srandom((unsigned) clock());
-        
+
         if (Opts.Enable3dNN) {
             tPool.push_task(Show3dNN);
         }
@@ -93,11 +98,11 @@ namespace znn {
     std::vector<NetworkGenome *> SimpleNeat::OrderByFitness(std::map<NetworkGenome *, float> &M) {  // Comparator function to sort pairs according to second value
         std::vector<NetworkGenome *> result;
         std::vector<std::pair<NetworkGenome *, float> > A;// Declare vector of pairs
-        for (auto &it : M) {  // Copy key-value pair from Map to vector of pairs
+        for (auto &it: M) {  // Copy key-value pair from Map to vector of pairs
             A.push_back(it);
         }
         std::sort(A.begin(), A.end(), cmpf);// Sort using comparator function
-        for (auto &it : A) {
+        for (auto &it: A) {
             result.push_back(it.first);
         }
         return result;
@@ -110,11 +115,11 @@ namespace znn {
     std::vector<NetworkGenome *> SimpleNeat::OrderByComplex() {  // Comparator function to sort pairs according to second value
         std::vector<NetworkGenome *> result;
         std::vector<std::pair<NetworkGenome *, ulong> > A;// Declare vector of pairs
-        for (auto &it : population.NeuralNetworks) {  // Copy key-value pair from Map to vector of pairs
+        for (auto &it: population.NeuralNetworks) {  // Copy key-value pair from Map to vector of pairs
             A.push_back(std::pair{&it, it.Connections.size()});
         }
         std::sort(A.begin(), A.end(), cmpc);// Sort using comparator function
-        for (auto &it : A) {
+        for (auto &it: A) {
             result.push_back(it.first);
         }
         return result;
@@ -176,13 +181,8 @@ namespace znn {
             std::vector<std::future<void>> thisFuture;// 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
 
             uint indexOutside = 0;
-            for (auto &nn : tmpPopulation) {
-                thisFuture.push_back(tPool.submit([&]() {
-                    mtx.lock();
-                    uint index = indexOutside;
-                    ++indexOutside;
-                    mtx.unlock();
-
+            for (auto &nn: tmpPopulation) {
+                thisFuture.push_back(tPool.submit([&](uint index) {
                     if (index < Opts.ChampionToNewSize) {
                         nn = *orderedPopulation[index % Opts.ChampionKeepSize];// 选取ChampionKeepSize个个体填满前ChampionToNewSize个
                         if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
@@ -210,10 +210,11 @@ namespace znn {
                         nn = *orderedPopulation[index];
                         population.generation.MutateNetworkGenome(nn);
                     }
-                }));
+                }, indexOutside));
+                ++indexOutside;
             }
 
-            for (auto &f : thisFuture) {
+            for (auto &f: thisFuture) {
                 f.wait();
             }
 
@@ -325,13 +326,8 @@ namespace znn {
             std::vector<std::future<void>> thisFuture;// 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
 
             uint indexOutside = 0;
-            for (auto &nn : tmpPopulation) {
-                thisFuture.push_back(tPool.submit([&]() {
-                    mtx.lock();
-                    uint index = indexOutside;
-                    ++indexOutside;
-                    mtx.unlock();
-
+            for (auto &nn: tmpPopulation) {
+                thisFuture.push_back(tPool.submit([&](uint index) {
                     if (index < Opts.ChampionToNewSize) {
                         nn = *orderedPopulation[index % Opts.ChampionKeepSize];// 选取ChampionKeepSize个个体填满前ChampionToNewSize个
                         if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
@@ -358,10 +354,11 @@ namespace znn {
                         nn = *orderedPopulation[index];
                         population.generation.MutateNetworkGenome(nn);
                     }
-                }));
+                }, indexOutside));
+                ++indexOutside;
             }
 
-            for (auto &f : thisFuture) {
+            for (auto &f: thisFuture) {
                 f.wait();
             }
 
@@ -470,13 +467,8 @@ namespace znn {
             std::vector<std::future<void>> thisFuture;// 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
 
             uint indexOutside = 0;
-            for (auto &nn : tmpPopulation) {
-                thisFuture.push_back(tPool.submit([&]() {
-                    mtx.lock();
-                    uint index = indexOutside;
-                    ++indexOutside;
-                    mtx.unlock();
-
+            for (auto &nn: tmpPopulation) {
+                thisFuture.push_back(tPool.submit([&](uint index) {
                     if (index < Opts.ChampionToNewSize) {
                         nn = *orderedPopulation[index % Opts.ChampionKeepSize];// 选取ChampionKeepSize个个体填满前ChampionToNewSize个
                         if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
@@ -503,10 +495,11 @@ namespace znn {
                         nn = *orderedPopulation[index];
                         population.generation.MutateNetworkGenome(nn);
                     }
-                }));
+                }, indexOutside));
+                ++indexOutside;
             }
 
-            for (auto &f : thisFuture) {
+            for (auto &f: thisFuture) {
                 f.wait();
             }
 

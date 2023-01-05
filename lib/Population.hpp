@@ -13,7 +13,7 @@ namespace znn {
 
         void CreatePopulation();
 
-        void CreatePopulationFC(std::vector<ulong>& hideLayers);
+        void CreatePopulationFC(std::vector<ulong> &hideLayers);
 
         void CreatePopulationByGiving();
 
@@ -27,7 +27,7 @@ namespace znn {
         }
     }
 
-    void Population::CreatePopulationFC(std::vector<ulong>& hideLayers) {
+    void Population::CreatePopulationFC(std::vector<ulong> &hideLayers) {
         NeuralNetworks.clear();
         for (uint i = 0; i < Opts.PopulationSize; ++i) {
             NeuralNetworks.push_back(generation.neuralNetwork.NewFCNN(hideLayers));
@@ -38,8 +38,11 @@ namespace znn {
         generation.neuralNetwork.ImportInnovations(Opts.CheckPointPath);  // 要先导入innov
         NeuralNetworks.clear();
         auto nn = generation.neuralNetwork.ImportNN(Opts.CheckPointPath);
-        for (uint i = 0; i < Opts.PopulationSize; ++i) {
-            NeuralNetworks.push_back(nn);
+        NeuralNetworks.push_back(nn);
+        for (uint i = 1; i < Opts.PopulationSize; ++i) {
+            auto nn0 = nn;
+            generation.MutateNetworkGenome(nn0);
+            NeuralNetworks.push_back(nn0);
         }
     }
 
@@ -54,7 +57,7 @@ namespace znn {
 
         std::vector<std::future<void>> thisFuture;  // 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
 
-        for (auto &nn : NeuralNetworks) {
+        for (auto &nn: NeuralNetworks) {
             thisFuture.push_back(tPool.submit([&]() {
                 float fitness = 0.f;
                 for (uint i = 0; i < inputs.size(); ++i) {
@@ -67,7 +70,7 @@ namespace znn {
             }));
         }
 
-        for (auto &f : thisFuture) {
+        for (auto &f: thisFuture) {
             f.wait();
         }
 
