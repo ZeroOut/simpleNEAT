@@ -348,13 +348,14 @@ namespace znn {
         std::map<double, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
         for (auto &n : nn->Neurons) {
-            //            if (tmpNeuronMap.find(n.Id) == tmpNeuronMap.end()) {
             tmpNeuronMap[n.Id] = &n;
-            //            }
-            //            if (n.NNLayer > 0. && n.NNLayer < 1. && tmpLayerMap.find(n.NNLayer) == tmpLayerMap.end()) {
             tmpLayerMap[n.Layer].push_back(&n);
         }
 
+        if (tmpLayerMap[0.].size() != Opts.InputSize || tmpLayerMap[1.].size() != Opts.OutputSize) {
+            std::cerr << "NeuralNetwork Nodes Error: Opts.InputSize " << Opts.InputSize << " Input Layer Size: " << tmpLayerMap[0.].size() << " Opts.OutputSize: " << Opts.OutputSize << " Output Layer Size: " << tmpLayerMap[1.].size() << std::endl;
+            std::exit(0);
+        }
 
         if (Opts.InputSize != inputs.size()) {
             std::cerr << "FeedForwardPredict: Input length " << inputs.size() << " diffrent with NN input nodes " << Opts.InputSize << std::endl;
@@ -533,7 +534,6 @@ namespace znn {
             for (ulong i = 0; i < Opts.InputSize - InputSize; ++i) {
                 newNeurons.push_back(Neuron{
                         .Id = HiddenNeuronInnovations.size() + OutputSize + InputSize + i + FCHidenNeuronSize,
-                        //                        .Bias = 1.f,
                         .Bias = 0.f,
                         .Layer = 0.,
                 });
@@ -544,7 +544,6 @@ namespace znn {
             for (ulong i = 0; i < Opts.OutputSize - OutputSize; ++i) {
                 newNeurons.push_back(Neuron{
                     .Id = HiddenNeuronInnovations.size() + OutputSize + i + Opts.InputSize + FCHidenNeuronSize,
-                        //                        .Bias = 1.f,
                         .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100,
                         .Layer = 1.,
                 });
