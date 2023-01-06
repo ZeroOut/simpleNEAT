@@ -134,8 +134,6 @@ namespace znn {
         float lastFitness = 0.f;
 
         for (; rounds <= Opts.IterationTimes || Opts.IterationTimes <= 0; ++rounds) {
-            //            srandom((unsigned) clock());
-
             if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
                 lastFitness = populationFitness[orderedPopulation[0]];
                 std::cout << "gen: " << rounds << " " << orderedPopulation[0] << " " << orderedPopulation[0]->Neurons.size() << " " << orderedPopulation[0]->Connections.size() << " fitness: "
@@ -181,36 +179,36 @@ namespace znn {
             std::vector<std::future<void>> thisFuture;// 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
 
             uint indexOutside = 0;
-            for (auto &nn: tmpPopulation) {
-                thisFuture.push_back(tPool.submit([&](uint index) {
+            for (auto &n: tmpPopulation) {
+                thisFuture.push_back(tPool.submit([&](uint index, NetworkGenome *nn) {
                     if (index < Opts.ChampionToNewSize) {
-                        nn = *orderedPopulation[index % Opts.ChampionKeepSize];// 选取ChampionKeepSize个个体填满前ChampionToNewSize个
+                        *nn = *orderedPopulation[index % Opts.ChampionKeepSize];  // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
                         if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
-                            for (uint i = 0; i < inputs.size(); ++i) {  // 保留的冠军一份副本全部进行反向传播更新weight和bias
-                                population.generation.BackPropagation(&nn, inputs[i], wantedOutputs[i]);
-                            }
+                            population.generation.MutateNetworkGenome(*nn);  // 冠军一份副本进行变异
                         }
                         if (index >= Opts.ChampionKeepSize * 2) {
-                            population.generation.MutateNetworkGenome(nn);// 除开原始冠军，他们的克隆体进行变异
+                            for (uint i = 0; i < inputs.size(); ++i) {  // 保留的冠军一份副本全部进行反向传播更新weight和bias
+                                population.generation.BackPropagation(nn, inputs[i], wantedOutputs[i]);
+                            }
                         }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
                         auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
                         //                        auto nn1 = orderedPopulation[random() % Opts.ChampionKeepSize];
                         auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
-                        nn = population.generation.GetChildByCrossing(nn0, nn1);
+                        *nn = population.generation.GetChildByCrossing(nn0, nn1);
                         if ((index % 2 == 0 || nn0 == nn1) && nn0->Neurons.size() < orderedByComplex[0]->Neurons.size() && nn1->Neurons.size() < orderedByComplex[0]->Neurons.size()) {
-                            population.generation.MutateNetworkGenome(nn);// 繁殖以后进行变异
+                            population.generation.MutateNetworkGenome(*nn);// 繁殖以后进行变异
                         }
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
-                        nn = population.generation.neuralNetwork.NewNN();
+                        *nn = population.generation.neuralNetwork.NewNN();
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize) {
-                        nn = *orderedByComplex[index % Opts.KeepComplexSize];
-                        population.generation.EnableAllConnections(nn);
+                        *nn = *orderedByComplex[index % Opts.KeepComplexSize];
+                        population.generation.EnableAllConnections(*nn);
                     } else {
-                        nn = *orderedPopulation[index];
-                        population.generation.MutateNetworkGenome(nn);
+                        *nn = *orderedPopulation[index];
+                        population.generation.MutateNetworkGenome(*nn);
                     }
-                }, indexOutside));
+                }, indexOutside, &n));
                 ++indexOutside;
             }
 
@@ -326,42 +324,41 @@ namespace znn {
             std::vector<std::future<void>> thisFuture;// 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
 
             uint indexOutside = 0;
-            for (auto &nn: tmpPopulation) {
-                thisFuture.push_back(tPool.submit([&](uint index) {
+            for (auto &n: tmpPopulation) {
+                thisFuture.push_back(tPool.submit([&](uint index, NetworkGenome *nn) {
                     if (index < Opts.ChampionToNewSize) {
-                        nn = *orderedPopulation[index % Opts.ChampionKeepSize];// 选取ChampionKeepSize个个体填满前ChampionToNewSize个
+                        *nn = *orderedPopulation[index % Opts.ChampionKeepSize];  // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
                         if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
-                            for (uint i = 0; i < inputs.size(); ++i) {  // 保留的冠军一份副本全部进行反向传播更新weight和bias
-                                population.generation.BackPropagation(&nn, inputs[i], wantedOutputs[i]);
-                            }
+                            population.generation.MutateNetworkGenome(*nn);  // 冠军一份副本进行变异
                         }
                         if (index >= Opts.ChampionKeepSize * 2) {
-                            population.generation.MutateNetworkGenome(nn);// 除开原始冠军，他们的克隆体进行变异
+                            for (uint i = 0; i < inputs.size(); ++i) {  // 保留的冠军一份副本全部进行反向传播更新weight和bias
+                                population.generation.BackPropagation(nn, inputs[i], wantedOutputs[i]);
+                            }
                         }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
                         auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
                         auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
-                        nn = population.generation.GetChildByCrossing(nn0, nn1);
+                        *nn = population.generation.GetChildByCrossing(nn0, nn1);
                         if ((index % 2 == 0 || nn0 == nn1) && nn0->Neurons.size() < orderedByComplex[0]->Neurons.size() && nn1->Neurons.size() < orderedByComplex[0]->Neurons.size()) {
-                            population.generation.MutateNetworkGenome(nn);// 繁殖以后进行变异
+                            population.generation.MutateNetworkGenome(*nn);// 繁殖以后进行变异
                         }
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
-                        nn = population.generation.neuralNetwork.NewNN();
+                        *nn = population.generation.neuralNetwork.NewNN();
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize) {
-                        nn = *orderedByComplex[index % Opts.KeepComplexSize];
-                        population.generation.EnableAllConnections(nn);
+                        *nn = *orderedByComplex[index % Opts.KeepComplexSize];
+                        population.generation.EnableAllConnections(*nn);
                     } else {
-                        nn = *orderedPopulation[index];
-                        population.generation.MutateNetworkGenome(nn);
+                        *nn = *orderedPopulation[index];
+                        population.generation.MutateNetworkGenome(*nn);
                     }
-                }, indexOutside));
+                }, indexOutside, &n));
                 ++indexOutside;
             }
 
             for (auto &f: thisFuture) {
                 f.wait();
             }
-
 
             if (Opts.Enable3dNN) {
                 tPool.push_task(Update3dNN, *orderedPopulation[0], false);
@@ -467,35 +464,35 @@ namespace znn {
             std::vector<std::future<void>> thisFuture;// 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
 
             uint indexOutside = 0;
-            for (auto &nn: tmpPopulation) {
-                thisFuture.push_back(tPool.submit([&](uint index) {
+            for (auto &n: tmpPopulation) {
+                thisFuture.push_back(tPool.submit([&](uint index, NetworkGenome *nn) {
                     if (index < Opts.ChampionToNewSize) {
-                        nn = *orderedPopulation[index % Opts.ChampionKeepSize];// 选取ChampionKeepSize个个体填满前ChampionToNewSize个
+                        *nn = *orderedPopulation[index % Opts.ChampionKeepSize];// 选取ChampionKeepSize个个体填满前ChampionToNewSize个
                         if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
-                            population.generation.MutateNetworkGenome(nn);// 冠军一份副本进行变异
+                            population.generation.MutateNetworkGenome(*nn);// 冠军一份副本进行变异
                         }
                         if (index >= Opts.ChampionKeepSize * 2) {
                             auto nn0 = orderedPopulation[(random() % (Opts.ChampionKeepSize - 1))];  // 原始冠军互相交配
-                            nn = population.generation.GetChildByCrossing(nn0, &nn);
+                            *nn = population.generation.GetChildByCrossing(nn0, nn);
                         }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
                         auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
                         //                        auto nn1 = orderedPopulation[random() % Opts.ChampionKeepSize];
                         auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
-                        nn = population.generation.GetChildByCrossing(nn0, nn1);
+                        *nn = population.generation.GetChildByCrossing(nn0, nn1);
                         if ((index % 2 == 0 || nn0 == nn1) && nn0->Neurons.size() < orderedByComplex[0]->Neurons.size() && nn1->Neurons.size() < orderedByComplex[0]->Neurons.size()) {
-                            population.generation.MutateNetworkGenome(nn);// 繁殖以后进行变异
+                            population.generation.MutateNetworkGenome(*nn);// 繁殖以后进行变异
                         }
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
-                        nn = population.generation.neuralNetwork.NewNN();
+                        *nn = population.generation.neuralNetwork.NewNN();
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize) {
-                        nn = *orderedByComplex[index % Opts.KeepComplexSize];
-                        population.generation.EnableAllConnections(nn);
+                        *nn = *orderedByComplex[index % Opts.KeepComplexSize];
+                        population.generation.EnableAllConnections(*nn);
                     } else {
-                        nn = *orderedPopulation[index];
-                        population.generation.MutateNetworkGenome(nn);
+                        *nn = *orderedPopulation[index];
+                        population.generation.MutateNetworkGenome(*nn);
                     }
-                }, indexOutside));
+                }, indexOutside, &n));
                 ++indexOutside;
             }
 
