@@ -474,6 +474,9 @@ namespace znn {
                         if (index >= Opts.ChampionKeepSize * 2) {
                             auto nn0 = orderedPopulation[(random() % (Opts.ChampionKeepSize - 1))];  // 原始冠军互相交配
                             *nn = population.generation.GetChildByCrossing(nn0, nn);
+                            if (random() % 2 == 0) {
+                                population.generation.MutateNetworkGenome(*nn);// 繁殖以后进行变异
+                            }
                         }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
                         auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
