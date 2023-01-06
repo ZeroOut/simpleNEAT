@@ -25,6 +25,7 @@ namespace znn {
     };
 
     struct NetworkGenome {
+        uint Age = 0;
         std::vector<Neuron> Neurons;
         std::vector<Connection> Connections;
     };

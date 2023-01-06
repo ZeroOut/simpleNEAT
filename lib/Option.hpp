@@ -18,24 +18,24 @@ namespace znn {
         std::string CheckPointPath = std::filesystem::temp_directory_path().string() + "/check_point";
         uint ChampionKeepSize = 10;
         uint ChampionToNewSize = 30;
-        uint KeepWorstSize = 3;
-        uint NewSize = 9;
-        uint KeepComplexSize = 10;
+        uint KeepWorstSize = 1;
+        uint NewSize = 1;
+        uint KeepComplexSize = 1;
         std::function<float(float)> ActiveFunction = Sigmoid;
         std::function<float(float)> DerivativeFunction = DerivativeSigmoid;
-        float FitnessThreshold = 0.98f; // 如果<=0则不启用
-        float MutateWeightRate = 0.95f;
+        float FitnessThreshold = 0.99f; // 如果<=0则不启用
+        float MutateWeightRate = 0.1f;
         int MutateWeightNearRange = 2;
         float MutateWeightDirectOrNear = 0.5f;
         int WeightRange = 6;
-        float MutateBiasRate = 0.95f;
+        float MutateBiasRate = 0.1f;
         int MutateBiasNearRange = 2;
         float MutateBiasDirectOrNear = 0.5f;
         int BiasRange = 3;
         float MutateAddNeuronRate = 0.003f;
         float MutateAddConnectionRate = 0.5f;
         float MutateEnableConnectionRate = 0.3f;
-        float CrossoverRate = 0.9f;
+        float CrossoverRate = 0.99f;
         float LearnRate = 0.3f;
         uint ThreadCount = std::thread::hardware_concurrency();
 

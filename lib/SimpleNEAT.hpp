@@ -50,8 +50,8 @@ namespace znn {
             exit(0);
         }
 
-        if (Opts.ChampionKeepSize * 2 > Opts.ChampionToNewSize) {
-            std::cerr << "Opts.ChampionKeepSize * 2 > Opts.ChampionToNewSize" << std::endl;
+        if (Opts.ChampionKeepSize * 3 > Opts.ChampionToNewSize) {
+            std::cerr << "Opts.ChampionKeepSize * 3 > Opts.ChampionToNewSize" << std::endl;
             exit(0);
         }
 
@@ -136,8 +136,18 @@ namespace znn {
         for (; rounds <= Opts.IterationTimes || Opts.IterationTimes <= 0; ++rounds) {
             if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
                 lastFitness = populationFitness[orderedPopulation[0]];
-                std::cout << "gen: " << rounds << " " << orderedPopulation[0] << " " << orderedPopulation[0]->Neurons.size() << " " << orderedPopulation[0]->Connections.size() << " fitness: "
-                          << populationFitness[orderedPopulation[0]] << " " << std::endl;
+                std::cout
+                        << "gen: " << rounds
+                        << " ptr: " << orderedPopulation[0]
+                        << " age: " << orderedPopulation[0]->Age
+                        << " neurons: " << orderedPopulation[0]->Neurons.size()
+                        << " connections: " << orderedPopulation[0]->Connections.size()
+                        << " fitness: " << populationFitness[orderedPopulation[0]]
+                        << "\n";
+            }
+
+            for (auto &nn: population.NeuralNetworks) {
+                ++nn.Age;
             }
 
             if (Opts.FitnessThreshold > 0 && populationFitness[orderedPopulation[0]] >= Opts.FitnessThreshold) {
@@ -192,11 +202,12 @@ namespace znn {
                             }
                         }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
+                        long chooseAnother = random() % Opts.PopulationSize;
                         auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
-                        auto nn1 = orderedPopulation[random() % Opts.PopulationSize];
+                        auto nn1 = orderedPopulation[chooseAnother];
 //                        auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
                         *nn = population.generation.GetChildByCrossing(nn0, nn1);
-                        if (random() % 2 == 0 || nn0 == nn1) {
+                        if (random() % 2 == 0 || nn0 == nn1 || chooseAnother < Opts.ChampionKeepSize) {
                             population.generation.MutateNetworkGenome(*nn);  // 繁殖以后进行变异
                         }
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
@@ -277,12 +288,20 @@ namespace znn {
         float lastFitness = 0.f;
 
         for (; rounds <= Opts.IterationTimes || Opts.IterationTimes <= 0; ++rounds) {
-            //            srandom((unsigned) clock());
-
             if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
                 lastFitness = populationFitness[orderedPopulation[0]];
-                std::cout << "gen: " << rounds << " " << orderedPopulation[0] << " " << orderedPopulation[0]->Neurons.size() << " " << orderedPopulation[0]->Connections.size() << " fitness: "
-                          << populationFitness[orderedPopulation[0]] << " " << std::endl;
+                std::cout
+                        << "gen: " << rounds
+                        << " ptr: " << orderedPopulation[0]
+                        << " age: " << orderedPopulation[0]->Age
+                        << " neurons: " << orderedPopulation[0]->Neurons.size()
+                        << " connections: " << orderedPopulation[0]->Connections.size()
+                        << " fitness: " << populationFitness[orderedPopulation[0]]
+                        << "\n";
+            }
+
+            for (auto &nn: population.NeuralNetworks) {
+                ++nn.Age;
             }
 
             if (Opts.FitnessThreshold > 0 && populationFitness[orderedPopulation[0]] >= Opts.FitnessThreshold) {
@@ -337,11 +356,12 @@ namespace znn {
                             }
                         }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
+                        long chooseAnother = random() % Opts.PopulationSize;
                         auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
-                        auto nn1 = orderedPopulation[random() % Opts.PopulationSize];
+                        auto nn1 = orderedPopulation[chooseAnother];
 //                        auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
                         *nn = population.generation.GetChildByCrossing(nn0, nn1);
-                        if (random() % 2 == 0 || nn0 == nn1) {
+                        if (random() % 2 == 0 || nn0 == nn1 || chooseAnother < Opts.ChampionKeepSize) {
                             population.generation.MutateNetworkGenome(*nn);  // 繁殖以后进行变异
                         }
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
@@ -420,8 +440,18 @@ namespace znn {
         for (; rounds <= Opts.IterationTimes || Opts.IterationTimes <= 0; ++rounds) {
             if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
                 lastFitness = populationFitness[orderedPopulation[0]];
-                std::cout << "gen: " << rounds << " " << orderedPopulation[0] << " " << orderedPopulation[0]->Neurons.size() << " " << orderedPopulation[0]->Connections.size() << " fitness: "
-                          << populationFitness[orderedPopulation[0]] << " " << std::endl;
+                std::cout
+                        << "gen: " << rounds
+                        << " ptr: " << orderedPopulation[0]
+                        << " age: " << orderedPopulation[0]->Age
+                        << " neurons: " << orderedPopulation[0]->Neurons.size()
+                        << " connections: " << orderedPopulation[0]->Connections.size()
+                        << " fitness: " << populationFitness[orderedPopulation[0]]
+                        << "\n";
+            }
+
+            for (auto &nn: population.NeuralNetworks) {
+                ++nn.Age;
             }
 
             if (Opts.FitnessThreshold > 0 && populationFitness[orderedPopulation[0]] >= Opts.FitnessThreshold || isBreakFunc()) {
@@ -466,24 +496,26 @@ namespace znn {
             for (auto &n: tmpPopulation) {
                 thisFuture.push_back(tPool.submit([&](uint index, NetworkGenome *nn) {
                     if (index < Opts.ChampionToNewSize) {
-                        *nn = *orderedPopulation[index % Opts.ChampionKeepSize]; // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
+                        auto nn0 = orderedPopulation[index % Opts.ChampionKeepSize]; // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
+                        *nn = *nn0;
                         if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
                             population.generation.MutateNetworkGenome(*nn);// 冠军一份副本进行变异
                         }
                         if (index >= Opts.ChampionKeepSize * 2) {
-                            auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];  // 原始冠军互相交配
-                            if (nn0 == nn) {
+                            auto nn1 = orderedPopulation[random() % Opts.ChampionKeepSize];  // 原始冠军互相交配
+                            if (nn0 == nn1) {
                                 population.generation.MutateNetworkGenome(*nn);  // 父母相同则变异
                             } else {
-                                *nn = population.generation.GetChildByCrossing(nn0, nn);  // 原始冠军一份后代不变异
+                                *nn = population.generation.GetChildByCrossing(nn0, nn1);  // 原始冠军一份后代不变异
                             }
                         }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
+                        long chooseAnother = random() % Opts.PopulationSize;
                         auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
-                        auto nn1 = orderedPopulation[random() % Opts.PopulationSize];
+                        auto nn1 = orderedPopulation[chooseAnother];
 //                        auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
                         *nn = population.generation.GetChildByCrossing(nn0, nn1);
-                        if (random() % 2 == 0 || nn0 == nn1) {
+                        if (random() % 2 == 0 || nn0 == nn1 || chooseAnother < Opts.ChampionKeepSize) {
                             population.generation.MutateNetworkGenome(*nn);  // 繁殖以后进行变异
                         }
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
