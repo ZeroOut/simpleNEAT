@@ -146,8 +146,8 @@ namespace znn {
                         << "\n";
             }
 
-            for (auto &nn: population.NeuralNetworks) {
-                ++nn.Age;
+            for (auto nn: orderedPopulation) {
+                ++nn->Age;
             }
 
             if (Opts.FitnessThreshold > 0 && populationFitness[orderedPopulation[0]] >= Opts.FitnessThreshold) {
@@ -300,8 +300,8 @@ namespace znn {
                         << "\n";
             }
 
-            for (auto &nn: population.NeuralNetworks) {
-                ++nn.Age;
+            for (auto nn: orderedPopulation) {
+                ++nn->Age;
             }
 
             if (Opts.FitnessThreshold > 0 && populationFitness[orderedPopulation[0]] >= Opts.FitnessThreshold) {
@@ -450,8 +450,8 @@ namespace znn {
                         << "\n";
             }
 
-            for (auto &nn: population.NeuralNetworks) {
-                ++nn.Age;
+            for (auto nn: orderedPopulation) {
+                ++nn->Age;
             }
 
             if (Opts.FitnessThreshold > 0 && populationFitness[orderedPopulation[0]] >= Opts.FitnessThreshold || isBreakFunc()) {
