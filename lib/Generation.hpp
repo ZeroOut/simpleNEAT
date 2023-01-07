@@ -37,7 +37,7 @@ namespace znn {
         std::map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
         std::map<double, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
-        for (auto &n : nn->Neurons) {
+        for (auto &n: nn->Neurons) {
             tmpNeuronMap[n.Id] = &n;
             tmpLayerMap[n.Layer].push_back(&n);
         }
@@ -53,7 +53,7 @@ namespace znn {
 
         std::function<void(ulong)> calculateNeuron = [&](ulong nid) {
             tmpNodesInput[nid] = 0.f;
-            for (auto &connection : nn->Connections) {
+            for (auto &connection: nn->Connections) {
                 if (connection.ConnectedNeuronId[1] == nid && connection.Enable) {
                     tmpNodesInput[nid] += tmpNodesOutput[connection.ConnectedNeuronId[0]] * connection.Weight;
                 }
@@ -64,8 +64,8 @@ namespace znn {
 
         std::vector<float> outputs;
 
-        for (auto &l : tmpLayerMap) {    // 神经元根据layer排序
-            for (auto &n : l.second) {
+        for (auto &l: tmpLayerMap) {    // 神经元根据layer排序
+            for (auto &n: l.second) {
                 if (l.first == 0.f) {   // 初始化输入节点
                     tmpNodesOutput[n->Id] = inputs[n->Id];
                     continue;
@@ -86,7 +86,7 @@ namespace znn {
 
         std::function<void(ulong)> calculateNeuronError = [&](ulong nid) {
             tmpNodesOutputError[nid] = 0.f;
-            for (auto &connection : nn->Connections) {
+            for (auto &connection: nn->Connections) {
                 if (connection.ConnectedNeuronId[0] == nid && connection.Enable) {
                     tmpNodesOutputError[nid] += tmpNodesOutputError[connection.ConnectedNeuronId[1]] * connection.Weight;
                 }
@@ -96,7 +96,7 @@ namespace znn {
 
         uint wantsCount = 0;
         for (std::map<double, std::vector<Neuron *>>::reverse_iterator ri = tmpLayerMap.rbegin(); ri != tmpLayerMap.rend(); ++ri) {
-            for (auto &n : ri->second) {
+            for (auto &n: ri->second) {
                 if (ri->first == 1.f) {   // 计算输出神经元点误差
                     tmpNodesOutputError[n->Id] = Opts.DerivativeFunction(tmpNodesOutput[n->Id]) * (wants[wantsCount] - tmpNodesOutput[n->Id]);
                     ++wantsCount;
@@ -111,18 +111,18 @@ namespace znn {
             }
         }
 
-        // 更新连接权重
-        for (auto &connection : nn->Connections) {
+        for (auto &connection: nn->Connections) { // 更新连接权重
 //            connection.Weight += Opts.LearnRate * (tmpNodesOutputError[connection.ConnectedNeuronId[1]] * tmpNodesOutput[connection.ConnectedNeuronId[0]] + connection.Weight);
             connection.Weight += Opts.LearnRate * tmpNodesOutputError[connection.ConnectedNeuronId[1]] * tmpNodesOutput[connection.ConnectedNeuronId[0]];
         }
 
-        // 更新神经元偏置
-        for (auto &n : nn->Neurons) {
+        for (auto &n: nn->Neurons) { // 更新神经元偏置
             if (n.Layer != 0.) {
                 n.Bias += Opts.LearnRate * tmpNodesOutputError[n.Id];
             }
         }
+
+        nn->Age = 0;
 
         if (outputs.size() != wants.size()) {
             std::cerr << "BackPropagation: outputs.size(" << outputs.size() << ") != wants.size(" << wants.size() << ")\n";
@@ -177,14 +177,14 @@ namespace znn {
         ulong nid1 = choosingConnection.ConnectedNeuronId[1];  // 获取连接右边的神经元的id
 
         std::vector<ulong> tmpRightNeuronIds;
-        for (auto &n : nn.Connections) {
+        for (auto &n: nn.Connections) {
             if (n.ConnectedNeuronId[0] == nid0) {
                 tmpRightNeuronIds.push_back(n.ConnectedNeuronId[1]);
             }
         }
-        for (auto &n : nn.Connections) {
+        for (auto &n: nn.Connections) {
             if (n.ConnectedNeuronId[1] == nid1) {
-                for (auto &tnn : tmpRightNeuronIds) {
+                for (auto &tnn: tmpRightNeuronIds) {
                     if (tnn == n.ConnectedNeuronId[0]) {
                         return;  // 如果已经存在相同的连接左右神经元id的神经元，则不继续执行添加此神经元
                     }
@@ -203,7 +203,7 @@ namespace znn {
         mtx.unlock();
 
         std::map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
-        for (auto &o : nn.Neurons) {
+        for (auto &o: nn.Neurons) {
 //            if (tmpNeuronMap.find(o.Id) == tmpNeuronMap.end()) {
             tmpNeuronMap[o.Id] = &o;
 //            }
@@ -260,7 +260,7 @@ namespace znn {
             nid1 = choosingNeuron0.Id;
         }
 
-        for (auto &c : nn.Connections) {
+        for (auto &c: nn.Connections) {
             if (c.ConnectedNeuronId[0] == nid0 && c.ConnectedNeuronId[1] == nid1) {
                 return; // 已存在这个链接
             }
@@ -293,7 +293,7 @@ namespace znn {
     }
 
     void Generation::EnableAllConnections(NetworkGenome &nn) {
-        for (auto &c : nn.Connections) {
+        for (auto &c: nn.Connections) {
             if (!c.Enable) {
                 c.Enable = true;
             }
@@ -301,7 +301,7 @@ namespace znn {
     }
 
     void Generation::MutateNetworkGenome(NetworkGenome &nn) {
-        for (auto &c : nn.Connections) {
+        for (auto &c: nn.Connections) {
             if (float(random() % 1000) / 1000.f < Opts.MutateWeightRate) {
                 if (float(random() % 1000) / 1000.f < Opts.MutateWeightDirectOrNear) {
                     MutateWeightDirect(c);
@@ -312,7 +312,7 @@ namespace znn {
             }
         }
 
-        for (auto &n : nn.Neurons) {
+        for (auto &n: nn.Neurons) {
             if (float(random() % 1000) / 1000.f < Opts.MutateBiasRate && n.Layer > 0.) {
                 if (float(random() % 1000) / 1000.f < Opts.MutateBiasDirectOrNear) {
                     MutateBiasDirect(n);
@@ -335,7 +335,7 @@ namespace znn {
 
         if (float(random() % 1000) / 1000.f < Opts.MutateEnableConnectionRate) {
             MutateEnableConnection(nn);
-//            nn.Age = 0;
+            nn.Age = 0;
         }
     }
 
@@ -346,9 +346,9 @@ namespace znn {
 
         std::vector<Connection> newConnections;// 记录全部涉及的连接
 
-        for (auto c0 : nn0->Connections) {  // 遍历第一个神经元的所有连接
+        for (auto c0: nn0->Connections) {  // 遍历第一个神经元的所有连接
             bool isThisConnectionExists = false;
-            for (auto c1 : nn1->Connections) {// 遍历第二个神经元的所有连接
+            for (auto c1: nn1->Connections) {// 遍历第二个神经元的所有连接
                 if (c0.ConnectedNeuronId == c1.ConnectedNeuronId) {
                     isThisConnectionExists = true;
                     if (random() % 2 == 0) {  // 若有相同对应神经元id的连接，则随机选一条
@@ -365,9 +365,9 @@ namespace znn {
 //            remainingIds.insert(remainingIds.end(), c0.ConnectedNeuronId.begin(), c0.ConnectedNeuronId.end());
         }
 
-        for (auto c1 : nn1->Connections) {// 遍历第二个神经元的所有连接
+        for (auto c1: nn1->Connections) {// 遍历第二个神经元的所有连接
             bool isThisConnectionExists = false;
-            for (auto c2 : newConnections) {// 遍历根据第一个连接加上第二个神经元中第一个神经元没有的连接
+            for (auto c2: newConnections) {// 遍历根据第一个连接加上第二个神经元中第一个神经元没有的连接
                 if (c1.ConnectedNeuronId == c2.ConnectedNeuronId) {
                     isThisConnectionExists = true;
                     break;
@@ -382,20 +382,20 @@ namespace znn {
         std::map<ulong, uint> remainingIds;  // 记录所有涉及的神经元id
         std::map<ulong, Neuron *> tmpNeuron0Map;
 
-        for (auto &n : nn0->Neurons) {
+        for (auto &n: nn0->Neurons) {
             tmpNeuron0Map[n.Id] = &n;
             remainingIds[n.Id] = 0;
         }
 
         std::map<ulong, Neuron *> tmpNeuron1Map;
-        for (auto &n : nn1->Neurons) {
+        for (auto &n: nn1->Neurons) {
             tmpNeuron1Map[n.Id] = &n;
             remainingIds[n.Id] = 0;
         }
 
         std::vector<Neuron> newNeurons;
 
-        for (auto &i : remainingIds) {
+        for (auto &i: remainingIds) {
             bool isNeuronIn0 = (tmpNeuron0Map.find(i.first) != tmpNeuron0Map.end());
 //            bool isNeuronIn0 = (tmpNeuron0Map.contains(i.first));
             bool isNeuronIn1 = (tmpNeuron1Map.find(i.first) != tmpNeuron1Map.end());
