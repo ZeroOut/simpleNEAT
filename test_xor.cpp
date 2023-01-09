@@ -15,7 +15,8 @@ int main() {
 //    znn::Opts.NewSize = 0;
 //    znn::Opts.KeepLastSize = 0;
 //    znn::Opts.ChampionToNewSize = 50;
-    znn::Opts.Enable3dNN = true;
+    znn::Opts.Enable3dNN = false;
+    znn::Opts.CheckPointPath = "/tmp/xor";
 
     znn::SimpleNeat sneat;
     sneat.StartNew();
@@ -35,7 +36,7 @@ int main() {
             {1.f},
     };
 
-    auto best = sneat.TrainByWanted(inputs, wanted);
+    auto best = sneat.TrainByWanted(inputs, wanted, 0);
 
 //    std::cout << "HiddenNeuronInnovations: " << znn::HiddenNeuronInnovations.size() << " ConnectionInnovations: " << znn::ConnectionInnovations.size() << std::endl;
     std::cout << "HiddenNeuronInnovations: " << sneat.population.generation.neuralNetwork.HiddenNeuronInnovations.size() << std::endl;

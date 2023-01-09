@@ -27,9 +27,7 @@ namespace znn {
 
         void Start();
 
-        znn::BestOne TrainByWanted(const std::vector<std::vector<float>> &inputs, const std::vector<std::vector<float>> &wantedOutputs);
-
-        znn::BestOne TrainByWantedRandom(const std::vector<std::vector<float>> &rawInputs, const std::vector<std::vector<float>> &rawWantedOutputs, const uint chooseSize);
+        znn::BestOne TrainByWanted(const std::vector<std::vector<float>> &inputs, const std::vector<std::vector<float>> &wantedOutputs, const uint randomSize);
 
         std::vector<NetworkGenome *> OrderByFitness(std::map<NetworkGenome *, float> &M);
 
@@ -125,147 +123,7 @@ namespace znn {
         return result;
     }
 
-    BestOne SimpleNeat::TrainByWanted(const std::vector<std::vector<float>> &inputs, const std::vector<std::vector<float>> &wantedOutputs) {
-        auto populationFitness = population.CalculateFitnessByWanted(inputs, wantedOutputs);
-        auto orderedPopulation = OrderByFitness(populationFitness);
-        auto orderedByComplex = OrderByComplex();
-
-        uint rounds = 1;
-        float lastFitness = 0.f;
-
-        for (; rounds <= Opts.IterationTimes || Opts.IterationTimes <= 0; ++rounds) {
-            if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
-                lastFitness = populationFitness[orderedPopulation[0]];
-                std::cout
-                        << "gen: " << rounds
-                        << " ptr: " << orderedPopulation[0]
-                        << " age: " << orderedPopulation[0]->Age
-                        << " neurons: " << orderedPopulation[0]->Neurons.size()
-                        << " connections: " << orderedPopulation[0]->Connections.size()
-                        << " fitness: " << populationFitness[orderedPopulation[0]]
-                        << "\n";
-            }
-
-            for (auto nn: orderedPopulation) {
-                ++nn->Age;
-            }
-
-            if (Opts.FitnessThreshold > 0 && populationFitness[orderedPopulation[0]] >= Opts.FitnessThreshold) {
-                auto simplifiedBestNN = population.generation.neuralNetwork.SimplifyRemoveDisable(*orderedPopulation[0]);
-                auto compressedLeftBestNN = population.generation.neuralNetwork.SimplifyRemoveUselessConnectionLeft(simplifiedBestNN);
-                auto compressedRightBestNN = population.generation.neuralNetwork.SimplifyRemoveUselessConnectionRight(compressedLeftBestNN);
-
-                if (Opts.IterationCheckPoint > 0) {
-                    population.generation.neuralNetwork.ExportInnovations(Opts.CheckPointPath);
-                    population.generation.neuralNetwork.ExportNN(simplifiedBestNN, Opts.CheckPointPath); // 导出导入的格式定为没有已禁用连接，断点不需要简化孤立连接
-                }
-
-                population.generation.neuralNetwork.ExportNN(compressedRightBestNN, "./champion");
-                population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
-
-                if (Opts.Enable3dNN) {
-                    tPool.push_task(Update3dNN, compressedRightBestNN, false);
-                    std::cout << "需保持主线程不退出,防止3d显示bug\n";
-                }
-
-                return BestOne{
-                        .Gen = rounds,
-                        .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
-                        //                        .NN = *orderedPopulation[0],
-                        .Fit = populationFitness[orderedPopulation[0]],
-                };
-            }
-
-            if (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0) {
-                auto simplifiedBestNN = population.generation.neuralNetwork.SimplifyRemoveDisable(*orderedPopulation[0]);
-
-                if (Opts.IterationCheckPoint > 0) {
-                    population.generation.neuralNetwork.ExportInnovations(Opts.CheckPointPath);
-                    population.generation.neuralNetwork.ExportNN(simplifiedBestNN, Opts.CheckPointPath); // 导出导入的格式定为没有已禁用连接，断点不需要简化孤立连接
-                }
-            }
-
-            std::vector<NetworkGenome> tmpPopulation(Opts.PopulationSize);
-            std::vector<std::future<void>> thisFuture;// 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
-
-            uint indexOutside = 0;
-            for (auto &n: tmpPopulation) {
-                thisFuture.push_back(tPool.submit([&](uint index, NetworkGenome *nn) {
-                    if (index < Opts.ChampionToNewSize) {
-                        *nn = *orderedPopulation[index % Opts.ChampionKeepSize];  // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
-                        if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
-                            population.generation.MutateNetworkGenome(*nn);  // 冠军一份副本进行变异
-                        }
-                        if (index >= Opts.ChampionKeepSize * 2) {
-                            for (uint i = 0; i < inputs.size(); ++i) {  // 保留的冠军一份副本全部进行反向传播更新weight和bias
-                                population.generation.BackPropagation(nn, inputs[i], wantedOutputs[i]);
-                            }
-                        }
-                    } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
-                        long chooseAnother = random() % Opts.PopulationSize;
-                        auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
-                        auto nn1 = orderedPopulation[chooseAnother];
-//                        auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
-                        *nn = population.generation.GetChildByCrossing(nn0, nn1);
-                        if (random() % 2 == 0 || nn0 == nn1 || chooseAnother < Opts.ChampionKeepSize) {
-                            population.generation.MutateNetworkGenome(*nn);  // 繁殖以后进行变异
-                        }
-                    } else if (index < Opts.PopulationSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
-                        *nn = population.generation.neuralNetwork.NewNN();
-                    } else if (index < Opts.PopulationSize - Opts.KeepWorstSize) {
-                        *nn = *orderedByComplex[index % Opts.KeepComplexSize];
-                        population.generation.EnableAllConnections(*nn);
-                    } else {
-                        *nn = *orderedPopulation[index];
-                        population.generation.MutateNetworkGenome(*nn);
-                    }
-                }, indexOutside, &n));
-                ++indexOutside;
-            }
-
-            for (auto &f: thisFuture) {
-                f.wait();
-            }
-
-            if (Opts.Enable3dNN) {
-                tPool.push_task(Update3dNN, *orderedPopulation[0], false);
-            }
-
-            population.NeuralNetworks = tmpPopulation;
-
-            populationFitness.clear();
-            orderedPopulation.clear();
-            orderedByComplex.clear();
-            populationFitness = population.CalculateFitnessByWanted(inputs, wantedOutputs);
-            orderedPopulation = OrderByFitness(populationFitness);
-            orderedByComplex = OrderByComplex();
-        }
-
-        auto simplifiedBestNN = population.generation.neuralNetwork.SimplifyRemoveDisable(*orderedPopulation[0]);
-        auto compressedLeftBestNN = population.generation.neuralNetwork.SimplifyRemoveUselessConnectionLeft(simplifiedBestNN);
-        auto compressedRightBestNN = population.generation.neuralNetwork.SimplifyRemoveUselessConnectionRight(compressedLeftBestNN);
-
-        if (Opts.IterationCheckPoint > 0) {
-            population.generation.neuralNetwork.ExportInnovations(Opts.CheckPointPath);
-            population.generation.neuralNetwork.ExportNN(simplifiedBestNN, Opts.CheckPointPath); // 导出导入的格式定为没有已禁用连接，断点不需要简化孤立连接
-        }
-
-        population.generation.neuralNetwork.ExportNN(compressedRightBestNN, "./champion");
-        population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
-
-        if (Opts.Enable3dNN) {
-            std::cout << "需保持主线程不退出,防止3d显示bug\n";
-        }
-
-        return BestOne{
-                .Gen = rounds,
-                .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
-                //                        .NN = *orderedPopulation[0],
-                .Fit = populationFitness[orderedPopulation[0]],
-        };
-    }
-
-    BestOne SimpleNeat::TrainByWantedRandom(const std::vector<std::vector<float>> &rawInputs, const std::vector<std::vector<float>> &rawWantedOutputs, const uint chooseSize) {
+    BestOne SimpleNeat::TrainByWanted(const std::vector<std::vector<float>> &rawInputs, const std::vector<std::vector<float>> &rawWantedOutputs, const uint randomSize) {
         if (rawInputs.size() != rawWantedOutputs.size()) {
             std::cerr << "rawInputs size: " << rawInputs.size() << " != rawWantedOutputs size: " << rawWantedOutputs.size() << "\n";
             exit(0);
@@ -274,10 +132,15 @@ namespace znn {
         std::vector<std::vector<float>> inputs;
         std::vector<std::vector<float>> wantedOutputs;
 
-        for (uint i = 0; i < chooseSize; ++i) {
-            auto chooseIndex = random() % rawInputs.size();
-            inputs.push_back(rawInputs[chooseIndex]);
-            wantedOutputs.push_back(rawWantedOutputs[chooseIndex]);
+        if (randomSize > 0) {
+            for (uint i = 0; i < randomSize; ++i) {
+                auto chooseIndex = random() % rawInputs.size();
+                inputs.push_back(rawInputs[chooseIndex]);
+                wantedOutputs.push_back(rawWantedOutputs[chooseIndex]);
+            }
+        } else {
+            inputs = rawInputs;
+            wantedOutputs = rawWantedOutputs;
         }
 
         auto populationFitness = population.CalculateFitnessByWanted(inputs, wantedOutputs);
@@ -391,13 +254,15 @@ namespace znn {
             orderedPopulation.clear();
             orderedByComplex.clear();
 
-            inputs.clear();
-            wantedOutputs.clear();
+            if (randomSize > 0) {
+                inputs.clear();
+                wantedOutputs.clear();
 
-            for (uint i = 0; i < chooseSize; ++i) {
-                auto chooseIndex = random() % rawInputs.size();
-                inputs.push_back(rawInputs[chooseIndex]);
-                wantedOutputs.push_back(rawWantedOutputs[chooseIndex]);
+                for (uint i = 0; i < randomSize; ++i) {
+                    auto chooseIndex = random() % rawInputs.size();
+                    inputs.push_back(rawInputs[chooseIndex]);
+                    wantedOutputs.push_back(rawWantedOutputs[chooseIndex]);
+                }
             }
 
             populationFitness = population.CalculateFitnessByWanted(inputs, wantedOutputs);

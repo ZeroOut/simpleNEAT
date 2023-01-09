@@ -20,7 +20,7 @@ int main() {
     znn::Opts.BiasRange = 6;
     znn::Opts.MutateBiasRate = 1.f;
     znn::Opts.MutateWeightRate = 1.f;
-    znn::Opts.Enable3dNN = true;
+    znn::Opts.Enable3dNN = false;
 
     znn::SimpleNeat sneat;
     sneat.StartNew();
@@ -336,7 +336,7 @@ int main() {
             {0.f, 0.f, 1.f},
     };
 
-    auto best = sneat.TrainByWanted(inputs, wanted);
+    auto best = sneat.TrainByWanted(inputs, wanted, 0);
 
 //    std::cout << "HiddenNeuronInnovations: " << znn::HiddenNeuronInnovations.size() << " ConnectionInnovations: " << znn::ConnectionInnovations.size() << std::endl;
     std::cout << "HiddenNeuronInnovations: " << sneat.population.generation.neuralNetwork.HiddenNeuronInnovations.size() << std::endl;
