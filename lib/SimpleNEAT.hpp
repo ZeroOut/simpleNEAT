@@ -133,11 +133,14 @@ namespace znn {
         std::vector<std::vector<float>> wantedOutputs;
 
         if (randomSize > 0) {
+            uint *randIdsPtr = GetRandIndex(rawInputs.size());
+
             for (uint i = 0; i < randomSize; ++i) {
-                auto chooseIndex = random() % rawInputs.size();
-                inputs.push_back(rawInputs[chooseIndex]);
-                wantedOutputs.push_back(rawWantedOutputs[chooseIndex]);
+                inputs.push_back(rawInputs[randIdsPtr[i]]);
+                wantedOutputs.push_back(rawWantedOutputs[randIdsPtr[i]]);
             }
+
+            delete[] randIdsPtr;
         } else {
             inputs = rawInputs;
             wantedOutputs = rawWantedOutputs;
@@ -153,14 +156,8 @@ namespace znn {
         for (; rounds <= Opts.IterationTimes || Opts.IterationTimes <= 0; ++rounds) {
             if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
                 lastFitness = populationFitness[orderedPopulation[0]];
-                std::cout
-                        << "gen: " << rounds
-                        << " ptr: " << orderedPopulation[0]
-                        << " age: " << orderedPopulation[0]->Age
-                        << " neurons: " << orderedPopulation[0]->Neurons.size()
-                        << " connections: " << orderedPopulation[0]->Connections.size()
-                        << " fitness: " << populationFitness[orderedPopulation[0]]
-                        << "\n";
+                std::cout << "gen: " << rounds << " ptr: " << orderedPopulation[0] << " age: " << orderedPopulation[0]->Age << " neurons: " << orderedPopulation[0]->Neurons.size() << " connections: "
+                          << orderedPopulation[0]->Connections.size() << " fitness: " << populationFitness[orderedPopulation[0]] << "\n";
             }
 
             for (auto nn: orderedPopulation) {
@@ -185,12 +182,9 @@ namespace znn {
                     std::cout << "需保持主线程不退出,防止3d显示bug\n";
                 }
 
-                return BestOne{
-                        .Gen = rounds,
-                        .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
+                return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
                         //                        .NN = *orderedPopulation[0],
-                        .Fit = populationFitness[orderedPopulation[0]],
-                };
+                        .Fit = populationFitness[orderedPopulation[0]],};
             }
 
             if (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0) {
@@ -258,11 +252,14 @@ namespace znn {
                 inputs.clear();
                 wantedOutputs.clear();
 
+                uint *randIdsPtr = GetRandIndex(rawInputs.size());
+
                 for (uint i = 0; i < randomSize; ++i) {
-                    auto chooseIndex = random() % rawInputs.size();
-                    inputs.push_back(rawInputs[chooseIndex]);
-                    wantedOutputs.push_back(rawWantedOutputs[chooseIndex]);
+                    inputs.push_back(rawInputs[randIdsPtr[i]]);
+                    wantedOutputs.push_back(rawWantedOutputs[randIdsPtr[i]]);
                 }
+
+                delete[] randIdsPtr;
             }
 
             populationFitness = population.CalculateFitnessByWanted(inputs, wantedOutputs);
@@ -286,12 +283,9 @@ namespace znn {
             std::cout << "需保持主线程不退出,防止3d显示bug\n";
         }
 
-        return BestOne{
-                .Gen = rounds,
-                .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
+        return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
                 //                        .NN = *orderedPopulation[0],
-                .Fit = populationFitness[orderedPopulation[0]],
-        };
+                .Fit = populationFitness[orderedPopulation[0]],};
     }
 
     BestOne SimpleNeat::TrainByInteractive(const std::function<std::map<NetworkGenome *, float>()> &interactiveFunc, const std::function<bool()> &isBreakFunc) {
@@ -305,14 +299,8 @@ namespace znn {
         for (; rounds <= Opts.IterationTimes || Opts.IterationTimes <= 0; ++rounds) {
             if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
                 lastFitness = populationFitness[orderedPopulation[0]];
-                std::cout
-                        << "gen: " << rounds
-                        << " ptr: " << orderedPopulation[0]
-                        << " age: " << orderedPopulation[0]->Age
-                        << " neurons: " << orderedPopulation[0]->Neurons.size()
-                        << " connections: " << orderedPopulation[0]->Connections.size()
-                        << " fitness: " << populationFitness[orderedPopulation[0]]
-                        << "\n";
+                std::cout << "gen: " << rounds << " ptr: " << orderedPopulation[0] << " age: " << orderedPopulation[0]->Age << " neurons: " << orderedPopulation[0]->Neurons.size() << " connections: "
+                          << orderedPopulation[0]->Connections.size() << " fitness: " << populationFitness[orderedPopulation[0]] << "\n";
             }
 
             for (auto nn: orderedPopulation) {
@@ -337,12 +325,9 @@ namespace znn {
                     std::cout << "需保持主线程不退出,防止3d显示bug\n";
                 }
 
-                return BestOne{
-                        .Gen = rounds,
-                        .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
+                return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
                         //                        .NN = *orderedPopulation[0],
-                        .Fit = populationFitness[orderedPopulation[0]],
-                };
+                        .Fit = populationFitness[orderedPopulation[0]],};
             }
 
             if (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0) {
@@ -430,12 +415,9 @@ namespace znn {
             std::cout << "需保持主线程不退出,防止3d显示bug\n";
         }
 
-        return BestOne{
-                .Gen = rounds,
-                .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
+        return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
                 //                        .NN = *orderedPopulation[0],
-                .Fit = populationFitness[orderedPopulation[0]],
-        };
+                .Fit = populationFitness[orderedPopulation[0]],};
     }
 }
 

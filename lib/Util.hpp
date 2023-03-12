@@ -8,6 +8,7 @@
 #include <numeric>      // std::iota
 #include <algorithm>    // std::sort, std::stable_sort
 #include <utility>
+#include <random>
 
 namespace znn {
     float Tanh(float x) {
@@ -97,7 +98,7 @@ namespace znn {
             auto rawData = SplitString(line, ",");
             std::vector<float> data;
 
-            for (auto &d : rawData) {
+            for (auto &d: rawData) {
                 data.push_back(std::stof(d));
             }
 
@@ -125,6 +126,19 @@ namespace znn {
         });
 
         return idx;
+    }
+
+    uint *GetRandIndex(uint arrayLength) {
+        uint *arr = new uint[arrayLength];
+        for (uint i = 0; i < arrayLength; ++i) {
+            arr[i] = i;
+        }
+
+        std::random_device rd;
+        std::mt19937 g(rd());
+        std::shuffle(arr, arr + arrayLength, g);
+
+        return arr;
     }
 }
 
