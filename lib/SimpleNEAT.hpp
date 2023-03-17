@@ -61,7 +61,8 @@ namespace znn {
         srandom((unsigned) clock());
 
         if (Opts.Enable3dNN) {
-            tPool.push_task(Show3dNN);
+            std::thread show3d(Show3dNN);
+            show3d.detach();
         }
     }
 

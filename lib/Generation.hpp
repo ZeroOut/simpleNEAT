@@ -122,7 +122,7 @@ namespace znn {
             }
         }
 
-        nn->Age = 0;
+//        nn->Age = 0;
 
         if (outputs.size() != wants.size()) {
             std::cerr << "BackPropagation: outputs.size(" << outputs.size() << ") != wants.size(" << wants.size() << ")\n";
@@ -308,7 +308,7 @@ namespace znn {
                 } else {
                     MutateWeightNear(c);
                 }
-                nn.Age = 0;
+//                nn.Age = 0;
             }
         }
 
@@ -319,23 +319,23 @@ namespace znn {
                 } else {
                     MutateBiasNear(n);
                 }
-                nn.Age = 0;
+//                nn.Age = 0;
             }
         }
 
         if (float(random() % 1000) / 1000.f < Opts.MutateAddNeuronRate) {
             MutateAddNeuron(nn);
-            nn.Age = 0;
+//            nn.Age = 0;
         }
 
         if (float(random() % 1000) / 1000.f < Opts.MutateAddConnectionRate) {
             MutateAddConnection(nn);
-            nn.Age = 0;
+//            nn.Age = 0;
         }
 
         if (float(random() % 1000) / 1000.f < Opts.MutateEnableConnectionRate) {
             MutateEnableConnection(nn);
-            nn.Age = 0;
+//            nn.Age = 0;
         }
     }
 

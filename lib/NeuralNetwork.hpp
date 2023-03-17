@@ -45,7 +45,7 @@ namespace znn {
 
         NetworkGenome SimplifyRemoveDisable(NetworkGenome nn);
 
-        std::vector<float> FeedForwardPredict(NetworkGenome *nn, std::vector<float> inputs);
+        std::vector<float> FeedForwardPredict(NetworkGenome *nn, std::vector<float> inputs, bool isTrain);
 
         void ExportNNToDot(NetworkGenome &nn, std::string fileName);
 
@@ -342,7 +342,7 @@ namespace znn {
         };
     }
 
-    std::vector<float> NeuralNetwork::FeedForwardPredict(NetworkGenome *nn, std::vector<float> inputs) {
+    std::vector<float> NeuralNetwork::FeedForwardPredict(NetworkGenome *nn, std::vector<float> inputs, bool isTrain) {
         std::map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
         std::map<double, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
@@ -365,13 +365,18 @@ namespace znn {
         std::map<ulong, float> tmpNodesOutput;
 
         std::function<void(ulong)> calculateNeuron = [&](ulong nid) {
-            tmpNodesOutput[nid] = 0.f;
+            float thisOutput = 0.f;
+
             for (auto &connection: nn->Connections) {
                 if (connection.ConnectedNeuronId[1] == nid && connection.Enable) {
-                    tmpNodesOutput[nid] += tmpNodesOutput[connection.ConnectedNeuronId[0]] * connection.Weight;
+                    thisOutput += tmpNodesOutput[connection.ConnectedNeuronId[0]] * connection.Weight;
                 }
             }
-            tmpNodesOutput[nid] = Opts.ActiveFunction(tmpNodesOutput[nid] + tmpNeuronMap[nid]->Bias);
+            thisOutput = Opts.ActiveFunction(thisOutput + tmpNeuronMap[nid]->Bias);
+
+            mtx.lock();
+            tmpNodesOutput[nid] = thisOutput;
+            mtx.unlock();
         };
 
         uint i = 0;
@@ -386,13 +391,29 @@ namespace znn {
             if (l.first == 0.) {   // 跳过输入节点
                 continue;
             }
-            for (auto &n: l.second) {
-                //                if (tmpNeuronMap.find(n->Id) != tmpNeuronMap.end()) {   // 从本次临时神经元id对应的神经元记录中查询，确保id存在，避免多个神经网络混淆
-                calculateNeuron(n->Id);  // 计算隐藏神经元
-                //                    }
 
-                if (l.first == 1.) {  // 计算输出神经元
-                    outputs.push_back(tmpNodesOutput[n->Id]);
+            if (isTrain) {
+                for (auto &n: l.second) {
+                    calculateNeuron(n->Id);  // 计算隐藏和输出神经元
+                    if (l.first == 1.) {  // 输出神经元
+                        outputs.push_back(tmpNodesOutput[n->Id]);
+                    }
+                }
+            } else {
+                std::vector<std::future<void>> thisFuture;
+
+                for (auto &n: l.second) {
+                    thisFuture.push_back(tPool.submit(calculateNeuron, n->Id));
+                }
+
+                for (auto &f: thisFuture) {
+                    f.wait();
+                }
+
+                if (l.first == 1.) {  // 输出神经元
+                    for (auto &n: l.second) {
+                        outputs.push_back(tmpNodesOutput[n->Id]);
+                    }
                 }
             }
         }
