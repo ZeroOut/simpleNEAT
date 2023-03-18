@@ -130,6 +130,7 @@ int main() {
         znn::Opts.MutateWeightNearRange = 6;
         znn::Opts.MutateBiasDirectOrNear = 0.5f;
         znn::Opts.MutateWeightNearRange = 6;
+        znn::Opts.Enable3dNN = true;
 
         sneat.StartNew();
 
@@ -137,7 +138,7 @@ int main() {
     };
 
     auto initPlayers = [&]() {
-        for (auto &g : sneat.population.NeuralNetworks) {
+        for (auto &g: sneat.population.NeuralNetworks) {
             Player player = Player{};
             player.statusPos = beginPos;
             player.passedPath[beginPos] = 0;
@@ -150,18 +151,7 @@ int main() {
 
     auto getFitness = [&]() {
         std::map<znn::NetworkGenome *, float> popFitness;
-        for (auto &p : players) {
-//            if (std::abs(p.second.statusPos[0] - endPos[0]) <= 10 && std::abs(p.second.statusPos[1] - endPos[1]) <= 10) {
-//                popFitness[p.first] = bestDistance;
-//                continue;
-//            }
-//            popFitness[p.first] = 1000 / (p.second.distanceLeft * float(p.second.stepCount));  // TODO 分数评判有问题
-//            if (p.second.stepCount < bestDistance - p.second.distanceLeft) {
-//                popFitness[p.first] = 0.f;
-//            } else {
-//            popFitness[p.first] = (bestDistance - p.second.distanceLeft) / float(p.second.stepCount) * (bestDistance - p.second.distanceLeft) * 0.1f + (bestDistance - p.second.distanceLeft) * 0.9f;  // TODO 分数评判有问题
-//            }
-
+        for (auto &p: players) {
             popFitness[p.first] = (bestDistance - p.second.distanceLeft) * 0.5f + float(p.second.stepCount) * 0.5f;  // TODO 分数评判有问题
             if (p.second.distanceLeft < 15) {
                 popFitness[p.first] = popFitness[p.first] / float(p.second.stepCount) + bestDistance;
@@ -172,7 +162,7 @@ int main() {
 
     auto drawChampion = [&]() {
 //        std::cout << p.distanceLeft << "\n";
-        for (auto &pp : Champion.passedPath) {
+        for (auto &pp: Champion.passedPath) {
             blocks[pp.first].setFillColor(sf::Color(200, 200, 255, 200));
             window.draw(blocks[pp.first]);
         }
@@ -190,20 +180,16 @@ int main() {
 
         Champion = players[orderedPopulation[0]];
 
-//        if (rounds == 1 || realRounds % 10 == 0) {
-            std::cout << "gen: " << realRounds << " " << orderedPopulation[0] << " " << orderedPopulation[0]->Neurons.size() << " " << orderedPopulation[0]->Connections.size() << " steps: "
-                      << players[orderedPopulation[0]].stepCount << " distance left: " << players[orderedPopulation[0]].distanceLeft << " fitness: "
-                      << populationFitness[orderedPopulation[0]] << " most complex: " << orderedByComplex[0]->Neurons.size() << std::endl;
-//        }
+        std::cout << "gen: " << realRounds << " " << orderedPopulation[0] << " " << orderedPopulation[0]->Neurons.size() << " " << orderedPopulation[0]->Connections.size() << " steps: "
+                  << players[orderedPopulation[0]].stepCount << " distance left: " << players[orderedPopulation[0]].distanceLeft << " fitness: " << populationFitness[orderedPopulation[0]]
+                  << " most complex: " << orderedByComplex[0]->Neurons.size() << std::endl;
         ++realRounds;
 
-//        if (rounds >= Opts.IterationTimes || populationFitness[orderedPopulation[0]] == bestDistance) {
         if (rounds >= Opts.IterationTimes) {
             auto simplifiedBestNN = sneat.population.generation.neuralNetwork.SimplifyRemoveDisable(*orderedPopulation[0]);
             auto compressedLeftBestNN = sneat.population.generation.neuralNetwork.SimplifyRemoveUselessConnectionLeft(simplifiedBestNN);
             auto compressedRightBestNN = sneat.population.generation.neuralNetwork.SimplifyRemoveUselessConnectionRight(compressedLeftBestNN);
             sneat.population.generation.neuralNetwork.ExportNN(compressedRightBestNN, "./champion");
-//            ExportNNToDot(compressedRightBestNN, "./champion");
             isStart = false;
             isAllDie = false;
             canDrawChampion = true;
@@ -220,7 +206,7 @@ int main() {
         std::vector<std::future<void>> thisFuture;  // 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
 
         uint indexOutside = 0;
-        for (auto &nn : tmpPopulation) {
+        for (auto &nn: tmpPopulation) {
             thisFuture.push_back(tPool.submit([&]() {
                 mtx.lock();
                 uint index = indexOutside;
@@ -253,7 +239,7 @@ int main() {
         }
         //        exit(0);
 
-        for (auto &f : thisFuture) {
+        for (auto &f: thisFuture) {
             f.wait();
         }
 
@@ -265,16 +251,7 @@ int main() {
     };
 
     //Gmae Loop
-//    while (window.isOpen()) {
     for (;;) {
-//        if (!isStart) {
-//            window.setFramerateLimit(0);
-//        } else if (rounds % 30 == 0) {
-//            window.setFramerateLimit(120);
-//        } else {
-//            window.setFramerateLimit(0);
-//        }
-
         if (!isStart) {
             while (window.pollEvent(ev)) {
                 switch (ev.type) {
@@ -364,10 +341,12 @@ int main() {
 
         if (isStart && !isAllDie) {
             isAllDie = true;
-            for (auto &p : players) {
+            for (auto &p: players) {
                 if (!p.second.isDone) {
                     std::vector<float> around = getAround(p.second.statusPos);
-                    auto predictActions = sneat.population.generation.neuralNetwork.FeedForwardPredict(p.first, {float(p.second.statusPos[0]) / 800.f, float(p.second.statusPos[1]) / 800.f, float(endPos[0]) / 800.f, float(endPos[1]) / 800.f, around[0], around[1], around[2], around[3], around[4], around[5], around[6], around[7]});
+                    auto predictActions = sneat.population.generation.neuralNetwork.FeedForwardPredict(p.first, {float(p.second.statusPos[0]) / 800.f, float(p.second.statusPos[1]) / 800.f,
+                                                                                                                 float(endPos[0]) / 800.f, float(endPos[1]) / 800.f, around[0], around[1], around[2],
+                                                                                                                 around[3], around[4], around[5], around[6], around[7]}, false);
                     std::map<float, uint> actions;
                     for (uint i = 0; i < 8; ++i) {
                         actions[predictActions[i]] = i;
@@ -394,7 +373,7 @@ int main() {
 
         if (isAllDie && isStart) {
             isAllDie = false;
-            //            std::cout << "All died\n";
+//            std::cout << "All died\n";
             singleFromLoop();
         }
 
@@ -406,11 +385,8 @@ int main() {
                 window.clear(sf::Color(0, 0, 0, 255)); // Clear old frame
 
                 std::vector<std::vector<long>> tmpDiedPoints;
-//                if (rounds % 50 == 0) {
-//                    drawChampion();
-//                } else {
-                for (auto &p : players) {
-                    for (auto &pp : p.second.passedPath) {
+                for (auto &p: players) {
+                    for (auto &pp: p.second.passedPath) {
                         blocks[pp.first].setFillColor(sf::Color(50, 50, 200, 60));
                         window.draw(blocks[pp.first]);
                     }
@@ -422,14 +398,14 @@ int main() {
                     window.draw(blocks[p.second.statusPos]);
                 }
 
-                for (auto &dp : tmpDiedPoints) {
+                for (auto &dp: tmpDiedPoints) {
                     blocks[dp].setFillColor(sf::Color(250, 0, 0, 255));
                     window.draw(blocks[dp]);
                 }
 //                }
             }
 
-            for (auto &lp : linePos) {
+            for (auto &lp: linePos) {
                 blocks[lp.first].setFillColor(sf::Color(255, 255, 255, 255));
                 window.draw(blocks[lp.first]);
             }
@@ -443,7 +419,11 @@ int main() {
             // Draw game
 
             window.display(); // Tell app window is done drawing
+        }
 
+        if (isStart) {
+            std::thread update3d(znn::Update3dNN, sneat.population.NeuralNetworks[0], false);
+            update3d.detach();
         }
     }
 

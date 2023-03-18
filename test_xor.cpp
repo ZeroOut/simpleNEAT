@@ -9,17 +9,15 @@ int main() {
     znn::Opts.IterationTimes = 0;
     znn::Opts.FitnessThreshold = 0.99f;
     znn::Opts.IterationCheckPoint = 10;
-    znn::Opts.ThreadCount = 8;
-//    znn::Opts.MutateAddNeuronRate = 0.45f;
-//    znn::Opts.MutateAddConnectionRate = 0.99f;
-//    znn::Opts.NewSize = 0;
-//    znn::Opts.KeepLastSize = 0;
-//    znn::Opts.ChampionToNewSize = 50;
-    znn::Opts.Enable3dNN = false;
+    znn::Opts.ThreadCount = 1;
+    znn::Opts.MutateAddNeuronRate = 0.f;
+    znn::Opts.MutateAddConnectionRate = 0.f;
+    znn::Opts.Enable3dNN = true;
     znn::Opts.CheckPointPath = "/tmp/xor";
 
     znn::SimpleNeat sneat;
     sneat.StartNew();
+//    sneat.StartNewFC({2});
 
     const std::vector<std::vector<float>> inputs = {
             {0.f, 0.f},
@@ -55,11 +53,11 @@ int main() {
 
     std::cout << "predict: \n";
     for (int i = 0; i < inputs.size(); ++i) {
-        std::cout << inputs[i][0] << " " << inputs[i][1] << " [" << wanted[i][0] << "] " << sneat.population.generation.neuralNetwork.FeedForwardPredict(&best.NN, inputs[i])[0] << std::endl;
+        std::cout << inputs[i][0] << " " << inputs[i][1] << " [" << wanted[i][0] << "] " << sneat.population.generation.neuralNetwork.FeedForwardPredict(&best.NN, inputs[i], false)[0] << std::endl;
     }
 
     sneat.population.generation.neuralNetwork.ExportNNToDot(best.NN, "/tmp/xor");
-    sneat.population.generation.neuralNetwork.ExportNN(best.NN, "/tmp/xor");
+//    sneat.population.generation.neuralNetwork.ExportNN(best.NN, "/tmp/xor");
 
     return 0;
 }

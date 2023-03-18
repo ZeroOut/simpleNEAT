@@ -4,23 +4,26 @@
 int main() {
     znn::Opts.InputSize = 4;
     znn::Opts.OutputSize = 3;
-    znn::Opts.ActiveFunction = znn::SteependSigmoid;
-    znn::Opts.DerivativeFunction = znn::DerivativeSteependSigmoid;
+    znn::Opts.ActiveFunction = znn::Sigmoid;
+    znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
+    znn::Opts.LearnRate = 0.3f;
     znn::Opts.IterationTimes = 0;
-    znn::Opts.FitnessThreshold = 0.98f;
-    znn::Opts.IterationCheckPoint = 1000;
-//    znn::Opts.ThreadCount = 1;
-//    znn::Opts.MutateAddNeuronRate = 0.6f;
-    znn::Opts.PopulationSize = 300;
-//    znn::Opts.NewSize = 0;
-//    znn::Opts.KeepLastSize = 0;
+    znn::Opts.FitnessThreshold = 0.999f;
+    znn::Opts.IterationCheckPoint = 0;
+    znn::Opts.ThreadCount = 16;
+    znn::Opts.MutateAddNeuronRate = 0.03f;
+    znn::Opts.MutateAddConnectionRate = 0.9f;
+    znn::Opts.PopulationSize = 100;
+    znn::Opts.NewSize = 0;
+    znn::Opts.KeepComplexSize = 0;
+    znn::Opts.KeepWorstSize = 0;
     znn::Opts.ChampionToNewSize = 30;
     znn::Opts.ChampionKeepSize = 10;
     znn::Opts.WeightRange = 12;
     znn::Opts.BiasRange = 6;
     znn::Opts.MutateBiasRate = 1.f;
     znn::Opts.MutateWeightRate = 1.f;
-    znn::Opts.Enable3dNN = false;
+    znn::Opts.Enable3dNN = true;
 
     znn::SimpleNeat sneat;
     sneat.StartNew();
@@ -176,7 +179,6 @@ int main() {
             {6.5f, 3.0f, 5.2f, 2.0f},
             {6.2f, 3.4f, 5.4f, 2.3f},
             {5.9f, 3.0f, 5.1f, 1.8f},
-
     };
 
     // Iris-setosa {1.f,0.f,0.f}
@@ -338,12 +340,7 @@ int main() {
 
     auto best = sneat.TrainByWanted(inputs, wanted, 0);
 
-//    std::cout << "HiddenNeuronInnovations: " << znn::HiddenNeuronInnovations.size() << " ConnectionInnovations: " << znn::ConnectionInnovations.size() << std::endl;
-    std::cout << "HiddenNeuronInnovations: " << sneat.population.generation.neuralNetwork.HiddenNeuronInnovations.size() << std::endl;
-
-    std::cout << "best: geration:" << best.Gen << " fitness " << best.Fit << " neurons " << best.NN.Neurons.size() << " connections " << best.NN.Connections.size() << std::endl;
-
-    std::cout << "neurons:\n";
+   std::cout << "neurons:\n";
     for (auto &n : best.NN.Neurons) {
         std::cout << n.Id << " " << n.Bias << std::endl;
     }
@@ -355,9 +352,17 @@ int main() {
 
     std::cout << "predict: \n";
     for (int i = 0; i < inputs.size(); ++i) {
-        auto predict = sneat.population.generation.neuralNetwork.FeedForwardPredict(&best.NN, inputs[i]);
+        auto predict = sneat.population.generation.neuralNetwork.FeedForwardPredict(&best.NN, inputs[i], false);
         std::cout << inputs[i][0] << " " << inputs[i][1] << inputs[i][2] << " " << inputs[i][3] << " [" << wanted[i][0] << " " << wanted[i][1] << " " << wanted[i][2] << "] " << predict[0] << " " << predict[1] << " " << predict[2] << std::endl;
     }
+
+    //    std::cout << "HiddenNeuronInnovations: " << znn::HiddenNeuronInnovations.size() << " ConnectionInnovations: " << znn::ConnectionInnovations.size() << std::endl;
+    std::cout << "HiddenNeuronInnovations: " << sneat.population.generation.neuralNetwork.HiddenNeuronInnovations.size() << std::endl;
+
+    std::cout << "best: geration:" << best.Gen << " fitness " << best.Fit << " neurons " << best.NN.Neurons.size() << " connections " << best.NN.Connections.size() << std::endl;
+
+    char ccc;
+    std::cin >> ccc;
 
     return 0;
 }

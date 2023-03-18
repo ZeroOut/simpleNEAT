@@ -112,7 +112,6 @@ namespace znn {
         }
 
         for (auto &connection: nn->Connections) { // 更新连接权重
-//            connection.Weight += Opts.LearnRate * (tmpNodesOutputError[connection.ConnectedNeuronId[1]] * tmpNodesOutput[connection.ConnectedNeuronId[0]] + connection.Weight);
             connection.Weight += Opts.LearnRate * tmpNodesOutputError[connection.ConnectedNeuronId[1]] * tmpNodesOutput[connection.ConnectedNeuronId[0]];
         }
 

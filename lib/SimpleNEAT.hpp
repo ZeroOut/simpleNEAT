@@ -347,18 +347,15 @@ namespace znn {
             for (auto &n: tmpPopulation) {
                 thisFuture.push_back(tPool.submit([&](uint index, NetworkGenome *nn) {
                     if (index < Opts.ChampionToNewSize) {
-                        auto nn0 = orderedPopulation[index % Opts.ChampionKeepSize]; // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
-                        *nn = *nn0;
+                        *nn = *orderedPopulation[index % Opts.ChampionKeepSize];  // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
                         if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
-                            population.generation.MutateNetworkGenome(*nn);// 冠军一份副本进行变异
+                            population.generation.MutateNetworkGenome(*nn);  // 冠军一份副本进行变异
                         }
                         if (index >= Opts.ChampionKeepSize * 2) {
-                            auto nn1 = orderedPopulation[random() % Opts.ChampionKeepSize];  // 原始冠军互相交配
-                            if (nn0 == nn1) {
-                                population.generation.MutateNetworkGenome(*nn);  // 父母相同则变异
-                            } else {
-                                *nn = population.generation.GetChildByCrossing(nn0, nn1);  // 原始冠军一份后代不变异
-                            }
+                            long choose = index % Opts.ChampionKeepSize;
+                            auto nn0 = orderedPopulation[choose];
+                            auto nn1 = orderedPopulation[choose + 1];
+                            *nn = population.generation.GetChildByCrossing(nn0, nn1);
                         }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
                         long chooseAnother = random() % Opts.PopulationSize;

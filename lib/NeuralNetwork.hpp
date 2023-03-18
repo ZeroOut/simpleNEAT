@@ -45,7 +45,7 @@ namespace znn {
 
         NetworkGenome SimplifyRemoveDisable(NetworkGenome nn);
 
-        std::vector<float> FeedForwardPredict(NetworkGenome *nn, std::vector<float> inputs, bool isTrain);
+        std::vector<float> FeedForwardPredict(NetworkGenome *nn, std::vector<float> inputs, bool isAccelerate);
 
         void ExportNNToDot(NetworkGenome &nn, std::string fileName);
 
@@ -68,30 +68,18 @@ namespace znn {
         std::vector<Connection> newConnections;
 
         for (ulong i = 0; i < Opts.InputSize; ++i) {
-            Neuron tmpNeuron = {
-                    .Id = i,
-                    .Bias = 0.f,
-                    .Layer = 0.,
-            };
+            Neuron tmpNeuron = {.Id = i, .Bias = 0.f, .Layer = 0.,};
             newNeurons.push_back(tmpNeuron);
         }
 
         for (ulong i = 0; i < Opts.OutputSize; ++i) {
             ulong id = i + Opts.InputSize;
-            Neuron tmpNeuron = {
-                    .Id = id,
-                    .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100,
-                    .Layer = 1.,
-            };
+            Neuron tmpNeuron = {.Id = id, .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100, .Layer = 1.,};
             newNeurons.push_back(tmpNeuron);
 
             for (auto &n: newNeurons) {
                 if (n.Layer == 0.) {
-                    Connection tmpConnection = {
-                            .ConnectedNeuronId= {n.Id, id},
-                            .Weight = float(random() % (Opts.WeightRange * 200) - Opts.WeightRange * 100) / 100,
-                            .Enable = true,
-                    };
+                    Connection tmpConnection = {.ConnectedNeuronId= {n.Id, id}, .Weight = float(random() % (Opts.WeightRange * 200) - Opts.WeightRange * 100) / 100, .Enable = true,};
                     newConnections.push_back(tmpConnection);
                     //                    if (ConnectionInnovations.find({n.Id, tmpNeuron.Id}) == ConnectionInnovations.end()) {
                     //                        ConnectionInnovations[{n.Id, tmpNeuron.Id}] = ConnectionInnovations.size();
@@ -100,10 +88,7 @@ namespace znn {
             }
         }
 
-        return NetworkGenome{
-                .Neurons = newNeurons,
-                .Connections = newConnections,
-        };
+        return NetworkGenome{.Neurons = newNeurons, .Connections = newConnections,};
     }
 
     NetworkGenome NeuralNetwork::NewFCNN(std::vector<ulong> hideLayers) {  // 固定神经网络，输入隐藏层及对应神经元数量数
@@ -122,21 +107,13 @@ namespace znn {
         std::vector<Connection> newConnections;
 
         for (ulong i = 0; i < Opts.InputSize; ++i) {
-            Neuron tmpNeuron = {
-                    .Id = i,
-                    .Bias = 1.f,
-                    .Layer = 0.,
-            };
+            Neuron tmpNeuron = {.Id = i, .Bias = 1.f, .Layer = 0.,};
             newNeurons.push_back(tmpNeuron);
         }
 
         for (ulong i = 0; i < Opts.OutputSize; ++i) {
             ulong id = i + Opts.InputSize;
-            Neuron tmpNeuron = {
-                    .Id = id,
-                    .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100,
-                    .Layer = 1.,
-            };
+            Neuron tmpNeuron = {.Id = id, .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100, .Layer = 1.,};
             newNeurons.push_back(tmpNeuron);
         }
 
@@ -147,11 +124,7 @@ namespace znn {
         for (ulong &l: hideLayers) {
             thisLayer += layerStep;
             for (ulong i = 0; i < l; ++i) {
-                Neuron tmpNeuron = {
-                        .Id = id,
-                        .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100,
-                        .Layer = thisLayer,
-                };
+                Neuron tmpNeuron = {.Id = id, .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100, .Layer = thisLayer,};
                 newNeurons.push_back(tmpNeuron);
                 ++id;
             }
@@ -169,11 +142,7 @@ namespace znn {
             if (t.first != 0.) {
                 for (auto &n: t.second) {
                     for (auto &ln: tmpLayerMap[lastLayer]) {
-                        Connection tmpConnection = {
-                                .ConnectedNeuronId= {ln->Id, n->Id},
-                                .Weight = float(random() % (Opts.WeightRange * 200) - Opts.WeightRange * 100) / 100,
-                                .Enable = true,
-                        };
+                        Connection tmpConnection = {.ConnectedNeuronId= {ln->Id, n->Id}, .Weight = float(random() % (Opts.WeightRange * 200) - Opts.WeightRange * 100) / 100, .Enable = true,};
                         newConnections.push_back(tmpConnection);
                     }
                 }
@@ -182,10 +151,7 @@ namespace znn {
             thisLayer += layerStep;
         }
 
-        return NetworkGenome{
-                .Neurons = newNeurons,
-                .Connections = newConnections,
-        };
+        return NetworkGenome{.Neurons = newNeurons, .Connections = newConnections,};
     }
 
     NetworkGenome NeuralNetwork::SimplifyRemoveUselessConnectionRight(NetworkGenome nn) { //合并中途凭空出现节点到右边的连接
@@ -233,10 +199,7 @@ namespace znn {
                 }
             }
 
-            nn = {
-                    .Neurons=newNeurons,
-                    .Connections=newConnections,
-            };
+            nn = {.Neurons=newNeurons, .Connections=newConnections,};
 
             if (removeIds.empty()) {
                 break;
@@ -290,10 +253,7 @@ namespace znn {
                 }
             }
 
-            nn = {
-                    .Neurons=newNeurons,
-                    .Connections=newConnections,
-            };
+            nn = {.Neurons=newNeurons, .Connections=newConnections,};
 
             if (isFinished) {
                 break;
@@ -336,13 +296,10 @@ namespace znn {
             newNeurons.push_back(*tmpNeuronMap[i.first]);
         }
 
-        return NetworkGenome{
-                .Neurons = newNeurons,
-                .Connections = newConnections,
-        };
+        return NetworkGenome{.Neurons = newNeurons, .Connections = newConnections,};
     }
 
-    std::vector<float> NeuralNetwork::FeedForwardPredict(NetworkGenome *nn, std::vector<float> inputs, bool isTrain) {
+    std::vector<float> NeuralNetwork::FeedForwardPredict(NetworkGenome *nn, std::vector<float> inputs, bool isAccelerate) {  // 在使用CPU多核运算时，由于多线程开销问题，神经网络结构太简单反而会运算得更慢
         std::map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
         std::map<double, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
@@ -392,14 +349,7 @@ namespace znn {
                 continue;
             }
 
-            if (isTrain) {
-                for (auto &n: l.second) {
-                    calculateNeuron(n->Id);  // 计算隐藏和输出神经元
-                    if (l.first == 1.) {  // 输出神经元
-                        outputs.push_back(tmpNodesOutput[n->Id]);
-                    }
-                }
-            } else {
+            if (isAccelerate) {
                 std::vector<std::future<void>> thisFuture;
 
                 for (auto &n: l.second) {
@@ -412,6 +362,13 @@ namespace znn {
 
                 if (l.first == 1.) {  // 输出神经元
                     for (auto &n: l.second) {
+                        outputs.push_back(tmpNodesOutput[n->Id]);
+                    }
+                }
+            } else {
+                for (auto &n: l.second) {
+                    calculateNeuron(n->Id);  // 计算隐藏和输出神经元
+                    if (l.first == 1.) {  // 输出神经元
                         outputs.push_back(tmpNodesOutput[n->Id]);
                     }
                 }
@@ -516,22 +473,14 @@ namespace znn {
                 auto datas = SplitString(line, ",");
                 double nnLayer = std::stod(datas[1]);
                 ulong id = std::stoul(datas[0]);
-                newNeurons.push_back(Neuron{
-                        .Id = id,
-                        .Bias = std::stof(datas[2]),
-                        .Layer = nnLayer,
-                });
+                newNeurons.push_back(Neuron{.Id = id, .Bias = std::stof(datas[2]), .Layer = nnLayer,});
                 tmpIdMap[id] = 0;
                 continue;
             }
 
             auto datas = SplitString(line, ",");
             auto cnid = SplitString(datas[0], "->");
-            newConnections.push_back(Connection{
-                    .ConnectedNeuronId = {std::stoul(cnid[0]), std::stoul(cnid[1])},
-                    .Weight = std::stof(datas[1]),
-                    .Enable = true,
-            });
+            newConnections.push_back(Connection{.ConnectedNeuronId = {std::stoul(cnid[0]), std::stoul(cnid[1])}, .Weight = std::stof(datas[1]), .Enable = true,});
         }
 
         input_file.close();
@@ -553,28 +502,19 @@ namespace znn {
 
         if (Opts.InputSize > InputSize) {
             for (ulong i = 0; i < Opts.InputSize - InputSize; ++i) {
-                newNeurons.push_back(Neuron{
-                        .Id = HiddenNeuronInnovations.size() + OutputSize + InputSize + i + FCHidenNeuronSize,
-                        .Bias = 0.f,
-                        .Layer = 0.,
-                });
+                newNeurons.push_back(Neuron{.Id = HiddenNeuronInnovations.size() + OutputSize + InputSize + i + FCHidenNeuronSize, .Bias = 0.f, .Layer = 0.,});
             }
         }
 
         if (Opts.OutputSize > OutputSize) {
             for (ulong i = 0; i < Opts.OutputSize - OutputSize; ++i) {
-                newNeurons.push_back(Neuron{
-                        .Id = HiddenNeuronInnovations.size() + OutputSize + i + Opts.InputSize + FCHidenNeuronSize,
-                        .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100,
-                        .Layer = 1.,
-                });
+                newNeurons.push_back(
+                        Neuron{.Id = HiddenNeuronInnovations.size() + OutputSize + i + Opts.InputSize + FCHidenNeuronSize, .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) /
+                                                                                                                                   100, .Layer = 1.,});
             }
         }
 
-        return NetworkGenome{
-                .Neurons = newNeurons,
-                .Connections = newConnections,
-        };
+        return NetworkGenome{.Neurons = newNeurons, .Connections = newConnections,};
     }
 
     void NeuralNetwork::ExportInnovations(std::string fileName) {
@@ -637,7 +577,7 @@ namespace znn {
         return true;
     };
 
-    void Update3dNN(NetworkGenome NN, bool FL) {
+    void Update3dNN(NetworkGenome NN, bool FL) {  // force unlock
         mtx.lock();
         if ((FL && canForceUnlock) || !update3dLock) {
             update3dLock = true;
@@ -735,7 +675,7 @@ namespace znn {
     }
 
     void Show3dNN() {
-        const int screenWidth = 1280;
+        const int screenWidth = 960;
         const int screenHeight = 720;
 
         SetConfigFlags(FLAG_MSAA_4X_HINT);
@@ -783,11 +723,11 @@ namespace znn {
                 tPool.push_task(Update3dNN, last3dNN, true);
             }
             if (IsKeyDown('W')) {
-                Opts.Zy_Interval3d += .01f;
+                Opts.Zy_Interval3d += .02f;
                 tPool.push_task(Update3dNN, last3dNN, true);
             }
             if (IsKeyDown('S')) {
-                Opts.Zy_Interval3d -= .01f;
+                Opts.Zy_Interval3d -= .02f;
                 tPool.push_task(Update3dNN, last3dNN, true);
             }
             if (IsKeyPressed(KEY_SPACE)) {

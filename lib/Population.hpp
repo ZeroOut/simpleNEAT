@@ -61,7 +61,7 @@ namespace znn {
             thisFuture.push_back(tPool.submit([&]() {
                 float fitness = 0.f;
                 for (uint i = 0; i < inputs.size(); ++i) {
-                    std::vector<float> thisOutputs = generation.neuralNetwork.FeedForwardPredict(&nn, inputs[i], true);
+                    std::vector<float> thisOutputs = generation.neuralNetwork.FeedForwardPredict(&nn, inputs[i], false);
                     fitness += GetPrecision(thisOutputs, wantedOutputs[i]);
                 }
                 mtx.lock();
