@@ -151,7 +151,7 @@ int main() {
                 case sf::Event::MouseButtonPressed:
                     if (ev.mouseButton.button == sf::Mouse::Left && !isTrainingStart) {
                         clickPos = sf::Mouse::getPosition(window);
-                        std::cout << clickPos.x << ", " << clickPos.y << "\n";
+//                        std::cout << clickPos.x << ", " << clickPos.y << "\n";
                     }
                     break;
             }
