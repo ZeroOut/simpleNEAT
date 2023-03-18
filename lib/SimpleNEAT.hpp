@@ -21,13 +21,11 @@ namespace znn {
 
         void StartNew();
 
-        void StartNewFC(std::vector<ulong> hideLayers);
-
         void StartWithCheckPoint();
 
         void Start();
 
-        znn::BestOne TrainByWanted(const std::vector<std::vector<float>> &inputs, const std::vector<std::vector<float>> &wantedOutputs, const uint randomSize);
+        znn::BestOne TrainByWanted(const std::vector<std::vector<float>> &inputs, const std::vector<std::vector<float>> &wantedOutputs, const uint randomSize, const std::function<bool()> &isBreakFunc);
 
         std::vector<NetworkGenome *> OrderByFitness(std::map<NetworkGenome *, float> &M);
 
@@ -61,19 +59,22 @@ namespace znn {
         srandom((unsigned) clock());
 
         if (Opts.Enable3dNN) {
-            std::thread show3d(Show3dNN);
+            std::thread show3d([](){
+                canClose3dNN = false;
+                Show3dNN();
+            });
             show3d.detach();
+        }
+
+        if (Opts.usingFCNN && Opts.FCNN_hideLayers.empty()) {
+            std::cerr << "Opts.usingFCNN = " << Opts.usingFCNN << " and Opts.FCNN_hideLayers.size() = " << Opts.FCNN_hideLayers.size() << std::endl;
+            exit(0);
         }
     }
 
     void SimpleNeat::StartNew() {
         CheckOptions();
         population.CreatePopulation();
-    }
-
-    void SimpleNeat::StartNewFC(std::vector<ulong> hideLayers) {
-        CheckOptions();
-        population.CreatePopulationFC(hideLayers);
     }
 
     void SimpleNeat::StartWithCheckPoint() {
@@ -124,7 +125,7 @@ namespace znn {
         return result;
     }
 
-    BestOne SimpleNeat::TrainByWanted(const std::vector<std::vector<float>> &rawInputs, const std::vector<std::vector<float>> &rawWantedOutputs, const uint randomSize) {
+    BestOne SimpleNeat::TrainByWanted(const std::vector<std::vector<float>> &rawInputs, const std::vector<std::vector<float>> &rawWantedOutputs, const uint randomSize, const std::function<bool()> &isBreakFunc) {
         if (rawInputs.size() != rawWantedOutputs.size()) {
             std::cerr << "rawInputs size: " << rawInputs.size() << " != rawWantedOutputs size: " << rawWantedOutputs.size() << "\n";
             exit(0);
@@ -165,7 +166,7 @@ namespace znn {
                 ++nn->Age;
             }
 
-            if (Opts.FitnessThreshold > 0 && populationFitness[orderedPopulation[0]] >= Opts.FitnessThreshold) {
+            if (Opts.FitnessThreshold > 0 && populationFitness[orderedPopulation[0]] >= Opts.FitnessThreshold || isBreakFunc()) {
                 auto simplifiedBestNN = population.generation.neuralNetwork.SimplifyRemoveDisable(*orderedPopulation[0]);
                 auto compressedLeftBestNN = population.generation.neuralNetwork.SimplifyRemoveUselessConnectionLeft(simplifiedBestNN);
                 auto compressedRightBestNN = population.generation.neuralNetwork.SimplifyRemoveUselessConnectionRight(compressedLeftBestNN);
@@ -223,7 +224,11 @@ namespace znn {
                             population.generation.MutateNetworkGenome(*nn);  // 繁殖以后进行变异
                         }
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
-                        *nn = population.generation.neuralNetwork.NewNN();
+                        if (Opts.usingFCNN) {
+                            *nn = population.generation.neuralNetwork.NewFCNN();
+                        } else {
+                            *nn = population.generation.neuralNetwork.NewNN();
+                        }
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize) {
                         *nn = *orderedByComplex[index % Opts.KeepComplexSize];
                         population.generation.EnableAllConnections(*nn);
@@ -367,7 +372,11 @@ namespace znn {
                             population.generation.MutateNetworkGenome(*nn);  // 繁殖以后进行变异
                         }
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
-                        *nn = population.generation.neuralNetwork.NewNN();
+                        if (Opts.usingFCNN) {
+                            *nn = population.generation.neuralNetwork.NewFCNN();
+                        } else {
+                            *nn = population.generation.neuralNetwork.NewNN();
+                        }
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize) {
                         *nn = *orderedByComplex[index % Opts.KeepComplexSize];
                         population.generation.EnableAllConnections(*nn);

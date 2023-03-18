@@ -37,7 +37,7 @@ namespace znn {
 
         NetworkGenome NewNN();
 
-        NetworkGenome NewFCNN(std::vector<ulong> hideLayers);
+        NetworkGenome NewFCNN();
 
         NetworkGenome SimplifyRemoveUselessConnectionRight(NetworkGenome nn);
 
@@ -91,14 +91,14 @@ namespace znn {
         return NetworkGenome{.Neurons = newNeurons, .Connections = newConnections,};
     }
 
-    NetworkGenome NeuralNetwork::NewFCNN(std::vector<ulong> hideLayers) {  // 固定神经网络，输入隐藏层及对应神经元数量数
+    NetworkGenome NeuralNetwork::NewFCNN() {  // 固定神经网络，输入隐藏层及对应神经元数量数
         if (Opts.InputSize <= 0 || Opts.OutputSize <= 0) {
             std::cerr << "Input or Output size fault: Input " << Opts.InputSize << ", Output " << Opts.OutputSize << std::endl;
             exit(0);
         }
 
         if (FCHidenNeuronSize == 0) {
-            for (ulong &l: hideLayers) {
+            for (ulong &l: Opts.FCNN_hideLayers) {
                 FCHidenNeuronSize += l;
             }
         }
@@ -117,11 +117,11 @@ namespace znn {
             newNeurons.push_back(tmpNeuron);
         }
 
-        double layerStep = 1. / double(hideLayers.size() + 1);
+        double layerStep = 1. / double(Opts.FCNN_hideLayers.size() + 1);
         double thisLayer = 0.;
         ulong id = Opts.InputSize + Opts.OutputSize;
 
-        for (ulong &l: hideLayers) {
+        for (ulong &l: Opts.FCNN_hideLayers) {
             thisLayer += layerStep;
             for (ulong i = 0; i < l; ++i) {
                 Neuron tmpNeuron = {.Id = id, .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100, .Layer = thisLayer,};
@@ -556,6 +556,7 @@ namespace znn {
     bool update3dLock = false;
     bool canForceUnlock = false;
     NetworkGenome last3dNN;
+    bool canClose3dNN = false;  // 用于中途关闭3d显示
 
     bool isLast3dNN(NetworkGenome &NN) {
         if (NN.Neurons.size() != last3dNN.Neurons.size()) {
@@ -675,13 +676,10 @@ namespace znn {
     }
 
     void Show3dNN() {
-        const int screenWidth = 960;
-        const int screenHeight = 720;
-
         SetConfigFlags(FLAG_MSAA_4X_HINT);
         SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 
-        InitWindow(screenWidth, screenHeight, "SimpleNEAT NN");
+        InitWindow(Opts.ScreenWidth, Opts.ScreenHeight, "SimpleNEAT NN");
 
         // Define the camera to look into our 3d world
         Camera3D camera = {0};
@@ -769,6 +767,10 @@ namespace znn {
 
             DrawFPS(10, 10);
             EndDrawing();
+
+            if (canClose3dNN) {
+                break;
+            }
         }
 
         // De-Initialization

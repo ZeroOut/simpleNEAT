@@ -7,17 +7,12 @@ int main() {
     znn::Opts.ActiveFunction = znn::SteependSigmoid;
     znn::Opts.DerivativeFunction = znn::DerivativeSteependSigmoid;
     znn::Opts.IterationTimes = 0;
-    znn::Opts.FitnessThreshold = 0.99f;
-    znn::Opts.IterationCheckPoint = 10;
     znn::Opts.ThreadCount = 1;
-    znn::Opts.MutateAddNeuronRate = 0.f;
-    znn::Opts.MutateAddConnectionRate = 0.f;
     znn::Opts.Enable3dNN = true;
     znn::Opts.CheckPointPath = "/tmp/xor";
 
     znn::SimpleNeat sneat;
     sneat.StartNew();
-//    sneat.StartNewFC({2});
 
     const std::vector<std::vector<float>> inputs = {
             {0.f, 0.f},
@@ -34,7 +29,7 @@ int main() {
             {1.f},
     };
 
-    auto best = sneat.TrainByWanted(inputs, wanted, 0);
+    auto best = sneat.TrainByWanted(inputs, wanted, 0, []() { return false; });
 
 //    std::cout << "HiddenNeuronInnovations: " << znn::HiddenNeuronInnovations.size() << " ConnectionInnovations: " << znn::ConnectionInnovations.size() << std::endl;
     std::cout << "HiddenNeuronInnovations: " << sneat.population.generation.neuralNetwork.HiddenNeuronInnovations.size() << std::endl;

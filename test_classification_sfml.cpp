@@ -3,7 +3,6 @@
 #include <iostream>
 #include "lib/SimpleNEAT.hpp"
 
-
 int main() {
     // Window
     sf::RenderWindow window(sf::VideoMode(1024, 1024), "classification", sf::Style::Titlebar | sf::Style::Close);
@@ -31,11 +30,14 @@ int main() {
     std::vector<std::vector<float>> wantedOutputs;
 
     bool isTrainingStart = false;
+
     uint outputLen;
 
     znn::SimpleNeat sneat;
     znn::BestOne bestOne;
     znn::NetworkGenome choosingNN;
+
+    bool isInitialed = false;
 
     auto startTrain = [&]() {
         isTrainingStart = true;
@@ -75,40 +77,45 @@ int main() {
             ++colorNum;
         }
 
-        znn::Opts.InputSize = 2;
-        znn::Opts.OutputSize = outputLen;
-        znn::Opts.ActiveFunction = znn::Sigmoid;
-        znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
-        znn::Opts.IterationTimes = 0;
-        znn::Opts.FitnessThreshold = 0.999f;
-        znn::Opts.IterationCheckPoint = 0;
-        znn::Opts.ThreadCount = 16;
-        znn::Opts.MutateAddNeuronRate = 0.09f;
-        znn::Opts.MutateAddConnectionRate = 0.99f;
-        znn::Opts.PopulationSize = 64;
-        znn::Opts.ChampionKeepSize = 8;
-        znn::Opts.NewSize = 0;
-        znn::Opts.KeepWorstSize = 0;
-        znn::Opts.ChampionToNewSize = 24;
-        znn::Opts.KeepComplexSize = 0;
-        znn::Opts.WeightRange = 16.f;
-        znn::Opts.BiasRange = 8.f;
-        znn::Opts.MutateWeightDirectOrNear = 0.36f;
-        znn::Opts.MutateWeightNearRange = 6;
-        znn::Opts.MutateBiasDirectOrNear = 0.36f;
-        znn::Opts.LearnRate = 0.3f;
-        znn::Opts.Enable3dNN = true;
+        if (!isInitialed) {
+            isInitialed = true;
 
-        sneat.StartNew();
+            znn::Opts.InputSize = 2;
+            znn::Opts.OutputSize = outputLen;
+            znn::Opts.ActiveFunction = znn::Sigmoid;
+            znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
+            znn::Opts.IterationTimes = 0;
+            znn::Opts.FitnessThreshold = 0.99f;
+            znn::Opts.IterationCheckPoint = 0;
+            znn::Opts.ThreadCount = 16;
+            znn::Opts.MutateAddNeuronRate = 0.09f;
+            znn::Opts.MutateAddConnectionRate = 0.99f;
+            znn::Opts.PopulationSize = 64;
+            znn::Opts.ChampionKeepSize = 8;
+            znn::Opts.NewSize = 0;
+            znn::Opts.KeepWorstSize = 0;
+            znn::Opts.ChampionToNewSize = 24;
+            znn::Opts.KeepComplexSize = 0;
+            znn::Opts.WeightRange = 16.f;
+            znn::Opts.BiasRange = 8.f;
+            znn::Opts.MutateWeightDirectOrNear = 0.36f;
+            znn::Opts.MutateWeightNearRange = 6;
+            znn::Opts.MutateBiasDirectOrNear = 0.36f;
+            znn::Opts.LearnRate = 0.3f;
+            znn::Opts.Enable3dNN = true;
+            znn::Opts.usingFCNN = true;
+            znn::Opts.FCNN_hideLayers = {8, 16, 4};
 
-        std::thread startTrain([&]() {
-            bestOne = sneat.TrainByWanted(inputs, wantedOutputs, 0);
+            sneat.StartNew();
+        }
+
+        std::thread start([&]() {
+            bestOne = sneat.TrainByWanted(inputs, wantedOutputs, 0, [&isTrainingStart]() { return !isTrainingStart; });
             choosingNN = bestOne.NN;
-
-            std::this_thread::sleep_for(std::chrono::seconds());
             isTrainingStart = false;
         });
-        startTrain.detach();
+
+        start.detach();
     };
 
     //Gmae Loop
@@ -124,6 +131,8 @@ int main() {
                         std::cout << "Colors: " << targets.size() << "\n";
                         if (!isTrainingStart) {
                             startTrain(); // Train
+                        } else {
+                            isTrainingStart = false;
                         }
                     } else if (ev.key.code == sf::Keyboard::Num0) {
                         boxColor = sf::Color::Yellow;

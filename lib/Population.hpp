@@ -23,14 +23,11 @@ namespace znn {
     void Population::CreatePopulation() {
         NeuralNetworks.clear();
         for (uint i = 0; i < Opts.PopulationSize; ++i) {
-            NeuralNetworks.push_back(generation.neuralNetwork.NewNN());
-        }
-    }
-
-    void Population::CreatePopulationFC(std::vector<ulong> &hideLayers) {
-        NeuralNetworks.clear();
-        for (uint i = 0; i < Opts.PopulationSize; ++i) {
-            NeuralNetworks.push_back(generation.neuralNetwork.NewFCNN(hideLayers));
+            if (Opts.usingFCNN) {
+                NeuralNetworks.push_back(generation.neuralNetwork.NewFCNN());
+            } else {
+                NeuralNetworks.push_back(generation.neuralNetwork.NewNN());
+            }
         }
     }
 
