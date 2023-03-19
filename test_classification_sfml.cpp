@@ -103,7 +103,7 @@ int main() {
             znn::Opts.MutateBiasDirectOrNear = 0.36f;
             znn::Opts.LearnRate = 0.3f;
             znn::Opts.Enable3dNN = true;
-            znn::Opts.usingFCNN = true;
+            znn::Opts.usingFCNN = false;
             znn::Opts.FCNN_hideLayers = {8, 16, 4};
 
             sneat.StartNew();
@@ -114,9 +114,20 @@ int main() {
             choosingNN = bestOne.NN;
             isTrainingStart = false;
         });
-
         start.detach();
     };
+
+    std::string fpsText;
+    int fpsCounter = 0;
+
+    std::thread fpsCount([&fpsCounter, &fpsText](){
+        for (;;) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            fpsText = std::to_string(fpsCounter);
+            fpsCounter = 0;
+        }
+    });
+    fpsCount.detach();
 
     //Gmae Loop
     while (window.isOpen()) {
@@ -216,6 +227,9 @@ int main() {
             window.draw(b);
         }
         window.display(); // Tell app window is done drawing
+
+        ++fpsCounter;
+        window.setTitle("fps: "+ fpsText);
     }
 
     return 0;

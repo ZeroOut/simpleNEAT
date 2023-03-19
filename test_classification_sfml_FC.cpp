@@ -83,8 +83,7 @@ int main() {
             znn::Opts.OutputSize = outputLen;
             znn::Opts.ActiveFunction = znn::Sigmoid;
             znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
-            znn::Opts.usingFCNN = true;
-            znn::Opts.FCNN_hideLayers = {9, 16, 6};
+            znn::Opts.FCNN_hideLayers = {18, 24, 12};
             znn::Opts.FitnessThreshold = 0.999f;
             znn::Opts.LearnRate = 0.3f;
 
@@ -121,6 +120,18 @@ int main() {
 
         start.detach();
     };
+
+    std::string fpsText;
+    int fpsCounter = 0;
+
+    std::thread fpsCount([&fpsCounter, &fpsText](){
+        for (;;) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            fpsText = std::to_string(fpsCounter);
+            fpsCounter = 0;
+        }
+    });
+    fpsCount.detach();
 
     //Gmae Loop
     while (window.isOpen()) {
@@ -215,6 +226,9 @@ int main() {
             window.draw(b);
         }
         window.display(); // Tell app window is done drawing
+
+        ++fpsCounter;
+        window.setTitle("fps: "+ fpsText);
     }
 
     return 0;
