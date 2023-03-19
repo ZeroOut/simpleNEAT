@@ -466,7 +466,7 @@ namespace znn {
                 }
             }
 
-            thisOutputError *= Opts.DerivativeFunction(thisOutputError) * thisOutputError;
+            thisOutputError *= Opts.DerivativeFunction(tmpNodesOutput[nid]) * tmpNodesOutput[nid];
 
             mtx.lock();
             tmpNodesOutputError[nid] = thisOutputError;
@@ -495,10 +495,13 @@ namespace znn {
                 }
             }
 
-            for (auto &f: thisFuture) {
-                f.wait();
+            if (isAccelerate) {
+                for (auto &f: thisFuture) {
+                    f.wait();
+                }
             }
         }
+
 
         for (auto &connection: nn->Connections) { // 更新连接权重
             connection.Weight += Opts.LearnRate * tmpNodesOutputError[connection.ConnectedNeuronId[1]] * tmpNodesOutput[connection.ConnectedNeuronId[0]];
@@ -509,6 +512,8 @@ namespace znn {
                 n.Bias += Opts.LearnRate * tmpNodesOutputError[n.Id];
             }
         }
+
+        //        nn->Age = 0;
 
         if (outputs.size() != wants.size()) {
             std::cerr << "BackPropagation: outputs.size(" << outputs.size() << ") != wants.size(" << wants.size() << ")\n";
