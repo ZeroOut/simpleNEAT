@@ -83,15 +83,45 @@ int main() {
             znn::Opts.OutputSize = outputLen;
             znn::Opts.ActiveFunction = znn::Sigmoid;
             znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
-            znn::Opts.FCNN_hideLayers = {20, 30, 20};
+            znn::Opts.FCNN_hideLayers = {16, 16};
             znn::Opts.FitnessThreshold = 0.999f;
             znn::Opts.LearnRate = 0.3f;
             znn::Opts.Update3dIntercalMs = 100;
             znn::Opts.Enable3dRandPos = false;
+            znn::Opts.X_Interval3d = 1.5f;
 
-            NN = sneat.population.generation.neuralNetwork.NewFCNN();
+            std::vector<znn::NetworkGenome> initNNs(30);
+            float bestFit = 0.f;
 
-            std::thread show3d([](){
+            std::vector<std::future<void>> thisFuture;
+
+            for (auto &nn : initNNs) {
+                thisFuture.push_back(znn::tPool.submit([&]() {
+                    nn = sneat.population.generation.neuralNetwork.NewFCNN();
+
+                    float fitness = 0.f;
+
+                    for (int i = 0; i < inputs.size(); ++i) {
+                        std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.FeedForwardPredict(&nn, inputs[i], false);
+                        fitness += znn::GetPrecision(thisOutputs, wantedOutputs[i]);
+                    }
+
+                    fitness /= float(inputs.size());
+
+                    znn::mtx.lock();
+                    if (fitness > bestFit) {
+                        bestFit = fitness;
+                        NN = nn;
+                    }
+                    znn::mtx.unlock();
+                }));
+            }
+
+            for (auto &f: thisFuture) {
+                f.wait();
+            }
+
+            std::thread show3d([]() {
                 znn::Show3dNN();
             });
             show3d.detach();
@@ -104,7 +134,7 @@ int main() {
                 ++rounds;
                 fitness = 0.f;
                 for (int i = 0; i < inputs.size(); ++i) {
-                    std::vector<float> thisOutputs = sneat.population.generation.BackPropagation(&NN, inputs[i], wantedOutputs[i]);
+                    std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.BackPropagation(&NN, inputs[i], wantedOutputs[i], false);
                     fitness += znn::GetPrecision(thisOutputs, wantedOutputs[i]);
                 }
                 fitness /= float(inputs.size());
@@ -126,7 +156,7 @@ int main() {
     std::string fpsText;
     int fpsCounter = 0;
 
-    std::thread fpsCount([&fpsCounter, &fpsText](){
+    std::thread fpsCount([&fpsCounter, &fpsText]() {
         for (;;) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
             fpsText = std::to_string(fpsCounter);
@@ -168,7 +198,7 @@ int main() {
                 case sf::Event::MouseButtonPressed:
                     if (ev.mouseButton.button == sf::Mouse::Left && !isTrainingStart) {
                         clickPos = sf::Mouse::getPosition(window);
-//                        std::cout << clickPos.x << ", " << clickPos.y << "\n";
+                        //                        std::cout << clickPos.x << ", " << clickPos.y << "\n";
                     }
                     break;
             }
@@ -194,20 +224,20 @@ int main() {
                         break;
                     case 3:
                         if (outputs[0] > outputs[1] && outputs[0] > outputs[2]) {
-                            b.setFillColor(sf::Color(int(outputs[0] * 255), 0, 0, 200));
+                            b.setFillColor(sf::Color(int(outputs[0] * 255), 50, 50, 200));
                         } else if (outputs[1] > outputs[0] && outputs[1] > outputs[2]) {
-                            b.setFillColor(sf::Color(0, int(outputs[1] * 255), 0, 200));
+                            b.setFillColor(sf::Color(50, int(outputs[1] * 255), 50, 200));
                         } else {
-                            b.setFillColor(sf::Color(0, 0, int(outputs[2] * 255), 200));
+                            b.setFillColor(sf::Color(50, 50, int(outputs[2] * 255), 200));
                         }
                         break;
                     case 4:
                         if (outputs[0] > outputs[1] && outputs[0] > outputs[2] && outputs[0] > outputs[3]) {
-                            b.setFillColor(sf::Color(int(outputs[0] * 255), 0, 0, 200));
+                            b.setFillColor(sf::Color(int(outputs[0] * 255), 50, 50, 200));
                         } else if (outputs[1] > outputs[0] && outputs[1] > outputs[2] && outputs[1] > outputs[3]) {
-                            b.setFillColor(sf::Color(0, int(outputs[1] * 255), 0, 200));
+                            b.setFillColor(sf::Color(50, int(outputs[1] * 255), 50, 200));
                         } else if (outputs[2] > outputs[0] && outputs[2] > outputs[1] && outputs[2] > outputs[3]) {
-                            b.setFillColor(sf::Color(0, 0, int(outputs[2] * 255), 200));
+                            b.setFillColor(sf::Color(50, 50, int(outputs[2] * 255), 200));
                         } else {
                             auto thisValue = int(outputs[3] * 255);
                             b.setFillColor(sf::Color(thisValue, thisValue, thisValue, 200));
@@ -230,7 +260,7 @@ int main() {
         window.display(); // Tell app window is done drawing
 
         ++fpsCounter;
-        window.setTitle("fps: "+ fpsText);
+        window.setTitle("fps: " + fpsText);
     }
 
     return 0;
