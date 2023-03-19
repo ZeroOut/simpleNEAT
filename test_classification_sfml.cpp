@@ -34,7 +34,7 @@ int main() {
     uint outputLen;
 
     znn::SimpleNeat sneat;
-    znn::BestOne bestOne;
+    znn::BestOne bestOne{.Fit = 0.f};
     znn::NetworkGenome choosingNN;
 
     bool isInitialed = false;
@@ -105,13 +105,15 @@ int main() {
             znn::Opts.Enable3dNN = true;
             znn::Opts.usingFCNN = false;
             znn::Opts.FCNN_hideLayers = {8, 16, 4};
+            znn::Opts.Update3dIntercalMs = 100;
+            znn::Opts.X_Interval3d = 0.3f;
+            znn::Opts.Zy_Interval3d = 1.5f;
 
             sneat.StartNew();
         }
 
         std::thread start([&]() {
             bestOne = sneat.TrainByWanted(inputs, wantedOutputs, 0, [&isTrainingStart]() { return !isTrainingStart; });
-            choosingNN = bestOne.NN;
             isTrainingStart = false;
         });
         start.detach();
@@ -120,7 +122,7 @@ int main() {
     std::string fpsText;
     int fpsCounter = 0;
 
-    std::thread fpsCount([&fpsCounter, &fpsText](){
+    std::thread fpsCount([&fpsCounter, &fpsText]() {
         for (;;) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
             fpsText = std::to_string(fpsCounter);
@@ -169,11 +171,14 @@ int main() {
         }
 
         // Update
+        znn::mtx.lock();
         if (isTrainingStart) {
-            znn::mtx.lock();
             choosingNN = sneat.population.NeuralNetworks[0];
-            znn::mtx.unlock();
+        } else if (bestOne.Fit > 0.f) {
+            choosingNN = bestOne.NN;
         }
+        znn::mtx.unlock();
+
 
         // Render
         window.clear(sf::Color(0, 0, 0, 255)); // Clear old frame
@@ -229,7 +234,7 @@ int main() {
         window.display(); // Tell app window is done drawing
 
         ++fpsCounter;
-        window.setTitle("fps: "+ fpsText);
+        window.setTitle("fps: " + fpsText);
     }
 
     return 0;
