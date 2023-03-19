@@ -10,8 +10,6 @@ namespace znn {
     public:
         NeuralNetwork neuralNetwork;
 
-        std::vector<float> BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants);
-
         void MutateWeightDirect(Connection &c);
 
         void MutateWeightNear(Connection &c);
@@ -31,104 +29,6 @@ namespace znn {
         void MutateNetworkGenome(NetworkGenome &nn);
 
         NetworkGenome GetChildByCrossing(NetworkGenome *nn0, NetworkGenome *nn1);
-    };
-
-    std::vector<float> Generation::BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回计算结果 TODO: 权重和偏置范围该怎么限制?丢弃?
-        std::map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
-        std::map<double, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
-
-        for (auto &n: nn->Neurons) {
-            tmpNeuronMap[n.Id] = &n;
-            tmpLayerMap[n.Layer].push_back(&n);
-        }
-
-
-        if (Opts.InputSize != inputs.size()) {
-            std::cerr << "BackPropagation: Input length " << inputs.size() << " diffrent with NN input nodes " << Opts.InputSize << std::endl;
-            std::exit(0);
-        }
-
-        std::map<ulong, float> tmpNodesOutput;
-        std::map<ulong, float> tmpNodesInput;
-
-        std::function<void(ulong)> calculateNeuron = [&](ulong nid) {
-            tmpNodesInput[nid] = 0.f;
-            for (auto &connection: nn->Connections) {
-                if (connection.ConnectedNeuronId[1] == nid && connection.Enable) {
-                    tmpNodesInput[nid] += tmpNodesOutput[connection.ConnectedNeuronId[0]] * connection.Weight;
-                }
-            }
-            tmpNodesInput[nid] += tmpNeuronMap[nid]->Bias;
-            tmpNodesOutput[nid] = Opts.ActiveFunction(tmpNodesInput[nid]);
-        };
-
-        std::vector<float> outputs;
-
-        for (auto &l: tmpLayerMap) {    // 神经元根据layer排序
-            for (auto &n: l.second) {
-                if (l.first == 0.f) {   // 初始化输入节点
-                    tmpNodesOutput[n->Id] = inputs[n->Id];
-                    continue;
-                }
-
-                calculateNeuron(n->Id);  // 计算隐藏神经元和输出神经元
-
-                if (l.first == 1.f) {
-                    outputs.push_back(tmpNodesOutput[n->Id]);
-                }
-            }
-        }
-
-        // 上面是正向计算全部节点输出,接下来开始反向传播
-        // 先计算每个节点的误差,偏导数又称为误差项也称为灵敏度
-
-        std::map<ulong, float> tmpNodesOutputError;
-
-        std::function<void(ulong)> calculateNeuronError = [&](ulong nid) {
-            tmpNodesOutputError[nid] = 0.f;
-            for (auto &connection: nn->Connections) {
-                if (connection.ConnectedNeuronId[0] == nid && connection.Enable) {
-                    tmpNodesOutputError[nid] += tmpNodesOutputError[connection.ConnectedNeuronId[1]] * connection.Weight;
-                }
-            }
-            tmpNodesOutputError[nid] *= Opts.DerivativeFunction(tmpNodesOutput[nid]) * tmpNodesOutput[nid];
-        };
-
-        uint wantsCount = 0;
-        for (std::map<double, std::vector<Neuron *>>::reverse_iterator ri = tmpLayerMap.rbegin(); ri != tmpLayerMap.rend(); ++ri) {
-            for (auto &n: ri->second) {
-                if (ri->first == 1.f) {   // 计算输出神经元点误差
-                    tmpNodesOutputError[n->Id] = Opts.DerivativeFunction(tmpNodesOutput[n->Id]) * (wants[wantsCount] - tmpNodesOutput[n->Id]);
-                    ++wantsCount;
-                    continue;
-                }
-
-                if (ri->first == 0.f) {
-                    break;
-                }
-
-                calculateNeuronError(n->Id);  // 计算隐藏神经元误差
-            }
-        }
-
-        for (auto &connection: nn->Connections) { // 更新连接权重
-            connection.Weight += Opts.LearnRate * tmpNodesOutputError[connection.ConnectedNeuronId[1]] * tmpNodesOutput[connection.ConnectedNeuronId[0]];
-        }
-
-        for (auto &n: nn->Neurons) { // 更新神经元偏置
-            if (n.Layer != 0.) {
-                n.Bias += Opts.LearnRate * tmpNodesOutputError[n.Id];
-            }
-        }
-
-//        nn->Age = 0;
-
-        if (outputs.size() != wants.size()) {
-            std::cerr << "BackPropagation: outputs.size(" << outputs.size() << ") != wants.size(" << wants.size() << ")\n";
-            exit(0);
-        }
-
-        return outputs;
     };
 
     void Generation::MutateWeightDirect(Connection &c) {

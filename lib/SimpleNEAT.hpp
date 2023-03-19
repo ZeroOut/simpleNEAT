@@ -211,7 +211,7 @@ namespace znn {
                         }
                         if (index >= Opts.ChampionKeepSize * 2) {
                             for (uint i = 0; i < inputs.size(); ++i) {  // 保留的冠军一份副本全部进行反向传播更新weight和bias
-                                population.generation.BackPropagation(nn, inputs[i], wantedOutputs[i]);
+                                population.generation.neuralNetwork.BackPropagation(nn, inputs[i], wantedOutputs[i], false);
                             }
                         }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {

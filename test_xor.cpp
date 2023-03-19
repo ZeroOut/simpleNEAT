@@ -8,7 +8,7 @@ int main() {
     znn::Opts.DerivativeFunction = znn::DerivativeSteependSigmoid;
     znn::Opts.IterationTimes = 0;
     znn::Opts.ThreadCount = 1;
-    znn::Opts.Enable3dNN = true;
+    znn::Opts.Enable3dNN = false;
     znn::Opts.CheckPointPath = "/tmp/xor";
 
     znn::SimpleNeat sneat;
