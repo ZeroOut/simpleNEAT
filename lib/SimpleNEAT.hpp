@@ -66,8 +66,8 @@ namespace znn {
             show3d.detach();
         }
 
-        if (Opts.usingFCNN && Opts.FCNN_hideLayers.empty()) {
-            std::cerr << "Opts.usingFCNN = " << Opts.usingFCNN << " and Opts.FCNN_hideLayers.size() = " << Opts.FCNN_hideLayers.size() << std::endl;
+        if (Opts.StartWithFCNN && Opts.FCNN_hideLayers.empty()) {
+            std::cerr << "Opts.usingFCNN = " << Opts.StartWithFCNN << " and Opts.FCNN_hideLayers.size() = " << Opts.FCNN_hideLayers.size() << std::endl;
             exit(0);
         }
     }
@@ -224,7 +224,7 @@ namespace znn {
                             population.generation.MutateNetworkGenome(*nn);  // 繁殖以后进行变异
                         }
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
-                        if (Opts.usingFCNN) {
+                        if (Opts.StartWithFCNN) {
                             *nn = population.generation.neuralNetwork.NewFCNN();
                         } else {
                             *nn = population.generation.neuralNetwork.NewNN();
@@ -372,7 +372,7 @@ namespace znn {
                             population.generation.MutateNetworkGenome(*nn);  // 繁殖以后进行变异
                         }
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
-                        if (Opts.usingFCNN) {
+                        if (Opts.StartWithFCNN) {
                             *nn = population.generation.neuralNetwork.NewFCNN();
                         } else {
                             *nn = population.generation.neuralNetwork.NewNN();

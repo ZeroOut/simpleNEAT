@@ -47,7 +47,7 @@ namespace znn {
         int ScreenWidth = 960;
         int ScreenHeight = 720;
 
-        bool usingFCNN = false;
+        bool StartWithFCNN = false;
         std::vector<ulong> FCNN_hideLayers;  // TODO: 断点续训练的时候，如果设置了每一代新建神经网络，则需要判断初始神经网络是不是多层全连接
     };
 

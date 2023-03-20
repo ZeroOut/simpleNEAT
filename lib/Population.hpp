@@ -23,7 +23,7 @@ namespace znn {
     void Population::CreatePopulation() {
         NeuralNetworks.clear();
         for (uint i = 0; i < Opts.PopulationSize; ++i) {
-            if (Opts.usingFCNN) {
+            if (Opts.StartWithFCNN) {
                 NeuralNetworks.push_back(generation.neuralNetwork.NewFCNN());
             } else {
                 NeuralNetworks.push_back(generation.neuralNetwork.NewNN());

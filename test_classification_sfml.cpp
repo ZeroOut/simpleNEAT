@@ -92,7 +92,7 @@ int main() {
             znn::Opts.MutateAddConnectionRate = 0.99f;
             znn::Opts.PopulationSize = 64;
             znn::Opts.ChampionKeepSize = 8;
-            znn::Opts.NewSize = 0;
+            znn::Opts.NewSize = 1;
             znn::Opts.KeepWorstSize = 0;
             znn::Opts.ChampionToNewSize = 24;
             znn::Opts.KeepComplexSize = 0;
@@ -103,8 +103,8 @@ int main() {
             znn::Opts.MutateBiasDirectOrNear = 0.36f;
             znn::Opts.LearnRate = 0.3f;
             znn::Opts.Enable3dNN = true;
-            znn::Opts.usingFCNN = false;
-            znn::Opts.FCNN_hideLayers = {8, 16, 4};
+            znn::Opts.StartWithFCNN = true;
+            znn::Opts.FCNN_hideLayers = {8, 8};
             znn::Opts.Update3dIntercalMs = 100;
             znn::Opts.X_Interval3d = 0.3f;
             znn::Opts.Zy_Interval3d = 1.5f;
