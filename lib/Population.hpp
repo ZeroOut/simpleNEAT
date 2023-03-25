@@ -47,15 +47,12 @@ namespace znn {
         std::map<NetworkGenome *, float> populationFitness;
 
         if (inputs.size() != wantedOutputs.size() || wantedOutputs[0].size() != Opts.OutputSize || inputs[0].size() != Opts.InputSize) {
-            std::cerr << "intput length: " << inputs[0].size() << " Opts.InputSize: " << Opts.InputSize << "\nwanted length: " << wantedOutputs[0].size() << " Opts.OutputSize: " << Opts.OutputSize
-                      << "\ninputs times: " << inputs.size() << " wanted times " << wantedOutputs.size() << std::endl;
+            std::cerr << "intput length: " << inputs[0].size() << " Opts.InputSize: " << Opts.InputSize << "\nwanted length: " << wantedOutputs[0].size() << " Opts.OutputSize: " << Opts.OutputSize << "\ninputs times: " << inputs.size() << " wanted times " << wantedOutputs.size() << std::endl;
             exit(0);
         }
 
-        std::vector<std::future<void>> thisFuture;  // 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
-
         for (auto &nn: NeuralNetworks) {
-            thisFuture.push_back(tPool.submit([&]() {
+            tPool.push_task([&]() {
                 float fitness = 0.f;
                 for (uint i = 0; i < inputs.size(); ++i) {
                     std::vector<float> thisOutputs = generation.neuralNetwork.FeedForwardPredict(&nn, inputs[i], false);
@@ -64,12 +61,10 @@ namespace znn {
                 mtx.lock();
                 populationFitness[&nn] = fitness / float(inputs.size());
                 mtx.unlock();
-            }));
+            });
         }
 
-        for (auto &f: thisFuture) {
-            f.wait();
-        }
+        tPool.wait_for_tasks();
 
         return populationFitness;
     }

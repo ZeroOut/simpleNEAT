@@ -83,7 +83,7 @@ int main() {
             znn::Opts.OutputSize = outputLen;
             znn::Opts.ActiveFunction = znn::Sigmoid;
             znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
-            znn::Opts.FCNN_hideLayers = {16, 16};
+            znn::Opts.FCNN_hideLayers = {20, 20};
             znn::Opts.FitnessThreshold = 0.999f;
             znn::Opts.LearnRate = 0.3f;
             znn::Opts.Update3dIntercalMs = 100;
@@ -121,9 +121,7 @@ int main() {
                 f.wait();
             }
 
-            std::thread show3d([]() {
-                znn::Show3dNN();
-            });
+            std::thread show3d(znn::Show3dNN);
             show3d.detach();
         }
 
@@ -143,7 +141,7 @@ int main() {
                 }
                 if (rounds % 100 == 0) {
                     std::cout << rounds << " fitness: " << fitness << "\n";
-                    znn::tPool.push_task(znn::Update3dNN, NN, false);
+                    znn::Update3dNN_Background(NN, false);
                 }
             }
             std::cout << rounds << " fitness: " << fitness << "\n";
@@ -207,7 +205,7 @@ int main() {
         // Update
 
         // Render
-        window.clear(sf::Color(0, 0, 0, 255)); // Clear old frame
+//        window.clear(sf::Color(0, 0, 0, 255)); // Clear old frame
 
         // Draw game
         for (auto &b: blocks) {

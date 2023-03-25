@@ -85,7 +85,7 @@ int main() {
             znn::Opts.ActiveFunction = znn::Sigmoid;
             znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
             znn::Opts.IterationTimes = 0;
-            znn::Opts.FitnessThreshold = 0.99f;
+            znn::Opts.FitnessThreshold = 0.999f;
             znn::Opts.IterationCheckPoint = 0;
             znn::Opts.ThreadCount = 16;
             znn::Opts.MutateAddNeuronRate = 0.09f;
@@ -181,7 +181,7 @@ int main() {
 
 
         // Render
-        window.clear(sf::Color(0, 0, 0, 255)); // Clear old frame
+//        window.clear(sf::Color(0, 0, 0, 255)); // Clear old frame
 
         // Draw game
         for (auto &b: blocks) {

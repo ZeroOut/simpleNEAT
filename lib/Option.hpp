@@ -7,6 +7,7 @@
 #include <thread>
 #include "ThreadPool.hpp"
 #include <filesystem>
+#include <shared_mutex>
 
 namespace znn {
     struct Option {
@@ -53,7 +54,7 @@ namespace znn {
 
     static Option Opts;
 
-    static std::mutex mtx;
+    static std::shared_mutex mtx;
     static BS::thread_pool tPool(Opts.ThreadCount);
 }
 

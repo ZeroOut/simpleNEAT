@@ -59,10 +59,7 @@ namespace znn {
         srandom((unsigned) clock());
 
         if (Opts.Enable3dNN) {
-            std::thread show3d([](){
-                canClose3dNN = false;
-                Show3dNN();
-            });
+            std::thread show3d(znn::Show3dNN);
             show3d.detach();
         }
 
@@ -158,8 +155,8 @@ namespace znn {
         for (; rounds <= Opts.IterationTimes || Opts.IterationTimes <= 0; ++rounds) {
             if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
                 lastFitness = populationFitness[orderedPopulation[0]];
-                std::cout << "gen: " << rounds << " ptr: " << orderedPopulation[0] << " age: " << orderedPopulation[0]->Age << " neurons: " << orderedPopulation[0]->Neurons.size() << " connections: "
-                          << orderedPopulation[0]->Connections.size() << " fitness: " << populationFitness[orderedPopulation[0]] << "\n";
+                std::cout << "gen: " << rounds << " ptr: " << orderedPopulation[0] << " age: " << orderedPopulation[0]->Age << " neurons: " << orderedPopulation[0]->Neurons.size() << " connections: " << orderedPopulation[0]->Connections.size() << " fitness: "
+                          << populationFitness[orderedPopulation[0]] << "\n";
             }
 
             for (auto nn: orderedPopulation) {
@@ -180,7 +177,7 @@ namespace znn {
                 population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
 
                 if (Opts.Enable3dNN) {
-                    tPool.push_task(Update3dNN, compressedRightBestNN, false);
+                    Update3dNN_Background(compressedRightBestNN, true);
                     std::cout << "需保持主线程不退出,防止3d显示bug\n";
                 }
 
@@ -199,11 +196,10 @@ namespace znn {
             }
 
             std::vector<NetworkGenome> tmpPopulation(Opts.PopulationSize);
-            std::vector<std::future<void>> thisFuture;// 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
 
             uint indexOutside = 0;
             for (auto &n: tmpPopulation) {
-                thisFuture.push_back(tPool.submit([&](uint index, NetworkGenome *nn) {
+                tPool.push_task([&](uint index, NetworkGenome *nn) {
                     if (index < Opts.ChampionToNewSize) {
                         *nn = *orderedPopulation[index % Opts.ChampionKeepSize];  // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
                         if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
@@ -236,16 +232,14 @@ namespace znn {
                         *nn = *orderedPopulation[index];
                         population.generation.MutateNetworkGenome(*nn);
                     }
-                }, indexOutside, &n));
+                }, indexOutside, &n);
                 ++indexOutside;
             }
 
-            for (auto &f: thisFuture) {
-                f.wait();
-            }
+            tPool.wait_for_tasks();
 
             if (Opts.Enable3dNN) {
-                tPool.push_task(Update3dNN, *orderedPopulation[0], false);
+                Update3dNN_Background(*orderedPopulation[0], false);
             }
 
             population.NeuralNetworks = tmpPopulation;
@@ -286,6 +280,7 @@ namespace znn {
         population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
 
         if (Opts.Enable3dNN) {
+            Update3dNN_Background(compressedRightBestNN, true);
             std::cout << "需保持主线程不退出,防止3d显示bug\n";
         }
 
@@ -305,8 +300,8 @@ namespace znn {
         for (; rounds <= Opts.IterationTimes || Opts.IterationTimes <= 0; ++rounds) {
             if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
                 lastFitness = populationFitness[orderedPopulation[0]];
-                std::cout << "gen: " << rounds << " ptr: " << orderedPopulation[0] << " age: " << orderedPopulation[0]->Age << " neurons: " << orderedPopulation[0]->Neurons.size() << " connections: "
-                          << orderedPopulation[0]->Connections.size() << " fitness: " << populationFitness[orderedPopulation[0]] << "\n";
+                std::cout << "gen: " << rounds << " ptr: " << orderedPopulation[0] << " age: " << orderedPopulation[0]->Age << " neurons: " << orderedPopulation[0]->Neurons.size() << " connections: " << orderedPopulation[0]->Connections.size() << " fitness: "
+                          << populationFitness[orderedPopulation[0]] << "\n";
             }
 
             for (auto nn: orderedPopulation) {
@@ -327,7 +322,7 @@ namespace znn {
                 population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
 
                 if (Opts.Enable3dNN) {
-                    tPool.push_task(Update3dNN, compressedRightBestNN, false);
+                    Update3dNN_Background(compressedRightBestNN, true);
                     std::cout << "需保持主线程不退出,防止3d显示bug\n";
                 }
 
@@ -346,11 +341,10 @@ namespace znn {
             }
 
             std::vector<NetworkGenome> tmpPopulation(Opts.PopulationSize);
-            std::vector<std::future<void>> thisFuture;// 如果用这个线程池的push_task函数，后面需要wait_for_tasks()，会卡死
 
             uint indexOutside = 0;
             for (auto &n: tmpPopulation) {
-                thisFuture.push_back(tPool.submit([&](uint index, NetworkGenome *nn) {
+                tPool.push_task([&](uint index, NetworkGenome *nn) {
                     if (index < Opts.ChampionToNewSize) {
                         *nn = *orderedPopulation[index % Opts.ChampionKeepSize];  // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
                         if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
@@ -384,16 +378,14 @@ namespace znn {
                         *nn = *orderedPopulation[index];
                         population.generation.MutateNetworkGenome(*nn);
                     }
-                }, indexOutside, &n));
+                }, indexOutside, &n);
                 ++indexOutside;
             }
 
-            for (auto &f: thisFuture) {
-                f.wait();
-            }
+            tPool.wait_for_tasks();
 
             if (Opts.Enable3dNN) {
-                tPool.push_task(Update3dNN, *orderedPopulation[0], false);
+                Update3dNN_Background(*orderedPopulation[0], false);
             }
 
             population.NeuralNetworks = tmpPopulation;
@@ -419,6 +411,7 @@ namespace znn {
         population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
 
         if (Opts.Enable3dNN) {
+            Update3dNN_Background(compressedRightBestNN, true);
             std::cout << "需保持主线程不退出,防止3d显示bug\n";
         }
 

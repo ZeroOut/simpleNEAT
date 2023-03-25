@@ -351,15 +351,13 @@ namespace znn {
             }
 
             if (isAccelerate) {
-                std::vector<std::future<void>> thisFuture;
+
 
                 for (auto &n: l.second) {
-                    thisFuture.push_back(tPool.submit(calculateNeuron, n->Id));
+                    tPool.push_task(calculateNeuron, n->Id);
                 }
 
-                for (auto &f: thisFuture) {
-                    f.wait();
-                }
+                tPool.wait_for_tasks();
 
                 if (l.first == 1.) {  // 输出神经元
                     for (auto &n: l.second) {
@@ -427,15 +425,13 @@ namespace znn {
             }
 
             if (isAccelerate) {
-                std::vector<std::future<void>> thisFuture;
+
 
                 for (auto &n: l.second) {
-                    thisFuture.push_back(tPool.submit(calculateNeuron, n->Id));
+                    tPool.push_task(calculateNeuron, n->Id);
                 }
 
-                for (auto &f: thisFuture) {
-                    f.wait();
-                }
+                tPool.wait_for_tasks();
 
                 if (l.first == 1.) {  // 输出神经元
                     for (auto &n: l.second) {
@@ -475,8 +471,6 @@ namespace znn {
 
         uint wantsCount = 0;
         for (std::map<double, std::vector<Neuron *>>::reverse_iterator ri = tmpLayerMap.rbegin(); ri != tmpLayerMap.rend(); ++ri) {
-            std::vector<std::future<void>> thisFuture;
-
             for (auto &n: ri->second) {
                 if (ri->first == 1.f) {   // 计算输出神经元点误差
                     tmpNodesOutputError[n->Id] = Opts.DerivativeFunction(tmpNodesOutput[n->Id]) * (wants[wantsCount] - tmpNodesOutput[n->Id]);
@@ -489,16 +483,14 @@ namespace znn {
                 }
 
                 if (isAccelerate) {
-                    thisFuture.push_back(tPool.submit(calculateNeuronError, n->Id));
+                    tPool.push_task(calculateNeuronError, n->Id);
                 } else {
                     calculateNeuronError(n->Id);  // 计算隐藏神经元误差
                 }
             }
 
             if (isAccelerate) {
-                for (auto &f: thisFuture) {
-                    f.wait();
-                }
+                tPool.wait_for_tasks();
             }
         }
 
@@ -815,6 +807,11 @@ namespace znn {
         }
     }
 
+    void Update3dNN_Background(NetworkGenome NN, bool FL) {
+        std::thread update3dnn(Update3dNN, NN, FL);
+        update3dnn.detach();
+    }
+
     void Show3dNN() {
         SetConfigFlags(FLAG_MSAA_4X_HINT);
         SetConfigFlags(FLAG_WINDOW_RESIZABLE);
@@ -850,23 +847,23 @@ namespace znn {
             if (IsKeyPressed('R')) {
                 Opts.X_Interval3d = setX_Interval3d;
                 Opts.Zy_Interval3d = setZy_Interval3d;
-                tPool.push_task(Update3dNN, last3dNN, true);
+                Update3dNN_Background(last3dNN, true);
             }
             if (IsKeyDown('A')) {
                 Opts.X_Interval3d -= .01f;
-                tPool.push_task(Update3dNN, last3dNN, true);
+                Update3dNN_Background(last3dNN, true);
             }
             if (IsKeyDown('D')) {
                 Opts.X_Interval3d += .01f;
-                tPool.push_task(Update3dNN, last3dNN, true);
+                Update3dNN_Background(last3dNN, true);
             }
             if (IsKeyDown('W')) {
                 Opts.Zy_Interval3d += .02f;
-                tPool.push_task(Update3dNN, last3dNN, true);
+                Update3dNN_Background(last3dNN, true);
             }
             if (IsKeyDown('S')) {
                 Opts.Zy_Interval3d -= .02f;
-                tPool.push_task(Update3dNN, last3dNN, true);
+                Update3dNN_Background(last3dNN, true);
             }
             if (IsKeyPressed(KEY_SPACE)) {
                 if (Opts.Enable3dRandPos) {
@@ -874,7 +871,7 @@ namespace znn {
                 } else {
                     Opts.Enable3dRandPos = true;
                 }
-                tPool.push_task(Update3dNN, last3dNN, true);
+                Update3dNN_Background(last3dNN, true);
             }
 
             // Draw

@@ -33,10 +33,10 @@ namespace BS
      * @brief A convenient shorthand for the type of std::thread::hardware_concurrency(). Should evaluate to unsigned int.
      */
     using concurrency_t = std::invoke_result_t<decltype(std::thread::hardware_concurrency)>;
-    
+
     // ============================================================================================= //
     //                                    Begin class multi_future                                   //
-    
+
     /**
      * @brief A helper class to facilitate waiting for and/or getting the results of multiple futures at once.
      *
@@ -52,7 +52,7 @@ namespace BS
          * @param num_futures_ The desired number of futures to store.
          */
         multi_future(const size_t num_futures_ = 0) : futures(num_futures_) {}
-        
+
         /**
          * @brief Get the results from all the futures stored in this multi_future object, rethrowing any stored exceptions.
          *
@@ -74,7 +74,7 @@ namespace BS
                 return results;
             }
         }
-        
+
         /**
          * @brief Get a reference to one of the futures stored in this multi_future object.
          *
@@ -85,7 +85,7 @@ namespace BS
         {
             return futures[i];
         }
-        
+
         /**
          * @brief Append a future to this multi_future object.
          *
@@ -95,7 +95,7 @@ namespace BS
         {
             futures.push_back(std::move(future));
         }
-        
+
         /**
          * @brief Get the number of futures stored in this multi_future object.
          *
@@ -105,7 +105,7 @@ namespace BS
         {
             return futures.size();
         }
-        
+
         /**
          * @brief Wait for all the futures stored in this multi_future object.
          */
@@ -114,20 +114,20 @@ namespace BS
             for (size_t i = 0; i < futures.size(); ++i)
                 futures[i].wait();
         }
-        
+
     private:
         /**
          * @brief A vector to store the futures.
          */
         std::vector<std::future<T>> futures;
     };
-    
+
     //                                     End class multi_future                                    //
     // ============================================================================================= //
-    
+
     // ============================================================================================= //
     //                                       Begin class blocks                                      //
-    
+
     /**
      * @brief A helper class to divide a range into blocks. Used by parallelize_loop() and push_loop().
      *
@@ -158,7 +158,7 @@ namespace BS
                 num_blocks = (total_size > 1) ? total_size : 1;
             }
         }
-        
+
         /**
          * @brief Get the first index of a block.
          *
@@ -169,7 +169,7 @@ namespace BS
         {
             return static_cast<T>(i * block_size) + first_index;
         }
-        
+
         /**
          * @brief Get the index after the last index of a block.
          *
@@ -180,7 +180,7 @@ namespace BS
         {
             return (i == num_blocks - 1) ? index_after_last : (static_cast<T>((i + 1) * block_size) + first_index);
         }
-        
+
         /**
          * @brief Get the number of blocks. Note that this may be different than the desired number of blocks that was passed to the constructor.
          *
@@ -190,7 +190,7 @@ namespace BS
         {
             return num_blocks;
         }
-        
+
         /**
          * @brief Get the total number of indices in the range.
          *
@@ -200,40 +200,40 @@ namespace BS
         {
             return total_size;
         }
-        
+
     private:
         /**
          * @brief The size of each block (except possibly the last block).
          */
         size_t block_size = 0;
-        
+
         /**
          * @brief The first index in the range.
          */
         T first_index = 0;
-        
+
         /**
          * @brief The index after the last index in the range.
          */
         T index_after_last = 0;
-        
+
         /**
          * @brief The number of blocks.
          */
         size_t num_blocks = 0;
-        
+
         /**
          * @brief The total number of indices in the range.
          */
         size_t total_size = 0;
     };
-    
+
     //                                        End class blocks                                       //
     // ============================================================================================= //
-    
+
     // ============================================================================================= //
     //                                    Begin class thread_pool                                    //
-    
+
     /**
      * @brief A fast, lightweight, and easy-to-use C++17 thread pool class.
      */
@@ -243,7 +243,7 @@ namespace BS
         // ============================
         // Constructors and destructors
         // ============================
-        
+
         /**
          * @brief Construct a new thread pool.
          *
@@ -253,7 +253,7 @@ namespace BS
         {
             create_threads();
         }
-        
+
         /**
          * @brief Destruct the thread pool. Waits for all tasks to complete, then destroys all threads. Note that if the pool is paused, then any tasks still in the queue will never be executed.
          */
@@ -262,11 +262,11 @@ namespace BS
             wait_for_tasks();
             destroy_threads();
         }
-        
+
         // =======================
         // Public member functions
         // =======================
-        
+
         /**
          * @brief Get the number of tasks currently waiting in the queue to be executed by the threads.
          *
@@ -277,7 +277,7 @@ namespace BS
             const std::scoped_lock tasks_lock(tasks_mutex);
             return tasks.size();
         }
-        
+
         /**
          * @brief Get the number of tasks currently being executed by the threads.
          *
@@ -288,7 +288,7 @@ namespace BS
             const std::scoped_lock tasks_lock(tasks_mutex);
             return tasks_total - tasks.size();
         }
-        
+
         /**
          * @brief Get the total number of unfinished tasks: either still in the queue, or running in a thread. Note that get_tasks_total() == get_tasks_queued() + get_tasks_running().
          *
@@ -298,7 +298,7 @@ namespace BS
         {
             return tasks_total;
         }
-        
+
         /**
          * @brief Get the number of threads in the pool.
          *
@@ -308,7 +308,7 @@ namespace BS
         {
             return thread_count;
         }
-        
+
         /**
          * @brief Check whether the pool is currently paused.
          *
@@ -318,7 +318,7 @@ namespace BS
         {
             return paused;
         }
-        
+
         /**
          * @brief Parallelize a loop by automatically splitting it into blocks and submitting each block separately to the queue. Returns a multi_future object that contains the futures for all of the blocks.
          *
@@ -349,7 +349,7 @@ namespace BS
                 return multi_future<R>();
             }
         }
-        
+
         /**
          * @brief Parallelize a loop by automatically splitting it into blocks and submitting each block separately to the queue. Returns a multi_future object that contains the futures for all of the blocks. This overload is used for the special case where the first index is 0.
          *
@@ -366,7 +366,7 @@ namespace BS
         {
             return parallelize_loop(0, index_after_last, std::forward<F>(loop), num_blocks);
         }
-        
+
         /**
          * @brief Pause the pool. The workers will temporarily stop retrieving new tasks out of the queue, although any tasks already executed will keep running until they are finished.
          */
@@ -374,7 +374,7 @@ namespace BS
         {
             paused = true;
         }
-        
+
         /**
          * @brief Parallelize a loop by automatically splitting it into blocks and submitting each block separately to the queue. Does not return a multi_future, so the user must use wait_for_tasks() or some other method to ensure that the loop finishes executing, otherwise bad things will happen.
          *
@@ -397,7 +397,7 @@ namespace BS
                     push_task(std::forward<F>(loop), blks.start(i), blks.end(i));
             }
         }
-        
+
         /**
          * @brief Parallelize a loop by automatically splitting it into blocks and submitting each block separately to the queue. Does not return a multi_future, so the user must use wait_for_tasks() or some other method to ensure that the loop finishes executing, otherwise bad things will happen. This overload is used for the special case where the first index is 0.
          *
@@ -412,7 +412,7 @@ namespace BS
         {
             push_loop(0, index_after_last, std::forward<F>(loop), num_blocks);
         }
-        
+
         /**
          * @brief Push a function with zero or more arguments, but no return value, into the task queue. Does not return a future, so the user must use wait_for_tasks() or some other method to ensure that the task finishes executing, otherwise bad things will happen.
          *
@@ -432,7 +432,7 @@ namespace BS
             ++tasks_total;
             task_available_cv.notify_one();
         }
-        
+
         /**
          * @brief Reset the number of threads in the pool. Waits for all currently running tasks to be completed, then destroys all threads in the pool and creates a new thread pool with the new number of threads. Any tasks that were waiting in the queue before the pool was reset will then be executed by the new threads. If the pool was paused before resetting it, the new pool will be paused as well.
          *
@@ -449,7 +449,7 @@ namespace BS
             paused = was_paused;
             create_threads();
         }
-        
+
         /**
          * @brief Submit a function with zero or more arguments into the task queue. If the function has a return value, get a future for the eventual returned value. If the function has no return value, get an std::future<void> which can be used to wait until the task finishes.
          *
@@ -493,7 +493,7 @@ namespace BS
                 });
             return task_promise->get_future();
         }
-        
+
         /**
          * @brief Unpause the pool. The workers will resume retrieving new tasks out of the queue.
          */
@@ -501,7 +501,7 @@ namespace BS
         {
             paused = false;
         }
-        
+
         /**
          * @brief Wait for tasks to be completed. Normally, this function waits for all tasks, both those that are currently running in the threads and those that are still waiting in the queue. However, if the pool is paused, this function only waits for the currently running tasks (otherwise it would wait forever). Note: To wait for just one specific task, use submit() instead, and call the wait() member function of the generated future.
          */
@@ -512,12 +512,12 @@ namespace BS
             task_done_cv.wait(tasks_lock, [this] { return (tasks_total == (paused ? tasks.size() : 0)); });
             waiting = false;
         }
-        
+
     private:
         // ========================
         // Private member functions
         // ========================
-        
+
         /**
          * @brief Create the threads in the pool and assign a worker to each thread.
          */
@@ -529,7 +529,7 @@ namespace BS
                 threads[i] = std::thread(&thread_pool::worker, this);
             }
         }
-        
+
         /**
          * @brief Destroy the threads in the pool.
          */
@@ -542,7 +542,7 @@ namespace BS
                 threads[i].join();
             }
         }
-        
+
         /**
          * @brief Determine how many threads the pool should have, based on the parameter passed to the constructor or reset().
          *
@@ -561,7 +561,7 @@ namespace BS
                     return 1;
             }
         }
-        
+
         /**
          * @brief A worker function to be assigned to each thread in the pool. Waits until it is notified by push_task() that a task is available, and then retrieves the task from the queue and executes it. Once the task finishes, the worker notifies wait_for_tasks() in case it is waiting.
          */
@@ -585,68 +585,68 @@ namespace BS
                 }
             }
         }
-        
+
         // ============
         // Private data
         // ============
-        
+
         /**
          * @brief An atomic variable indicating whether the workers should pause. When set to true, the workers temporarily stop retrieving new tasks out of the queue, although any tasks already executed will keep running until they are finished. When set to false again, the workers resume retrieving tasks.
          */
         std::atomic<bool> paused = false;
-        
+
         /**
          * @brief An atomic variable indicating to the workers to keep running. When set to false, the workers permanently stop working.
          */
         std::atomic<bool> running = false;
-        
+
         /**
          * @brief A condition variable used to notify worker() that a new task has become available.
          */
         std::condition_variable task_available_cv = {};
-        
+
         /**
          * @brief A condition variable used to notify wait_for_tasks() that a tasks is done.
          */
         std::condition_variable task_done_cv = {};
-        
+
         /**
          * @brief A queue of tasks to be executed by the threads.
          */
         std::queue<std::function<void()>> tasks = {};
-        
+
         /**
          * @brief An atomic variable to keep track of the total number of unfinished tasks - either still in the queue, or running in a thread.
          */
         std::atomic<size_t> tasks_total = 0;
-        
+
         /**
          * @brief A mutex to synchronize access to the task queue by different threads.
          */
         mutable std::mutex tasks_mutex = {};
-        
+
         /**
          * @brief The number of threads in the pool.
          */
         concurrency_t thread_count = 0;
-        
+
         /**
          * @brief A smart pointer to manage the memory allocated for the threads.
          */
         std::unique_ptr<std::thread[]> threads = nullptr;
-        
+
         /**
          * @brief An atomic variable indicating that wait_for_tasks() is active and expects to be notified whenever a task is done.
          */
         std::atomic<bool> waiting = false;
     };
-    
+
     //                                     End class thread_pool                                     //
     // ============================================================================================= //
-    
+
     // ============================================================================================= //
     //                                   Begin class synced_stream                                   //
-    
+
     /**
      * @brief A helper class to synchronize printing to an output stream by different threads.
      */
@@ -659,7 +659,7 @@ namespace BS
          * @param out_stream_ The output stream to print to. The default value is std::cout.
          */
         synced_stream(std::ostream& out_stream_ = std::cout) : out_stream(out_stream_) {}
-        
+
         /**
          * @brief Print any number of items into the output stream. Ensures that no other threads print to this stream simultaneously, as long as they all exclusively use the same synced_stream object to print.
          *
@@ -672,7 +672,7 @@ namespace BS
             const std::scoped_lock lock(stream_mutex);
             (out_stream << ... << std::forward<T>(items));
         }
-        
+
         /**
          * @brief Print any number of items into the output stream, followed by a newline character. Ensures that no other threads print to this stream simultaneously, as long as they all exclusively use the same synced_stream object to print.
          *
@@ -684,35 +684,35 @@ namespace BS
         {
             print(std::forward<T>(items)..., '\n');
         }
-        
+
         /**
          * @brief A stream manipulator to pass to a synced_stream (an explicit cast of std::endl). Prints a newline character to the stream, and then flushes it. Should only be used if flushing is desired, otherwise '\n' should be used instead.
          */
         inline static std::ostream& (&endl)(std::ostream&) = static_cast<std::ostream& (&)(std::ostream&)>(std::endl);
-        
+
         /**
          * @brief A stream manipulator to pass to a synced_stream (an explicit cast of std::flush). Used to flush the stream.
          */
         inline static std::ostream& (&flush)(std::ostream&) = static_cast<std::ostream& (&)(std::ostream&)>(std::flush);
-        
+
     private:
         /**
          * @brief The output stream to print to.
          */
         std::ostream& out_stream;
-        
+
         /**
          * @brief A mutex to synchronize printing.
          */
         mutable std::mutex stream_mutex = {};
     };
-    
+
     //                                    End class synced_stream                                    //
     // ============================================================================================= //
-    
+
     // ============================================================================================= //
     //                                       Begin class timer                                       //
-    
+
     /**
      * @brief A helper class to measure execution time for benchmarking purposes.
      */
@@ -726,7 +726,7 @@ namespace BS
         {
             start_time = std::chrono::steady_clock::now();
         }
-        
+
         /**
          * @brief Stop measuring time and store the elapsed time since start().
          */
@@ -734,7 +734,7 @@ namespace BS
         {
             elapsed_time = std::chrono::steady_clock::now() - start_time;
         }
-        
+
         /**
          * @brief Get the number of milliseconds that have elapsed between start() and stop().
          *
@@ -744,20 +744,20 @@ namespace BS
         {
             return (std::chrono::duration_cast<std::chrono::milliseconds>(elapsed_time)).count();
         }
-        
+
     private:
         /**
          * @brief The time point when measuring started.
          */
         std::chrono::time_point<std::chrono::steady_clock> start_time = std::chrono::steady_clock::now();
-        
+
         /**
          * @brief The duration that has elapsed between start() and stop().
          */
         std::chrono::duration<double> elapsed_time = std::chrono::duration<double>::zero();
     };
-    
+
     //                                        End class timer                                        //
     // ============================================================================================= //
-    
+
 } // namespace BS

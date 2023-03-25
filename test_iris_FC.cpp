@@ -6,27 +6,15 @@ int main() {
     znn::Opts.OutputSize = 3;
     znn::Opts.ActiveFunction = znn::Sigmoid;
     znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
-    znn::Opts.LearnRate = 0.3f;
-    znn::Opts.IterationTimes = 0;
+    znn::Opts.FCNN_hideLayers = {16, 16};
     znn::Opts.FitnessThreshold = 0.99f;
-    znn::Opts.IterationCheckPoint = 0;
-    znn::Opts.ThreadCount = 16;
-    znn::Opts.MutateAddNeuronRate = 0.03f;
-    znn::Opts.MutateAddConnectionRate = 0.9f;
-    znn::Opts.PopulationSize = 100;
-    znn::Opts.NewSize = 0;
-    znn::Opts.KeepComplexSize = 0;
-    znn::Opts.KeepWorstSize = 0;
-    znn::Opts.ChampionToNewSize = 30;
-    znn::Opts.ChampionKeepSize = 10;
-    znn::Opts.WeightRange = 12;
-    znn::Opts.BiasRange = 6;
-    znn::Opts.MutateBiasRate = 1.f;
-    znn::Opts.MutateWeightRate = 1.f;
-    znn::Opts.Enable3dNN = true;
+    znn::Opts.LearnRate = 0.3f;
+    znn::Opts.Update3dIntercalMs = 100;
+    znn::Opts.Enable3dRandPos = false;
+    znn::Opts.X_Interval3d = 1.5f;
 
     znn::SimpleNeat sneat;
-    sneat.StartNew();
+    auto NN = sneat.population.generation.neuralNetwork.NewFCNN();
 
     const std::vector<std::vector<float>> inputs = {{5.1f, 3.5f, 1.4f, 0.2f},
                                                     {4.9f, 3.0f, 1.4f, 0.2f},
@@ -334,32 +322,33 @@ int main() {
                                                     {0.f, 0.f, 1.f},
                                                     {0.f, 0.f, 1.f},};
 
-    auto best = sneat.TrainByWanted(inputs, wanted, 0, []() { return false; });
+//    std::thread show3d([]() {
+//        znn::Show3dNN();
+//    });
+//    show3d.detach();
 
-    std::cout << "neurons:\n";
-    for (auto &n: best.NN.Neurons) {
-        std::cout << n.Id << " " << n.Bias << std::endl;
-    }
-
-    std::cout << "connections:\n";
-    for (auto &c: best.NN.Connections) {
-        std::cout << c.ConnectedNeuronId[0] << " " << c.ConnectedNeuronId[1] << " " << c.Weight << std::endl;
+    float fitness = 0.f;
+    while (fitness < znn::Opts.FitnessThreshold) {
+        fitness = 0.f;
+        ++NN.Age;
+        for (int i = 0; i < inputs.size(); ++i) {
+            std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.BackPropagation(&NN, inputs[i], wanted[i], false);
+            fitness += znn::GetPrecision(thisOutputs, wanted[i]);
+        }
+        fitness /= float(inputs.size());
+        if (NN.Age % 100 == 0) {
+            std::cout << NN.Age << " fitness: " << fitness << "\n";
+//            znn::Update3dNN_Background(NN, false);
+        }
     }
 
     std::cout << "predict: \n";
     for (int i = 0; i < inputs.size(); ++i) {
-        auto predict = sneat.population.generation.neuralNetwork.FeedForwardPredict(&best.NN, inputs[i], false);
-        std::cout << inputs[i][0] << " " << inputs[i][1] << inputs[i][2] << " " << inputs[i][3] << " [" << wanted[i][0] << " " << wanted[i][1] << " " << wanted[i][2] << "] " << predict[0] << " "
-                  << predict[1] << " " << predict[2] << std::endl;
+        auto predict = sneat.population.generation.neuralNetwork.FeedForwardPredict(&NN, inputs[i], false);
+        std::cout << inputs[i][0] << " " << inputs[i][1] << inputs[i][2] << " " << inputs[i][3] << " [" << wanted[i][0] << " " << wanted[i][1] << " " << wanted[i][2] << "] " << predict[0] << " " << predict[1] << " " << predict[2] << std::endl;
     }
 
-    //    std::cout << "HiddenNeuronInnovations: " << znn::HiddenNeuronInnovations.size() << " ConnectionInnovations: " << znn::ConnectionInnovations.size() << std::endl;
-    std::cout << "HiddenNeuronInnovations: " << sneat.population.generation.neuralNetwork.HiddenNeuronInnovations.size() << std::endl;
-
-    std::cout << "best: geration:" << best.Gen << " fitness " << best.Fit << " neurons " << best.NN.Neurons.size() << " connections " << best.NN.Connections.size() << std::endl;
-
-    char ccc;
-    std::cin >> ccc;
+    std::cout << NN.Age << " fitness: " << fitness << "\n";
 
     return 0;
 }
