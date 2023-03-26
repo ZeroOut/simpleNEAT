@@ -423,8 +423,6 @@ namespace znn {
             }
 
             if (isAccelerate) {
-
-
                 for (auto &n: l.second) {
                     tPool.push_task(calculateNeuron, n->Id);
                 }

@@ -93,8 +93,7 @@ namespace znn {
 
         mtx.lock();
         ulong newNid = neuralNetwork.HiddenNeuronInnovations.size() + Opts.InputSize + Opts.OutputSize + neuralNetwork.FCHidenNeuronSize;  // 新的神经元id为全部藏神经元数量+输入神经元数量+输出神经元数量+全连接网络隐藏神经元数量(如有)
-        if (neuralNetwork.HiddenNeuronInnovations.find({nid0, nid1}) == neuralNetwork.HiddenNeuronInnovations.end()) {  // 从全部隐藏神经元innovMap里面查看是否存在相同位置的神经元
-//        if (!neuralNetwork.HiddenNeuronInnovations.contains({nid0, nid1})) {  // 从全部隐藏神经元innovMap里面查看是否存在相同位置的神经元
+        if (!neuralNetwork.HiddenNeuronInnovations.contains({nid0, nid1})) {  // 从全部隐藏神经元innovMap里面查看是否存在相同位置的神经元
             neuralNetwork.HiddenNeuronInnovations[{nid0, nid1}] = newNid;  // 如果不存在则新增记录插入连接左右两个神经元id对应的隐藏层神经元id
         } else {
             newNid = neuralNetwork.HiddenNeuronInnovations[{nid0, nid1}];  // 如果存在则使用已有隐藏层神经元id
