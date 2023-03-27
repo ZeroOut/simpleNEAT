@@ -327,7 +327,12 @@ namespace znn {
 
             for (auto &connection: nn->Connections) {
                 if (connection.ConnectedNeuronId[1] == nid && connection.Enable) {
-                    thisOutput += tmpNodesOutput[connection.ConnectedNeuronId[0]] * connection.Weight;
+
+                    mtx.lock();
+                    float tmpNodesOutputLeft = tmpNodesOutput[connection.ConnectedNeuronId[0]];
+                    mtx.unlock();
+
+                    thisOutput += tmpNodesOutputLeft * connection.Weight;
                 }
             }
             thisOutput = Opts.ActiveFunction(thisOutput + tmpNeuronMap[nid]->Bias);
@@ -398,7 +403,12 @@ namespace znn {
 
             for (auto &connection: nn->Connections) {
                 if (connection.ConnectedNeuronId[1] == nid && connection.Enable) {
-                    thisOutput += tmpNodesOutput[connection.ConnectedNeuronId[0]] * connection.Weight;
+
+                    mtx.lock();
+                    float tmpNodesOutputLeft = tmpNodesOutput[connection.ConnectedNeuronId[0]];
+                    mtx.unlock();
+
+                    thisOutput += tmpNodesOutputLeft * connection.Weight;
                 }
             }
 
@@ -454,11 +464,20 @@ namespace znn {
 
             for (auto &connection: nn->Connections) {
                 if (connection.ConnectedNeuronId[0] == nid && connection.Enable) {
-                    thisOutputError += tmpNodesOutputError[connection.ConnectedNeuronId[1]] * connection.Weight;
+
+                    mtx.lock();
+                    float tmpNodesOutputErrorRight = tmpNodesOutputError[connection.ConnectedNeuronId[1]];
+                    mtx.unlock();
+
+                    thisOutputError += tmpNodesOutputErrorRight * connection.Weight;
                 }
             }
 
-            thisOutputError *= Opts.DerivativeFunction(tmpNodesOutput[nid]) * tmpNodesOutput[nid];
+            mtx.lock();
+            float tmpNodesOutputNid = tmpNodesOutput[nid];
+            mtx.unlock();
+
+            thisOutputError *= Opts.DerivativeFunction(tmpNodesOutputNid) * tmpNodesOutputNid;
 
             mtx.lock();
             tmpNodesOutputError[nid] = thisOutputError;
