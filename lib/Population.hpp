@@ -13,11 +13,9 @@ namespace znn {
 
         void CreatePopulation();
 
-        void CreatePopulationFC(std::vector<ulong> &hideLayers);
-
         void CreatePopulationByGiving();
 
-        std::map<NetworkGenome *, float> CalculateFitnessByWanted(std::vector<std::vector<float>> inputs, std::vector<std::vector<float>> wantedOutputs);
+        std::unordered_map<NetworkGenome *, float> CalculateFitnessByWanted(std::vector<std::vector<float>> inputs, std::vector<std::vector<float>> wantedOutputs);
     };
 
     void Population::CreatePopulation() {
@@ -43,8 +41,8 @@ namespace znn {
         }
     }
 
-    std::map<NetworkGenome *, float> Population::CalculateFitnessByWanted(std::vector<std::vector<float>> inputs, std::vector<std::vector<float>> wantedOutputs) {  // 二维数组，第一维是实验次数，第二维输入和预期输出
-        std::map<NetworkGenome *, float> populationFitness;
+    std::unordered_map<NetworkGenome *, float> Population::CalculateFitnessByWanted(std::vector<std::vector<float>> inputs, std::vector<std::vector<float>> wantedOutputs) {  // 二维数组，第一维是实验次数，第二维输入和预期输出
+        std::unordered_map<NetworkGenome *, float> populationFitness;
 
         if (inputs.size() != wantedOutputs.size() || wantedOutputs[0].size() != Opts.OutputSize || inputs[0].size() != Opts.InputSize) {
             std::cerr << "intput length: " << inputs[0].size() << " Opts.InputSize: " << Opts.InputSize << "\nwanted length: " << wantedOutputs[0].size() << " Opts.OutputSize: " << Opts.OutputSize << "\ninputs times: " << inputs.size() << " wanted times " << wantedOutputs.size() << std::endl;
@@ -58,8 +56,10 @@ namespace znn {
                     std::vector<float> thisOutputs = generation.neuralNetwork.FeedForwardPredict(&nn, inputs[i], false);
                     fitness += GetPrecision(thisOutputs, wantedOutputs[i]);
                 }
+                fitness /= float(inputs.size());
+
                 mtx.lock();
-                populationFitness[&nn] = fitness / float(inputs.size());
+                populationFitness[&nn] = fitness;
                 mtx.unlock();
             });
         }

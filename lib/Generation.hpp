@@ -100,40 +100,24 @@ namespace znn {
         }
         mtx.unlock();
 
-        std::map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
+        std::unordered_map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
         for (auto &o: nn.Neurons) {
 //            if (tmpNeuronMap.find(o.Id) == tmpNeuronMap.end()) {
             tmpNeuronMap[o.Id] = &o;
 //            }
         }
 
-        Neuron newNeuron = {
-                .Id = newNid,
-                .Bias = float(random() % (Opts.BiasRange * 2000000) - Opts.BiasRange * 1000000) / 1000000.f,
-                .Layer = (tmpNeuronMap[nid0]->Layer + tmpNeuronMap[nid1]->Layer) / 2.,
-        };
+        Neuron newNeuron = {.Id = newNid, .Bias = float(random() % (Opts.BiasRange * 2000000) - Opts.BiasRange * 1000000) / 1000000.f, .Layer = (tmpNeuronMap[nid0]->Layer + tmpNeuronMap[nid1]->Layer) / 2.,};
         nn.Neurons.push_back(newNeuron);
 
         choosingConnection.Enable = false;  // 禁用此条连接
 
         Connection newConn0 = {  // 添加左侧连接
-                .ConnectedNeuronId = {
-                        nid0,
-                        newNid,
-                },
-                .Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000.f,
-                .Enable = true,
-        };
+                .ConnectedNeuronId = {nid0, newNid,}, .Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000.f, .Enable = true,};
         nn.Connections.push_back(newConn0);
 
         Connection newConn1 = {  // 添加右侧连接
-                .ConnectedNeuronId = {
-                        newNid,
-                        nid1,
-                },
-                .Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000.f,
-                .Enable = true,
-        };
+                .ConnectedNeuronId = {newNid, nid1,}, .Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000.f, .Enable = true,};
         nn.Connections.push_back(newConn1);
 
 //        mtx.lock();
@@ -165,13 +149,7 @@ namespace znn {
         }
 
         Connection newConn = {  // 添加连接
-                .ConnectedNeuronId = {
-                        nid0,
-                        nid1,
-                },
-                .Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000.f,
-                .Enable = true,
-        };
+                .ConnectedNeuronId = {nid0, nid1,}, .Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000.f, .Enable = true,};
         nn.Connections.push_back(newConn);
 
 //        mtx.lock();
@@ -277,15 +255,15 @@ namespace znn {
             }
         } // 两个for循环选出全部连接
 
-        std::map<ulong, uint> remainingIds;  // 记录所有涉及的神经元id
-        std::map<ulong, Neuron *> tmpNeuron0Map;
+        std::unordered_map<ulong, uint> remainingIds;  // 记录所有涉及的神经元id
+        std::unordered_map<ulong, Neuron *> tmpNeuron0Map;
 
         for (auto &n: nn0->Neurons) {
             tmpNeuron0Map[n.Id] = &n;
             remainingIds[n.Id] = 0;
         }
 
-        std::map<ulong, Neuron *> tmpNeuron1Map;
+        std::unordered_map<ulong, Neuron *> tmpNeuron1Map;
         for (auto &n: nn1->Neurons) {
             tmpNeuron1Map[n.Id] = &n;
             remainingIds[n.Id] = 0;
@@ -316,10 +294,7 @@ namespace znn {
             newNeurons.push_back(*tmpNeuron0Map[i.first]);
         }
 
-        return NetworkGenome{
-                .Neurons = newNeurons,
-                .Connections = newConnections,
-        };
+        return NetworkGenome{.Neurons = newNeurons, .Connections = newConnections,};
     }
 }
 

@@ -12,16 +12,16 @@
 #include "raylib.h"
 
 namespace znn {
-    struct Neuron {
-        ulong Id;
-        float Bias;
-        double Layer;
+    struct Neuron {  // 定义神经元结构体
+        ulong Id;  // 神经元ID
+        float Bias;  // 神经元偏置
+        double Layer;  // 神经元的逻辑位置（层）
     };
 
-    struct Connection {
-        std::array<ulong, 2> ConnectedNeuronId;
-        float Weight;
-        bool Enable;
+    struct Connection {  // 定义神经连接结构体
+        std::array<ulong, 2> ConnectedNeuronId;  // 神经连接由两个神经元而定
+        float Weight; // 连接的权重
+        bool Enable; // 连接是否启用
     };
 
     struct NetworkGenome {
@@ -157,10 +157,10 @@ namespace znn {
     }
 
     NetworkGenome NeuralNetwork::SimplifyRemoveUselessConnectionRight(NetworkGenome nn) { //合并中途凭空出现节点到右边的连接
-        std::map<ulong, std::vector<Connection *>> remainingLeftIds;
-        std::map<ulong, std::vector<Connection *>> remainingRightIds;
-        std::map<ulong, std::vector<Connection *>> removeIds;
-        std::map<ulong, Neuron> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
+        std::unordered_map<ulong, std::vector<Connection *>> remainingLeftIds;
+        std::unordered_map<ulong, std::vector<Connection *>> remainingRightIds;
+        std::unordered_map<ulong, std::vector<Connection *>> removeIds;
+        std::unordered_map<ulong, Neuron> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
 
         for (auto &n: nn.Neurons) {
             tmpNeuronMap[n.Id] = n;
@@ -218,9 +218,9 @@ namespace znn {
     }
 
     NetworkGenome NeuralNetwork::SimplifyRemoveUselessConnectionLeft(NetworkGenome nn) { // 实现从左到右的无效连接移除
-        std::map<ulong, std::vector<Connection *>> remainingLeftIds;
-        std::map<ulong, std::vector<Connection *>> remainingRightIds;
-        std::map<ulong, Neuron> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
+        std::unordered_map<ulong, std::vector<Connection *>> remainingLeftIds;
+        std::unordered_map<ulong, std::vector<Connection *>> remainingRightIds;
+        std::unordered_map<ulong, Neuron> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
 
         for (auto &n: nn.Neurons) {
             tmpNeuronMap[n.Id] = n;
@@ -273,7 +273,7 @@ namespace znn {
 
     NetworkGenome NeuralNetwork::SimplifyRemoveDisable(NetworkGenome nn) {
         std::vector<Connection> newConnections;
-        std::map<ulong, uint> remainingIds;
+        std::unordered_map<ulong, uint> remainingIds;
 
         for (auto c: nn.Connections) {
             if (c.Enable && std::abs(c.Weight) > 0.001f) {  // Weight绝对值小于0.001算成disable
@@ -283,7 +283,7 @@ namespace znn {
             }
         }
 
-        std::map<ulong, Neuron *> tmpNeuronMap;
+        std::unordered_map<ulong, Neuron *> tmpNeuronMap;
 
         for (auto &n: nn.Neurons) {
             tmpNeuronMap[n.Id] = &n;
@@ -302,7 +302,7 @@ namespace znn {
     }
 
     std::vector<float> NeuralNetwork::FeedForwardPredict(NetworkGenome *nn, std::vector<float> inputs, bool isAccelerate) {  // 在使用CPU多核运算时，由于多线程开销问题，神经网络结构太简单反而会运算得更慢
-        std::map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
+        std::unordered_map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
         std::map<double, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
         for (auto &n: nn->Neurons) {
@@ -320,21 +320,22 @@ namespace znn {
             std::exit(0);
         }
 
-        std::map<ulong, float> tmpNodesOutput;
+        std::unordered_map<ulong, float> tmpNodesOutput;
 
         std::function<void(ulong)> calculateNeuron = [&](ulong nid) {
             float thisOutput = 0.f;
 
             for (auto &connection: nn->Connections) {
                 if (connection.ConnectedNeuronId[1] == nid && connection.Enable) {
-
-                    mtx.lock();
-                    float tmpNodesOutputLeft = tmpNodesOutput[connection.ConnectedNeuronId[0]];
-                    mtx.unlock();
-
-                    thisOutput += tmpNodesOutputLeft * connection.Weight;
+                    if (isAccelerate) {
+                        std::shared_lock<std::shared_mutex> lock(mtx);
+                        thisOutput += tmpNodesOutput[connection.ConnectedNeuronId[0]] * connection.Weight;
+                    } else {
+                        thisOutput += tmpNodesOutput[connection.ConnectedNeuronId[0]] * connection.Weight;
+                    }
                 }
             }
+
             thisOutput = Opts.ActiveFunction(thisOutput + tmpNeuronMap[nid]->Bias);
 
             mtx.lock();
@@ -348,7 +349,7 @@ namespace znn {
             ++i;
         }
 
-        std::vector<float> outputs;
+        std::vector<float> outputs(Opts.OutputSize);
 
         for (auto &l: tmpLayerMap) {    // 神经元根据layer排序
             if (l.first == 0.) {   // 跳过输入节点
@@ -363,15 +364,19 @@ namespace znn {
                 tPool.wait_for_tasks();
 
                 if (l.first == 1.) {  // 输出神经元
+                    int outputCount = 0;
                     for (auto &n: l.second) {
-                        outputs.push_back(tmpNodesOutput[n->Id]);
+                        outputs[outputCount] = tmpNodesOutput[n->Id];
+                        ++outputCount;
                     }
                 }
             } else {
+                int outputCount = 0;
                 for (auto &n: l.second) {
                     calculateNeuron(n->Id);  // 计算隐藏和输出神经元
                     if (l.first == 1.) {  // 输出神经元
-                        outputs.push_back(tmpNodesOutput[n->Id]);
+                        outputs[outputCount] = tmpNodesOutput[n->Id];
+                        ++outputCount;
                     }
                 }
             }
@@ -381,7 +386,7 @@ namespace znn {
     };
 
     std::vector<float> NeuralNetwork::BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants, bool isAccelerate) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回计算结果, 在使用CPU多核运算时，由于多线程开销问题，神经网络结构太简单反而会运算得更慢 TODO: 权重和偏置范围该怎么限制?丢弃?
-        std::map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
+        std::unordered_map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
         std::map<double, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
         for (auto &n: nn->Neurons) {
@@ -395,24 +400,25 @@ namespace znn {
             std::exit(0);
         }
 
-        std::map<ulong, float> tmpNodesOutput;
-        std::map<ulong, float> tmpNodesInput;
+        std::unordered_map<ulong, float> tmpNodesOutput;
 
         std::function<void(ulong)> calculateNeuron = [&](ulong nid) {
             float thisOutput = 0.f;
 
             for (auto &connection: nn->Connections) {
                 if (connection.ConnectedNeuronId[1] == nid && connection.Enable) {
-
-                    mtx.lock();
-                    float tmpNodesOutputLeft = tmpNodesOutput[connection.ConnectedNeuronId[0]];
-                    mtx.unlock();
-
-                    thisOutput += tmpNodesOutputLeft * connection.Weight;
+                    if (isAccelerate) {
+                        std::shared_lock<std::shared_mutex> lock(mtx);
+                        thisOutput += tmpNodesOutput[connection.ConnectedNeuronId[0]] * connection.Weight;
+                    } else {
+                        thisOutput += tmpNodesOutput[connection.ConnectedNeuronId[0]] * connection.Weight;
+                    }
                 }
             }
 
-            thisOutput = Opts.ActiveFunction(thisOutput + tmpNeuronMap[nid]->Bias);
+            float tmpNeuronBias = tmpNeuronMap[nid]->Bias;
+
+            thisOutput = Opts.ActiveFunction(thisOutput + tmpNeuronBias);
 
             mtx.lock();
             tmpNodesOutput[nid] = thisOutput;
@@ -425,7 +431,7 @@ namespace znn {
             ++i;
         }
 
-        std::vector<float> outputs;
+        std::vector<float> outputs(Opts.OutputSize);
 
         for (auto &l: tmpLayerMap) {    // 神经元根据layer排序
             if (l.first == 0.) {   // 跳过输入节点
@@ -440,15 +446,19 @@ namespace znn {
                 tPool.wait_for_tasks();
 
                 if (l.first == 1.) {  // 输出神经元
+                    int outputCount = 0;
                     for (auto &n: l.second) {
-                        outputs.push_back(tmpNodesOutput[n->Id]);
+                        outputs[outputCount] = tmpNodesOutput[n->Id];
+                        ++outputCount;
                     }
                 }
             } else {
+                int outputCount = 0;
                 for (auto &n: l.second) {
                     calculateNeuron(n->Id);  // 计算隐藏和输出神经元
                     if (l.first == 1.) {  // 输出神经元
-                        outputs.push_back(tmpNodesOutput[n->Id]);
+                        outputs[outputCount] = tmpNodesOutput[n->Id];
+                        ++outputCount;
                     }
                 }
             }
@@ -457,25 +467,23 @@ namespace znn {
         // 上面是正向计算全部节点输出,接下来开始反向传播
         // 先计算每个节点的误差,偏导数又称为误差项也称为灵敏度
 
-        std::map<ulong, float> tmpNodesOutputError;
+        std::unordered_map<ulong, float> tmpNodesOutputError;
 
         std::function<void(ulong)> calculateNeuronError = [&](ulong nid) {
             float thisOutputError = 0.f;
 
             for (auto &connection: nn->Connections) {
                 if (connection.ConnectedNeuronId[0] == nid && connection.Enable) {
-
-                    mtx.lock();
-                    float tmpNodesOutputErrorRight = tmpNodesOutputError[connection.ConnectedNeuronId[1]];
-                    mtx.unlock();
-
-                    thisOutputError += tmpNodesOutputErrorRight * connection.Weight;
+                    if (isAccelerate) {
+                        std::shared_lock<std::shared_mutex> lock(mtx);
+                        thisOutputError += tmpNodesOutputError[connection.ConnectedNeuronId[1]] * connection.Weight;
+                    } else {
+                        thisOutputError += tmpNodesOutputError[connection.ConnectedNeuronId[1]] * connection.Weight;
+                    }
                 }
             }
 
-            mtx.lock();
             float tmpNodesOutputNid = tmpNodesOutput[nid];
-            mtx.unlock();
 
             thisOutputError *= Opts.DerivativeFunction(tmpNodesOutputNid) * tmpNodesOutputNid;
 
@@ -603,7 +611,7 @@ namespace znn {
 
         std::vector<Neuron> newNeurons;
         std::vector<Connection> newConnections;
-        std::map<ulong, ulong> tmpIdMap;
+        std::unordered_map<ulong, ulong> tmpIdMap;
 
         int dataType = 0;
         while (getline(input_file, line)) {
@@ -698,8 +706,8 @@ namespace znn {
         Color C;
     };
 
-    std::map<ulong, Vector3> NodeId2Pos;
-    std::map<ulong, Color> NodId2Color;
+    std::unordered_map<ulong, Vector3> NodeId2Pos;
+    std::unordered_map<ulong, Color> NodId2Color;
     std::vector<lineInfo> ConnectedNodesInfo;
     bool update3dLock = false;
     bool canForceUnlock = false;
@@ -742,7 +750,7 @@ namespace znn {
 
                 float layerCount = 0;
 
-                std::map<ulong, Vector3> nodeId2Pos;
+                std::unordered_map<ulong, Vector3> nodeId2Pos;
 
                 for (auto &l2i: layer2Ids) {
                     uint rows = uint(std::sqrt(float(l2i.second.size())));

@@ -12,7 +12,7 @@ namespace znn {
     struct BestOne {
         uint Gen = 0;
         NetworkGenome NN;
-        float Fit;
+        float Fit = 0.f;
     };
 
     class SimpleNeat {
@@ -25,13 +25,13 @@ namespace znn {
 
         void Start();
 
-        znn::BestOne TrainByWanted(const std::vector<std::vector<float>> &inputs, const std::vector<std::vector<float>> &wantedOutputs, const uint randomSize, const std::function<bool()> &isBreakFunc);
+        znn::BestOne TrainByWanted(const std::vector<std::vector<float>> &inputs, const std::vector<std::vector<float>> &wantedOutputs, uint randomSize, const std::function<bool()> &isBreakFunc);
 
-        std::vector<NetworkGenome *> OrderByFitness(std::map<NetworkGenome *, float> &M);
+        std::vector<NetworkGenome *> OrderByFitness(std::unordered_map<NetworkGenome *, float> &M);
 
         std::vector<NetworkGenome *> OrderByComplex();
 
-        BestOne TrainByInteractive(const std::function<std::map<NetworkGenome *, float>()> &interactiveFunc, const std::function<bool()> &isBreakFunc);
+        BestOne TrainByInteractive(const std::function<std::unordered_map<NetworkGenome *, float>()> &interactiveFunc, const std::function<bool()> &isBreakFunc);
     };
 
 
@@ -92,7 +92,7 @@ namespace znn {
         return a.second > b.second;// 从大到小排列
     }
 
-    std::vector<NetworkGenome *> SimpleNeat::OrderByFitness(std::map<NetworkGenome *, float> &M) {  // Comparator function to sort pairs according to second value
+    std::vector<NetworkGenome *> SimpleNeat::OrderByFitness(std::unordered_map<NetworkGenome *, float> &M) {  // Comparator function to sort pairs according to second value
         std::vector<NetworkGenome *> result;
         std::vector<std::pair<NetworkGenome *, float> > A;// Declare vector of pairs
         for (auto &it: M) {  // Copy key-value pair from Map to vector of pairs
@@ -122,7 +122,7 @@ namespace znn {
         return result;
     }
 
-    BestOne SimpleNeat::TrainByWanted(const std::vector<std::vector<float>> &rawInputs, const std::vector<std::vector<float>> &rawWantedOutputs, const uint randomSize, const std::function<bool()> &isBreakFunc) {
+    BestOne SimpleNeat::TrainByWanted(const std::vector<std::vector<float>> &rawInputs, const std::vector<std::vector<float>> &rawWantedOutputs, uint randomSize, const std::function<bool()> &isBreakFunc) {
         if (rawInputs.size() != rawWantedOutputs.size()) {
             std::cerr << "rawInputs size: " << rawInputs.size() << " != rawWantedOutputs size: " << rawWantedOutputs.size() << "\n";
             exit(0);
@@ -289,7 +289,7 @@ namespace znn {
                 .Fit = populationFitness[orderedPopulation[0]],};
     }
 
-    BestOne SimpleNeat::TrainByInteractive(const std::function<std::map<NetworkGenome *, float>()> &interactiveFunc, const std::function<bool()> &isBreakFunc) {
+    BestOne SimpleNeat::TrainByInteractive(const std::function<std::unordered_map<NetworkGenome *, float>()> &interactiveFunc, const std::function<bool()> &isBreakFunc) {
         auto populationFitness = interactiveFunc();
         auto orderedPopulation = OrderByFitness(populationFitness);
         auto orderedByComplex = OrderByComplex();
