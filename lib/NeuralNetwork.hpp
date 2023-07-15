@@ -849,9 +849,9 @@ namespace znn {
         camera.fovy = 60.0f;                                // Camera field-of-view Y
         camera.projection = CAMERA_PERSPECTIVE;                   // Camera mode type
 
-        SetCameraMode(camera, CAMERA_FREE); // Set a free camera mode
-        SetCameraAltControl(KEY_LEFT_SHIFT);
-        SetCameraPanControl(MOUSE_BUTTON_LEFT);
+//        SetCameraMode(camera, CAMERA_FREE); // Set a free camera mode
+//        SetCameraAltControl(KEY_LEFT_SHIFT);
+//        SetCameraPanControl(MOUSE_BUTTON_LEFT);
 
         SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
 
@@ -862,7 +862,7 @@ namespace znn {
 
         while (!WindowShouldClose()) {     // Detect window close button or ESC key
             // Update
-            UpdateCamera(&camera);
+            UpdateCamera(&camera, CAMERA_ORBITAL);
 
             if (IsKeyPressed('Z')) {
                 camera.target = (Vector3) {0.0f, 0.0f, 0.0f};
