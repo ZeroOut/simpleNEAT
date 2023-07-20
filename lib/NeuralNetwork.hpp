@@ -311,7 +311,8 @@ namespace znn {
         }
 
         if (tmpLayerMap[0.].size() != Opts.InputSize || tmpLayerMap[1.].size() != Opts.OutputSize) {
-            std::cerr << "NeuralNetwork Nodes Error: Opts.InputSize " << Opts.InputSize << " Input Layer Size: " << tmpLayerMap[0.].size() << " Opts.OutputSize: " << Opts.OutputSize << " Output Layer Size: " << tmpLayerMap[1.].size() << std::endl;
+            std::cerr << "NeuralNetwork Nodes Error: Opts.InputSize " << Opts.InputSize << " Input Layer Size: " << tmpLayerMap[0.].size() << " Opts.OutputSize: " << Opts.OutputSize
+                      << " Output Layer Size: " << tmpLayerMap[1.].size() << std::endl;
             std::exit(0);
         }
 
@@ -385,7 +386,8 @@ namespace znn {
         return outputs;
     };
 
-    std::vector<float> NeuralNetwork::BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants, bool isAccelerate) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回计算结果, 在使用CPU多核运算时，由于多线程开销问题，神经网络结构太简单反而会运算得更慢 TODO: 权重和偏置范围该怎么限制?丢弃?
+    std::vector<float> NeuralNetwork::BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants,
+                                                      bool isAccelerate) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回计算结果, 在使用CPU多核运算时，由于多线程开销问题，神经网络结构太简单反而会运算得更慢 TODO: 权重和偏置范围该怎么限制?丢弃?
         std::unordered_map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
         std::map<double, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
@@ -547,11 +549,13 @@ namespace znn {
             std::string line;
             std::stringstream streamBias;
             if (n.Layer == 0.) {
-                line = "    subgraph cluster0{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightblue,style=filled,shape=component,width=1,height=1,label=\"Input_" + std::to_string(inId) + "\"]}\n";
+                line = "    subgraph cluster0{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightblue,style=filled,shape=component,width=1,height=1,label=\"Input_" +
+                       std::to_string(inId) + "\"]}\n";
                 ++inId;
             } else if (n.Layer == 1.) {
                 streamBias << std::setprecision(3) << n.Bias;
-                line = "    subgraph cluster1{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightgray,style=filled,shape=diamond,width=1,height=1,label=\"Output_" + std::to_string(outId) + "\\n(" + streamBias.str() + ")\"]}\n";
+                line = "    subgraph cluster1{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightgray,style=filled,shape=diamond,width=1,height=1,label=\"Output_" +
+                       std::to_string(outId) + "\\n(" + streamBias.str() + ")\"]}\n";
                 ++outId;
             } else {
                 streamBias << std::setprecision(3) << n.Bias;
@@ -666,7 +670,9 @@ namespace znn {
 
         if (Opts.OutputSize > OutputSize) {
             for (ulong i = 0; i < Opts.OutputSize - OutputSize; ++i) {
-                newNeurons.push_back(Neuron{.Id = HiddenNeuronInnovations.size() + OutputSize + i + Opts.InputSize + FCHidenNeuronSize, .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100, .Layer = 1.,});
+                newNeurons.push_back(
+                        Neuron{.Id = HiddenNeuronInnovations.size() + OutputSize + i + Opts.InputSize + FCHidenNeuronSize, .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) /
+                                                                                                                                   100, .Layer = 1.,});
             }
         }
 
@@ -753,43 +759,51 @@ namespace znn {
                 std::unordered_map<ulong, Vector3> nodeId2Pos;
 
                 for (auto &l2i: layer2Ids) {
-                    uint rows = uint(std::sqrt(float(l2i.second.size())));
-                    uint columns = uint(l2i.second.size() / rows);
-                    float startY = -float(rows - 1) * Opts.Zy_Interval3d / 2.f;
-                    float thisY = startY;
-                    float startZ0 = -float(columns) * Opts.Zy_Interval3d / 2.f;
-                    float startZ1 = -float(columns - 1) * Opts.Zy_Interval3d / 2.f;
-                    float thisZ;
-                    uint reMainColumns = l2i.second.size() % rows;
-                    uint row = 0;
+                    if (l2i.first != 1.f) {
+                        uint rows = uint(std::sqrt(float(l2i.second.size())));
+                        uint columns = uint(l2i.second.size() / rows);
+                        float startY = -float(rows - 1) * Opts.Zy_Interval3d / 2.f;
+                        float thisY = startY;
+                        float startZ0 = -float(columns) * Opts.Zy_Interval3d / 2.f;
+                        float startZ1 = -float(columns - 1) * Opts.Zy_Interval3d / 2.f;
+                        float thisZ;
+                        uint reMainColumns = l2i.second.size() % rows;
+                        uint row = 0;
 
-                    for (ulong i = 0; i < l2i.second.size(); ++i) {
-                        if (l2i.first == 0.f) {
-                            NodId2Color[l2i.second[i]] = BLUE;
-                        } else if (l2i.first == 1.f) {
+                        for (ulong i = 0; i < l2i.second.size(); ++i) {
+                            if (l2i.first == 0.f) {
+                                NodId2Color[l2i.second[i]] = BLUE;
+                            } else {
+                                NodId2Color[l2i.second[i]] = YELLOW;
+                            }
+
+                            if (i % rows < reMainColumns && l2i.second.size() % rows != 0) {
+                                thisZ = startZ0 + Opts.Zy_Interval3d * float(row);
+                            } else {
+                                thisZ = startZ1 + Opts.Zy_Interval3d * float(row);
+                            }
+
+                            if (Opts.Enable3dRandPos) {
+                                nodeId2Pos[l2i.second[i]] = {
+                                        -(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f + (float(random() % 30) / 100.f - 0.15f) * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount,
+                                        thisY + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d, thisZ + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d};
+                            } else {
+                                nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, thisY, thisZ};
+                            }
+
+                            thisY += Opts.Zy_Interval3d;
+
+                            if ((i + 1) % rows == 0) {
+                                thisY = startY;
+                                ++row;
+                            }
+                        }
+                    } else {
+                        float startZ = -float(l2i.second.size() - 1) * Opts.Zy_Interval3d / 2.f;
+                        for (ulong i = 0; i < l2i.second.size(); ++i) {
                             NodId2Color[l2i.second[i]] = RED;
-                        } else {
-                            NodId2Color[l2i.second[i]] = YELLOW;
-                        }
-
-                        if (i % rows < reMainColumns && l2i.second.size() % rows != 0) {
-                            thisZ = startZ0 + Opts.Zy_Interval3d * float(row);
-                        } else {
-                            thisZ = startZ1 + Opts.Zy_Interval3d * float(row);
-                        }
-
-                        if (Opts.Enable3dRandPos) {
-                            nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f + (float(random() % 30) / 100.f - 0.15f) * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount, thisY + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d,
-                                                         thisZ + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d};
-                        } else {
-                            nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, thisY, thisZ};
-                        }
-
-                        thisY += Opts.Zy_Interval3d;
-
-                        if ((i + 1) % rows == 0) {
-                            thisY = startY;
-                            ++row;
+                            float thisZ = startZ + Opts.Zy_Interval3d * float(i);
+                            nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, 0.f, thisZ};
                         }
                     }
                     ++layerCount;
