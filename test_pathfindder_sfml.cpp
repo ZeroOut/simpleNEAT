@@ -150,7 +150,7 @@ int main() {
     uint realRounds = 1;
 
     auto getFitness = [&]() {
-        std::map<znn::NetworkGenome *, float> popFitness;
+        std::unordered_map<znn::NetworkGenome *, float> popFitness;
         for (auto &p: players) {
             popFitness[p.first] = (bestDistance - p.second.distanceLeft) * 0.5f + float(p.second.stepCount) * 0.5f;  // TODO 分数评判有问题
             if (p.second.distanceLeft < 15) {
