@@ -690,8 +690,8 @@ namespace znn {
 
             if (Opts.ShowCalc3dNN) {
                 for (auto &c : nn->Connections) {
-                    if (nodId2Size[c.ConnectedNeuronId[0]] > 0.1f && c.Enable) {
-                        connectedNodesInfo.push_back(lineInfo{c.ConnectedNeuronId[0], c.ConnectedNeuronId[1], c.Weight * 0.0015f, ColorAlpha(GRAY, 0.3f)});
+                    if (nodId2Size[c.ConnectedNeuronId[0]] > 0.1f && nodId2Size[c.ConnectedNeuronId[1]] > 0.1f && c.Enable) {
+                        connectedNodesInfo.push_back(lineInfo{c.ConnectedNeuronId[0], c.ConnectedNeuronId[1], c.Weight * 0.0015f, ColorAlpha(WHITE, 0.3f)});
                     }
                 }
             }
