@@ -662,13 +662,14 @@ namespace znn {
             }
         }
 
-        std::unordered_map<ulong, Color> nodId2Color;
-        std::unordered_map<ulong, float> nodId2Size;
-
         mtx.lock();
         if (Opts.Enable3dNN && Opts.ShowCalc3dNN && !update3dCalcLock) {
             update3dCalcLock = true;
             mtx.unlock();
+
+
+            std::unordered_map<ulong, Color> nodId2Color;
+            std::unordered_map<ulong, float> nodId2Size;
 
             for (auto &n : tmpNodesOutput) {
                 if (n.second > 0.3f) {
@@ -704,14 +705,18 @@ namespace znn {
 
             Update3dNN_Background(*nn, false);
 
-            std::this_thread::sleep_for(std::chrono::milliseconds(Opts.Update3dIntercalMs));
+            std::thread updateNNCalc([]() {
+                std::this_thread::sleep_for(std::chrono::milliseconds(Opts.Update3dIntercalMs));
 
-            mtx.lock();
-            update3dCalcLock = false;
-            mtx.unlock();
+                mtx.lock();
+                update3dCalcLock = false;
+                mtx.unlock();
+            });
+            updateNNCalc.detach();
         } else {
             mtx.unlock();
         }
+
         return outputs;
     };
 
