@@ -30,6 +30,285 @@ namespace znn {
         std::vector<Connection> Connections;
     };
 
+    struct lineInfo {
+        ulong IdA;
+        ulong IdB;
+        float R;
+        Color C;
+    };
+
+    std::unordered_map<ulong, Vector3> NodeId2Pos;
+    std::unordered_map<ulong, Color> NodId2Color;
+    std::unordered_map<ulong, float> NodId2Size;
+    std::vector<lineInfo> ConnectedNodesInfo;
+    bool update3dLock = false;
+    bool canForceUnlock = false;
+    NetworkGenome last3dNN;
+    bool canClose3dNN = false;  // 用于中途关闭3d显示
+    bool reRandomPosition = true;
+    bool reIntervalPosition = true;
+    float reIntervalValue = 0.f;
+
+    bool isLast3dNN(NetworkGenome &NN) {
+        if (NN.Neurons.size() != last3dNN.Neurons.size()) {
+            mtx.lock();
+            last3dNN = NN;
+            mtx.unlock();
+            return false;
+        }
+
+        for (ulong i = 0; i < NN.Neurons.size(); ++i) {
+            if (NN.Neurons[i].Id != last3dNN.Neurons[i].Id) {
+                mtx.lock();
+                last3dNN = NN;
+                mtx.unlock();
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    void Update3dNN(NetworkGenome NN, bool FL) {  // force unlock
+        mtx.lock();
+        if ((FL && canForceUnlock) || !update3dLock) {
+            update3dLock = true;
+            canForceUnlock = false;
+            mtx.unlock();
+
+            if (!isLast3dNN(NN) || FL) {
+                std::map<double, std::vector<ulong>> layer2Ids;
+
+                for (auto &n: NN.Neurons) {
+                    layer2Ids[n.Layer].push_back(n.Id);
+                }
+
+                float layerCount = 0;
+
+                std::unordered_map<ulong, Vector3> nodeId2Pos;
+
+                for (auto &l2i: layer2Ids) {
+                    if (l2i.first != 1.f) {
+                        uint rows = uint(std::sqrt(float(l2i.second.size())));
+                        uint columns = uint(l2i.second.size() / rows);
+                        float startZ = -float(rows - 1) * Opts.Zy_Interval3d / 2.f;
+                        float thisZ = startZ;
+                        float startY0 = -float(columns) * Opts.Zy_Interval3d / 2.f;
+                        float startY1 = -float(columns - 1) * Opts.Zy_Interval3d / 2.f;
+                        float thisY;
+                        uint reMainColumns = l2i.second.size() % rows;
+                        uint row = 0;
+
+                        for (ulong i = 0; i < l2i.second.size(); ++i) {
+                            if (!Opts.ShowCalc3dNN) {
+                                if (l2i.first == 0.f) {
+                                    NodId2Color[l2i.second[i]] = BLUE;
+                                    NodId2Size[l2i.second[i]] = 0.1f;
+                                } else {
+                                    NodId2Color[l2i.second[i]] = YELLOW;
+                                    if (NN.Neurons[l2i.second[i]].Bias < 1.f) {
+                                        NodId2Size[l2i.second[i]] = 0.1f;
+                                    } else {
+                                        NodId2Size[l2i.second[i]] = 0.1f * NN.Neurons[l2i.second[i]].Bias;
+                                    }
+                                }
+                            }
+
+                            if (NodeId2Pos.find(l2i.second[i]) == NodeId2Pos.end() || reRandomPosition || reIntervalPosition) {
+                                if (i % rows < reMainColumns && l2i.second.size() % rows != 0) {
+                                    thisY = startY0 + Opts.Zy_Interval3d * float(row);
+                                } else {
+                                    thisY = startY1 + Opts.Zy_Interval3d * float(row);
+                                }
+                            }
+
+                            if (NodeId2Pos.find(l2i.second[i]) == NodeId2Pos.end() || reRandomPosition) {
+                                if (Opts.Enable3dRandPos) {
+                                    nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f + (float(random() % 30) / 100.f - 0.15f) * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount, -thisY + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d,
+                                                                 thisZ + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d};
+                                } else {
+                                    nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, -thisY, thisZ};
+                                }
+                            } else if (reIntervalPosition) {
+                                nodeId2Pos[l2i.second[i]] = {NodeId2Pos[l2i.second[i]].x, -thisY, thisZ};
+                            } else {
+                                float posXDiff = NodeId2Pos[l2i.second[i]].x + (float(layer2Ids.size() - 1) * (Opts.X_Interval3d - reIntervalValue) / 2.f) - (Opts.X_Interval3d - reIntervalValue) * layerCount;
+                                nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount + posXDiff, NodeId2Pos[l2i.second[i]].y, NodeId2Pos[l2i.second[i]].z};
+                            }
+
+                            thisZ += Opts.Zy_Interval3d;
+
+                            if ((i + 1) % rows == 0) {
+                                thisZ = startZ;
+                                ++row;
+                            }
+                        }
+                    } else {
+                        float startZ = -float(l2i.second.size() - 1) * Opts.Zy_Interval3d / 2.f;
+                        for (ulong i = 0; i < l2i.second.size(); ++i) {
+                            NodId2Color[l2i.second[i]] = RED;
+                            NodId2Size[l2i.second[i]] = 0.1f;
+                            float thisZ = startZ + Opts.Zy_Interval3d * float(i);
+                            nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, 0.f, thisZ};
+                        }
+                    }
+                    ++layerCount;
+                }
+                reRandomPosition = false;
+                reIntervalPosition = false;
+                reIntervalValue = 0.f;
+
+                mtx.lock();
+                NodeId2Pos = nodeId2Pos;
+                mtx.unlock();
+            }
+
+            if (!Opts.ShowCalc3dNN) {
+                std::vector<lineInfo> connectedNodesInfo;
+
+                for (auto &conn: NN.Connections) {
+                    if (conn.Enable) {
+                        if (conn.Weight > 0) {
+                            connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], conn.Weight * 0.0015f + 0.0001f, ColorAlpha(RED, 0.5f)});
+                        } else {
+                            connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], -conn.Weight * 0.0015f + 0.0001f, ColorAlpha(BLUE, 0.5f)});
+                        }
+                    }
+                }
+                mtx.lock();
+                ConnectedNodesInfo = connectedNodesInfo;
+                mtx.unlock();
+            }
+
+            mtx.lock();
+            canForceUnlock = true;
+            if (!FL) {
+                mtx.unlock();
+                std::this_thread::sleep_for(std::chrono::milliseconds(Opts.Update3dIntercalMs));
+                mtx.lock();
+            }
+            update3dLock = false;
+            mtx.unlock();
+        } else {
+            mtx.unlock();
+        }
+    }
+
+    void Update3dNN_Background(NetworkGenome NN, bool FL) {
+        std::thread update3dnn(Update3dNN, NN, FL);
+        update3dnn.detach();
+    }
+
+    void Show3dNN() {
+        SetConfigFlags(FLAG_MSAA_4X_HINT);
+        SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+
+        InitWindow(Opts.ScreenWidth, Opts.ScreenHeight, "SimpleNEAT NN");
+
+        // Define the camera to look into our 3d world
+        Camera3D camera = {0};
+        camera.position = (Vector3) {0.f, 3.f, 5.f}; // Camera position
+        camera.target = (Vector3) {0.f, -.45f, 0.f};      // Camera looking at point
+        camera.up = (Vector3) {0.f, 1.f, 0.f};          // Camera up vector (rotation towards target)
+        camera.fovy = 60.0f;                                // Camera field-of-view Y
+        camera.projection = CAMERA_PERSPECTIVE;                   // Camera mode type
+
+        //        SetCameraMode(camera, CAMERA_FREE); // Set a free camera mode
+        //        SetCameraAltControl(KEY_LEFT_SHIFT);
+        //        SetCameraPanControl(MOUSE_BUTTON_LEFT);
+
+        SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
+
+        srandom((unsigned) clock());
+
+        float setX_Interval3d = Opts.X_Interval3d;
+        float setZy_Interval3d = Opts.Zy_Interval3d;
+
+        while (!WindowShouldClose()) {     // Detect window close button or ESC key
+            // Update
+            UpdateCamera(&camera, CAMERA_ORBITAL);
+
+            if (IsKeyPressed('Z')) {
+                camera.target = (Vector3) {0.0f, 0.0f, 0.0f};
+            }
+            if (IsKeyPressed('R')) {
+                Opts.X_Interval3d = setX_Interval3d;
+                Opts.Zy_Interval3d = setZy_Interval3d;
+                reIntervalPosition = true;
+                reRandomPosition = true;
+                Update3dNN_Background(last3dNN, true);
+            }
+            if (IsKeyDown('A') && Opts.X_Interval3d > 0.3f) {
+                reIntervalValue = -.02f;
+                Opts.X_Interval3d += reIntervalValue;
+                Update3dNN_Background(last3dNN, true);
+            }
+            if (IsKeyDown('D')) {
+                reIntervalValue = .02f;
+                Opts.X_Interval3d += reIntervalValue;
+                Update3dNN_Background(last3dNN, true);
+            }
+            if (IsKeyDown('W')) {
+                Opts.Zy_Interval3d += .02f;
+                reIntervalPosition = true;
+                Update3dNN_Background(last3dNN, true);
+            }
+            if (IsKeyDown('S') && Opts.Zy_Interval3d > 0.3f) {
+                Opts.Zy_Interval3d -= .02f;
+                reIntervalPosition = true;
+                Update3dNN_Background(last3dNN, true);
+            }
+            if (IsKeyPressed(KEY_SPACE)) {
+                if (Opts.Enable3dRandPos) {
+                    Opts.Enable3dRandPos = false;
+                } else {
+                    Opts.Enable3dRandPos = true;
+                }
+                reRandomPosition = true;
+                Update3dNN_Background(last3dNN, true);
+            }
+
+            // Draw
+            BeginDrawing();
+            ClearBackground(BLACK);
+
+            BeginMode3D(camera);
+
+            //                DrawCubeV({1.f, 0.f, 0.f}, {0.03f, 0.03f, 0.03f}, RED);
+            //                DrawCubeV({0.f, 1.f, 0.f}, {0.03f, 0.03f, 0.03f}, YELLOW);
+            //                DrawCubeV({0.f, 0.f, 1.f}, {0.03f, 0.03f, 0.03f}, BLUE);
+            //
+            //                DrawLine3D({-1.f, 0.f, 0.f}, {1.f, 0.f, 0.f}, RED);
+            //                DrawLine3D({0.f, -1.f, 0.f}, {0.f, 1.f, 0.f}, YELLOW);
+            //                DrawLine3D({0.f, 0.f, -1.f}, {0.f, 0.f, 1.f}, BLUE);
+
+            auto nodeId2Pos = NodeId2Pos;
+            auto connectedNodesInfo = ConnectedNodesInfo;
+
+            for (auto &c: connectedNodesInfo) {
+                //                DrawLine3D(nodeId2Pos[c.IdA], nodeId2Pos[c.IdB], c.C);
+                DrawCylinderEx(nodeId2Pos[c.IdA], nodeId2Pos[c.IdB], c.R, c.R, 3, c.C);
+            }
+
+            for (auto &n: nodeId2Pos) {
+                float cubeSize = NodId2Size[n.first];
+                DrawCubeV(n.second, {cubeSize, cubeSize, cubeSize}, NodId2Color[n.first]);
+            }
+
+            EndMode3D();
+
+            DrawFPS(10, 10);
+            EndDrawing();
+
+            if (canClose3dNN) {
+                break;
+            }
+        }
+
+        // De-Initialization
+        CloseWindow();        // Close window and OpenGL context
+    }
+
     class NeuralNetwork {
     public:
         std::map<std::array<ulong, 2>, ulong> HiddenNeuronInnovations;  // 只记录插入连接左右两个神经元id对应的隐藏层神经元id，新增神经元变异的时候全部个体需要检查唯一性，使用时必须使用mutex
@@ -311,8 +590,7 @@ namespace znn {
         }
 
         if (tmpLayerMap[0.].size() != Opts.InputSize || tmpLayerMap[1.].size() != Opts.OutputSize) {
-            std::cerr << "NeuralNetwork Nodes Error: Opts.InputSize " << Opts.InputSize << " Input Layer Size: " << tmpLayerMap[0.].size() << " Opts.OutputSize: " << Opts.OutputSize
-                      << " Output Layer Size: " << tmpLayerMap[1.].size() << std::endl;
+            std::cerr << "NeuralNetwork Nodes Error: Opts.InputSize " << Opts.InputSize << " Input Layer Size: " << tmpLayerMap[0.].size() << " Opts.OutputSize: " << Opts.OutputSize << " Output Layer Size: " << tmpLayerMap[1.].size() << std::endl;
             std::exit(0);
         }
 
@@ -383,11 +661,38 @@ namespace znn {
             }
         }
 
+        if (Opts.Enable3dNN && Opts.ShowCalc3dNN && !update3dLock) {
+            for (auto &n : tmpNodesOutput) {
+                if (n.second > 0.3f) {
+                    NodId2Color[n.first] = WHITE;
+                    NodId2Size[n.first] = 0.3f * n.second;
+                } else {
+                    NodId2Color[n.first] = BLUE;
+                    NodId2Size[n.first] = 0.09f;
+                }
+            }
+
+            std::vector<lineInfo> connectedNodesInfo;
+
+            if (Opts.ShowCalc3dNN) {
+                for (auto &c : nn->Connections) {
+                    if (NodId2Size[c.ConnectedNeuronId[0]] > 0.1f && c.Enable) {
+                        connectedNodesInfo.push_back(lineInfo{c.ConnectedNeuronId[0], c.ConnectedNeuronId[1], c.Weight * 0.0015f, ColorAlpha(GRAY, 0.3f)});
+                    }
+                }
+            }
+
+            mtx.lock();
+            ConnectedNodesInfo = connectedNodesInfo;
+            mtx.unlock();
+
+            Update3dNN_Background(*nn, false);
+        }
+
         return outputs;
     };
 
-    std::vector<float> NeuralNetwork::BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants,
-                                                      bool isAccelerate) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回计算结果, 在使用CPU多核运算时，由于多线程开销问题，神经网络结构太简单反而会运算得更慢 TODO: 权重和偏置范围该怎么限制?丢弃?
+    std::vector<float> NeuralNetwork::BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants, bool isAccelerate) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回计算结果, 在使用CPU多核运算时，由于多线程开销问题，神经网络结构太简单反而会运算得更慢 TODO: 权重和偏置范围该怎么限制?丢弃?
         std::unordered_map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
         std::map<double, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
@@ -549,13 +854,11 @@ namespace znn {
             std::string line;
             std::stringstream streamBias;
             if (n.Layer == 0.) {
-                line = "    subgraph cluster0{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightblue,style=filled,shape=component,width=1,height=1,label=\"Input_" +
-                       std::to_string(inId) + "\"]}\n";
+                line = "    subgraph cluster0{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightblue,style=filled,shape=component,width=1,height=1,label=\"Input_" + std::to_string(inId) + "\"]}\n";
                 ++inId;
             } else if (n.Layer == 1.) {
                 streamBias << std::setprecision(3) << n.Bias;
-                line = "    subgraph cluster1{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightgray,style=filled,shape=diamond,width=1,height=1,label=\"Output_" +
-                       std::to_string(outId) + "\\n(" + streamBias.str() + ")\"]}\n";
+                line = "    subgraph cluster1{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightgray,style=filled,shape=diamond,width=1,height=1,label=\"Output_" + std::to_string(outId) + "\\n(" + streamBias.str() + ")\"]}\n";
                 ++outId;
             } else {
                 streamBias << std::setprecision(3) << n.Bias;
@@ -670,9 +973,7 @@ namespace znn {
 
         if (Opts.OutputSize > OutputSize) {
             for (ulong i = 0; i < Opts.OutputSize - OutputSize; ++i) {
-                newNeurons.push_back(
-                        Neuron{.Id = HiddenNeuronInnovations.size() + OutputSize + i + Opts.InputSize + FCHidenNeuronSize, .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) /
-                                                                                                                                   100, .Layer = 1.,});
+                newNeurons.push_back(Neuron{.Id = HiddenNeuronInnovations.size() + OutputSize + i + Opts.InputSize + FCHidenNeuronSize, .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100, .Layer = 1.,});
             }
         }
 
@@ -703,252 +1004,6 @@ namespace znn {
             auto datas = SplitString(line, ",");
             HiddenNeuronInnovations[{std::stoul(datas[0]), std::stoul(datas[1])}] = std::stoul(datas[2]);
         }
-    }
-
-    struct lineInfo {
-        ulong IdA;
-        ulong IdB;
-        float R;
-        Color C;
-    };
-
-    std::unordered_map<ulong, Vector3> NodeId2Pos;
-    std::unordered_map<ulong, Color> NodId2Color;
-    std::vector<lineInfo> ConnectedNodesInfo;
-    bool update3dLock = false;
-    bool canForceUnlock = false;
-    NetworkGenome last3dNN;
-    bool canClose3dNN = false;  // 用于中途关闭3d显示
-
-    bool isLast3dNN(NetworkGenome &NN) {
-        if (NN.Neurons.size() != last3dNN.Neurons.size()) {
-            mtx.lock();
-            last3dNN = NN;
-            mtx.unlock();
-            return false;
-        }
-
-        for (ulong i = 0; i < NN.Neurons.size(); ++i) {
-            if (NN.Neurons[i].Id != last3dNN.Neurons[i].Id) {
-                mtx.lock();
-                last3dNN = NN;
-                mtx.unlock();
-                return false;
-            }
-        }
-
-        return true;
-    };
-
-    void Update3dNN(NetworkGenome NN, bool FL) {  // force unlock
-        mtx.lock();
-        if ((FL && canForceUnlock) || !update3dLock) {
-            update3dLock = true;
-            canForceUnlock = false;
-            mtx.unlock();
-
-            if (!isLast3dNN(NN) || FL) {
-                std::map<double, std::vector<ulong>> layer2Ids;
-
-                for (auto &n: NN.Neurons) {
-                    layer2Ids[n.Layer].push_back(n.Id);
-                }
-
-                float layerCount = 0;
-
-                std::unordered_map<ulong, Vector3> nodeId2Pos;
-
-                for (auto &l2i: layer2Ids) {
-                    if (l2i.first != 1.f) {
-                        uint rows = uint(std::sqrt(float(l2i.second.size())));
-                        uint columns = uint(l2i.second.size() / rows);
-                        float startY = -float(rows - 1) * Opts.Zy_Interval3d / 2.f;
-                        float thisY = startY;
-                        float startZ0 = -float(columns) * Opts.Zy_Interval3d / 2.f;
-                        float startZ1 = -float(columns - 1) * Opts.Zy_Interval3d / 2.f;
-                        float thisZ;
-                        uint reMainColumns = l2i.second.size() % rows;
-                        uint row = 0;
-
-                        for (ulong i = 0; i < l2i.second.size(); ++i) {
-                            if (l2i.first == 0.f) {
-                                NodId2Color[l2i.second[i]] = BLUE;
-                            } else {
-                                NodId2Color[l2i.second[i]] = YELLOW;
-                            }
-
-                            if (i % rows < reMainColumns && l2i.second.size() % rows != 0) {
-                                thisZ = startZ0 + Opts.Zy_Interval3d * float(row);
-                            } else {
-                                thisZ = startZ1 + Opts.Zy_Interval3d * float(row);
-                            }
-
-                            if (Opts.Enable3dRandPos) {
-                                nodeId2Pos[l2i.second[i]] = {
-                                        -(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f + (float(random() % 30) / 100.f - 0.15f) * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount,
-                                        thisY + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d, thisZ + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d};
-                            } else {
-                                nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, thisY, thisZ};
-                            }
-
-                            thisY += Opts.Zy_Interval3d;
-
-                            if ((i + 1) % rows == 0) {
-                                thisY = startY;
-                                ++row;
-                            }
-                        }
-                    } else {
-                        float startZ = -float(l2i.second.size() - 1) * Opts.Zy_Interval3d / 2.f;
-                        for (ulong i = 0; i < l2i.second.size(); ++i) {
-                            NodId2Color[l2i.second[i]] = RED;
-                            float thisZ = startZ + Opts.Zy_Interval3d * float(i);
-                            nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, 0.f, thisZ};
-                        }
-                    }
-                    ++layerCount;
-                }
-                mtx.lock();
-                NodeId2Pos = nodeId2Pos;
-                mtx.unlock();
-            }
-
-            std::vector<lineInfo> connectedNodesInfo;
-
-            for (auto &conn: NN.Connections) {
-                if (conn.Enable) {
-                    if (conn.Weight > 0) {
-                        connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], conn.Weight * 0.0015f + 0.0001f, ColorAlpha(RED, 0.5f)});
-                    } else {
-                        connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], -conn.Weight * 0.0015f + 0.0001f, ColorAlpha(BLUE, 0.5f)});
-                    }
-                }
-            }
-
-            mtx.lock();
-            ConnectedNodesInfo = connectedNodesInfo;
-            mtx.unlock();
-
-            std::this_thread::sleep_for(std::chrono::milliseconds(33));
-            mtx.lock();
-            canForceUnlock = true;
-            if (!FL) {
-                mtx.unlock();
-                std::this_thread::sleep_for(std::chrono::milliseconds(Opts.Update3dIntercalMs));
-                mtx.lock();
-            }
-            update3dLock = false;
-            mtx.unlock();
-        } else {
-            mtx.unlock();
-        }
-    }
-
-    void Update3dNN_Background(NetworkGenome NN, bool FL) {
-        std::thread update3dnn(Update3dNN, NN, FL);
-        update3dnn.detach();
-    }
-
-    void Show3dNN() {
-        SetConfigFlags(FLAG_MSAA_4X_HINT);
-        SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-
-        InitWindow(Opts.ScreenWidth, Opts.ScreenHeight, "SimpleNEAT NN");
-
-        // Define the camera to look into our 3d world
-        Camera3D camera = {0};
-        camera.position = (Vector3) {0.0f, 5, 5.0f}; // Camera position
-        camera.target = (Vector3) {0.0f, 0.0f, 0.0f};      // Camera looking at point
-        camera.up = (Vector3) {0.0f, 1.0f, 0.0f};          // Camera up vector (rotation towards target)
-        camera.fovy = 60.0f;                                // Camera field-of-view Y
-        camera.projection = CAMERA_PERSPECTIVE;                   // Camera mode type
-
-//        SetCameraMode(camera, CAMERA_FREE); // Set a free camera mode
-//        SetCameraAltControl(KEY_LEFT_SHIFT);
-//        SetCameraPanControl(MOUSE_BUTTON_LEFT);
-
-        SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
-
-        srandom((unsigned) clock());
-
-        float setX_Interval3d = Opts.X_Interval3d;
-        float setZy_Interval3d = Opts.Zy_Interval3d;
-
-        while (!WindowShouldClose()) {     // Detect window close button or ESC key
-            // Update
-            UpdateCamera(&camera, CAMERA_ORBITAL);
-
-            if (IsKeyPressed('Z')) {
-                camera.target = (Vector3) {0.0f, 0.0f, 0.0f};
-            }
-            if (IsKeyPressed('R')) {
-                Opts.X_Interval3d = setX_Interval3d;
-                Opts.Zy_Interval3d = setZy_Interval3d;
-                Update3dNN_Background(last3dNN, true);
-            }
-            if (IsKeyDown('A')) {
-                Opts.X_Interval3d -= .01f;
-                Update3dNN_Background(last3dNN, true);
-            }
-            if (IsKeyDown('D')) {
-                Opts.X_Interval3d += .01f;
-                Update3dNN_Background(last3dNN, true);
-            }
-            if (IsKeyDown('W')) {
-                Opts.Zy_Interval3d += .02f;
-                Update3dNN_Background(last3dNN, true);
-            }
-            if (IsKeyDown('S')) {
-                Opts.Zy_Interval3d -= .02f;
-                Update3dNN_Background(last3dNN, true);
-            }
-            if (IsKeyPressed(KEY_SPACE)) {
-                if (Opts.Enable3dRandPos) {
-                    Opts.Enable3dRandPos = false;
-                } else {
-                    Opts.Enable3dRandPos = true;
-                }
-                Update3dNN_Background(last3dNN, true);
-            }
-
-            // Draw
-            BeginDrawing();
-            ClearBackground(BLACK);
-
-            BeginMode3D(camera);
-
-            //                DrawCubeV({1.f, 0.f, 0.f}, {0.03f, 0.03f, 0.03f}, RED);
-            //                DrawCubeV({0.f, 1.f, 0.f}, {0.03f, 0.03f, 0.03f}, YELLOW);
-            //                DrawCubeV({0.f, 0.f, 1.f}, {0.03f, 0.03f, 0.03f}, BLUE);
-            //
-            //                DrawLine3D({-1.f, 0.f, 0.f}, {1.f, 0.f, 0.f}, RED);
-            //                DrawLine3D({0.f, -1.f, 0.f}, {0.f, 1.f, 0.f}, YELLOW);
-            //                DrawLine3D({0.f, 0.f, -1.f}, {0.f, 0.f, 1.f}, BLUE);
-
-            auto nodeId2Pos = NodeId2Pos;
-            auto connectedNodesInfo = ConnectedNodesInfo;
-
-            for (auto &n: nodeId2Pos) {
-                DrawCubeV(n.second, {0.1f, 0.1f, 0.1f}, NodId2Color[n.first]);
-            }
-
-            for (auto &c: connectedNodesInfo) {
-                //                DrawLine3D(nodeId2Pos[c.IdA], nodeId2Pos[c.IdB], c.C);
-                DrawCylinderEx(nodeId2Pos[c.IdA], nodeId2Pos[c.IdB], c.R, c.R, 3, c.C);
-            }
-
-            EndMode3D();
-
-            DrawFPS(10, 10);
-            EndDrawing();
-
-            if (canClose3dNN) {
-                break;
-            }
-        }
-
-        // De-Initialization
-        CloseWindow();        // Close window and OpenGL context
     }
 }
 

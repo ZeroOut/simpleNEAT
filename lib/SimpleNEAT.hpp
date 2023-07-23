@@ -25,7 +25,9 @@ namespace znn {
 
         void Start();
 
-        znn::BestOne TrainByWanted(const std::vector<std::vector<float>> &inputs, const std::vector<std::vector<float>> &wantedOutputs, uint randomSize, const std::function<bool()> &isBreakFunc);
+        NetworkGenome StartDeploy(std::string fileName);
+
+        BestOne TrainByWanted(const std::vector<std::vector<float>> &inputs, const std::vector<std::vector<float>> &wantedOutputs, uint randomSize, const std::function<bool()> &isBreakFunc);
 
         std::vector<NetworkGenome *> OrderByFitness(std::unordered_map<NetworkGenome *, float> &M);
 
@@ -67,6 +69,15 @@ namespace znn {
             std::cerr << "Opts.usingFCNN = " << Opts.StartWithFCNN << " and Opts.FCNN_hideLayers.size() = " << Opts.FCNN_hideLayers.size() << std::endl;
             exit(0);
         }
+    }
+
+    NetworkGenome SimpleNeat::StartDeploy(std::string fileName) { // 在部署模式下开启3d显示，则强制将神经网络显示为计算时
+        if (Opts.Enable3dNN) {
+            Opts.ShowCalc3dNN = true;
+            std::thread show3d(znn::Show3dNN);
+            show3d.detach();
+        }
+        return population.generation.neuralNetwork.ImportNN(fileName);
     }
 
     void SimpleNeat::StartNew() {
@@ -155,6 +166,10 @@ namespace znn {
         for (; rounds <= Opts.IterationTimes || Opts.IterationTimes <= 0; ++rounds) {
             if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
                 lastFitness = populationFitness[orderedPopulation[0]];
+
+                population.generation.neuralNetwork.ExportInnovations(Opts.CheckPointPath);
+                population.generation.neuralNetwork.ExportNN(*orderedPopulation[0], Opts.CheckPointPath);
+
                 std::cout << "gen: " << rounds << " ptr: " << orderedPopulation[0] << " age: " << orderedPopulation[0]->Age << " neurons: " << orderedPopulation[0]->Neurons.size() << " connections: " << orderedPopulation[0]->Connections.size() << " fitness: "
                           << populationFitness[orderedPopulation[0]] << "\n";
             }
@@ -300,6 +315,10 @@ namespace znn {
         for (; rounds <= Opts.IterationTimes || Opts.IterationTimes <= 0; ++rounds) {
             if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
                 lastFitness = populationFitness[orderedPopulation[0]];
+
+                population.generation.neuralNetwork.ExportInnovations(Opts.CheckPointPath);
+                population.generation.neuralNetwork.ExportNN(*orderedPopulation[0], Opts.CheckPointPath);
+
                 std::cout << "gen: " << rounds << " ptr: " << orderedPopulation[0] << " age: " << orderedPopulation[0]->Age << " neurons: " << orderedPopulation[0]->Neurons.size() << " connections: " << orderedPopulation[0]->Connections.size() << " fitness: "
                           << populationFitness[orderedPopulation[0]] << "\n";
             }

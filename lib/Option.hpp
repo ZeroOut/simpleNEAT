@@ -41,6 +41,7 @@ namespace znn {
         uint ThreadCount = std::thread::hardware_concurrency();
 
         bool Enable3dNN = false;
+        bool ShowCalc3dNN = false;
         float X_Interval3d = 1.f;
         float Zy_Interval3d = 1.f;
         bool Enable3dRandPos = true;
