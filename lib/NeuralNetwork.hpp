@@ -42,6 +42,7 @@ namespace znn {
     std::unordered_map<ulong, float> NodId2Size;
     std::vector<lineInfo> ConnectedNodesInfo;
     bool update3dLock = false;
+    bool update3dCalcLock = false;
     bool canForceUnlock = false;
     NetworkGenome last3dNN;
     bool canClose3dNN = false;  // 用于中途关闭3d显示
@@ -661,14 +662,27 @@ namespace znn {
             }
         }
 
-        if (Opts.Enable3dNN && Opts.ShowCalc3dNN && !update3dLock) {
+        std::unordered_map<ulong, Color> nodId2Color;
+        std::unordered_map<ulong, float> nodId2Size;
+
+        mtx.lock();
+        if (Opts.Enable3dNN && Opts.ShowCalc3dNN && !update3dCalcLock) {
+            update3dCalcLock = true;
+            mtx.unlock();
+
             for (auto &n : tmpNodesOutput) {
                 if (n.second > 0.3f) {
-                    NodId2Color[n.first] = WHITE;
-                    NodId2Size[n.first] = 0.3f * n.second;
+                    nodId2Color[n.first] = WHITE;
+                    nodId2Size[n.first] = 0.3f * n.second;
                 } else {
-                    NodId2Color[n.first] = BLUE;
-                    NodId2Size[n.first] = 0.09f;
+                    if (tmpNeuronMap[n.first]->Layer == 0.f) {
+                        nodId2Color[n.first] = BLUE;
+                    } else if (tmpNeuronMap[n.first]->Layer == 1.f) {
+                        nodId2Color[n.first] = RED;
+                    } else {
+                        nodId2Color[n.first] = YELLOW;
+                    }
+                    nodId2Size[n.first] = 0.09f;
                 }
             }
 
@@ -676,19 +690,28 @@ namespace znn {
 
             if (Opts.ShowCalc3dNN) {
                 for (auto &c : nn->Connections) {
-                    if (NodId2Size[c.ConnectedNeuronId[0]] > 0.1f && c.Enable) {
+                    if (nodId2Size[c.ConnectedNeuronId[0]] > 0.1f && c.Enable) {
                         connectedNodesInfo.push_back(lineInfo{c.ConnectedNeuronId[0], c.ConnectedNeuronId[1], c.Weight * 0.0015f, ColorAlpha(GRAY, 0.3f)});
                     }
                 }
             }
 
             mtx.lock();
+            NodId2Color = nodId2Color;
+            NodId2Size = nodId2Size;
             ConnectedNodesInfo = connectedNodesInfo;
             mtx.unlock();
 
             Update3dNN_Background(*nn, false);
-        }
 
+            std::this_thread::sleep_for(std::chrono::milliseconds(Opts.Update3dIntercalMs));
+
+            mtx.lock();
+            update3dCalcLock = false;
+            mtx.unlock();
+        } else {
+            mtx.unlock();
+        }
         return outputs;
     };
 
