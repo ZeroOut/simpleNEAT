@@ -40,6 +40,7 @@ namespace znn {
     std::unordered_map<ulong, Vector3> NodeId2Pos;
     std::unordered_map<ulong, Color> NodId2Color;
     std::unordered_map<ulong, float> NodId2Size;
+    std::unordered_map<ulong, Vector3> nodeId2RandPosDiff;
     std::vector<lineInfo> ConnectedNodesInfo;
     bool update3dLock = false;
     bool update3dCalcLock = false;
@@ -47,8 +48,6 @@ namespace znn {
     NetworkGenome last3dNN;
     bool canClose3dNN = false;  // 用于中途关闭3d显示
     bool reRandomPosition = true;
-    bool reIntervalPosition = true;
-    float reIntervalValue = 0.f;
 
     bool isLast3dNN(NetworkGenome &NN) {
         if (NN.Neurons.size() != last3dNN.Neurons.size()) {
@@ -77,7 +76,8 @@ namespace znn {
             canForceUnlock = false;
             mtx.unlock();
 
-            if (!isLast3dNN(NN) || FL) {
+            bool isLastNN = isLast3dNN(NN);
+            if (!isLastNN || FL) {
                 std::map<double, std::vector<ulong>> layer2Ids;
 
                 for (auto &n: NN.Neurons) {
@@ -86,19 +86,25 @@ namespace znn {
 
                 float layerCount = 0;
 
+                if (Opts.Enable3dRandPos && (!isLastNN || reRandomPosition)) {
+                    for (auto &nn: NN.Neurons) {
+                        nodeId2RandPosDiff[nn.Id] = {float(random() % 30) / 100.f - 0.15f, float(random() % 30) / 100.f - 0.15f, float(random() % 30) / 100.f - 0.15f};
+                    }
+                }
+
                 std::unordered_map<ulong, Vector3> nodeId2Pos;
 
                 for (auto &l2i: layer2Ids) {
                     if (l2i.first != 1.f) {
                         uint rows = uint(std::sqrt(float(l2i.second.size())));
                         uint columns = uint(l2i.second.size() / rows);
-                        float startZ = -float(rows - 1) * Opts.Zy_Interval3d / 2.f;
-                        float thisZ = startZ;
-                        float startY0 = -float(columns) * Opts.Zy_Interval3d / 2.f;
-                        float startY1 = -float(columns - 1) * Opts.Zy_Interval3d / 2.f;
+                        uint lastColumnsCount = l2i.second.size() % columns;
+                        float startZ0 = -float(lastColumnsCount-1) * Opts.Zy_Interval3d / 2.f;
+                        float startZ1 = -float(columns-1) * Opts.Zy_Interval3d / 2.f;
+                        float startY = -float(rows-1) * Opts.Zy_Interval3d / 2.f;
+                        float thisZ = startZ1;
                         float thisY;
-                        uint reMainColumns = l2i.second.size() % rows;
-                        uint row = 0;
+                        uint column = 0;
 
                         for (ulong i = 0; i < l2i.second.size(); ++i) {
                             if (!Opts.ShowCalc3dNN) {
@@ -117,49 +123,38 @@ namespace znn {
                                 }
                             }
 
-                            if (NodeId2Pos.find(l2i.second[i]) == NodeId2Pos.end() || reRandomPosition || reIntervalPosition) {
-                                if (i % rows < reMainColumns && l2i.second.size() % rows != 0) {
-                                    thisY = startY0 + Opts.Zy_Interval3d * float(row);
-                                } else {
-                                    thisY = startY1 + Opts.Zy_Interval3d * float(row);
-                                }
-                            }
+                            thisY = startY + Opts.Zy_Interval3d * float(column);
 
-                            if (NodeId2Pos.find(l2i.second[i]) == NodeId2Pos.end() || reRandomPosition) {
-                                if (Opts.Enable3dRandPos) {
-                                    nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f + (float(random() % 30) / 100.f - 0.15f) * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount, -thisY + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d,
-                                                                 thisZ + (float(random() % 30) / 100.f - 0.15f) * Opts.Zy_Interval3d};
-                                } else {
-                                    nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, -thisY, thisZ};
-                                }
-                            } else if (reIntervalPosition) {
-                                nodeId2Pos[l2i.second[i]] = {NodeId2Pos[l2i.second[i]].x, -thisY, thisZ};
+                            if (Opts.Enable3dRandPos) {
+                                nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size()) * Opts.X_Interval3d / 2.f + nodeId2RandPosDiff[l2i.second[i]].x * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount, -thisY + nodeId2RandPosDiff[l2i.second[i]].y * Opts.Zy_Interval3d,
+                                                             thisZ + nodeId2RandPosDiff[l2i.second[i]].z * Opts.Zy_Interval3d};
                             } else {
-                                float posXDiff = NodeId2Pos[l2i.second[i]].x + (float(layer2Ids.size() - 1) * (Opts.X_Interval3d - reIntervalValue) / 2.f) - (Opts.X_Interval3d - reIntervalValue) * layerCount;
-                                nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount + posXDiff, NodeId2Pos[l2i.second[i]].y, NodeId2Pos[l2i.second[i]].z};
+                                nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size()) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, -thisY, thisZ};
                             }
 
                             thisZ += Opts.Zy_Interval3d;
 
-                            if ((i + 1) % rows == 0) {
-                                thisZ = startZ;
-                                ++row;
+                            if ((i + 1) % columns == 0) {
+                                if (column + 1 == rows && lastColumnsCount > 0) {
+                                    thisZ = startZ0;
+                                } else {
+                                    thisZ = startZ1;
+                                }
+                                ++column;
                             }
                         }
                     } else {
-                        float startZ = -float(l2i.second.size() - 1) * Opts.Zy_Interval3d / 2.f;
+                        float startZ = -float(l2i.second.size()-1) * Opts.Zy_Interval3d / 2.f;
                         for (ulong i = 0; i < l2i.second.size(); ++i) {
                             NodId2Color[l2i.second[i]] = RED;
                             NodId2Size[l2i.second[i]] = 0.1f;
                             float thisZ = startZ + Opts.Zy_Interval3d * float(i);
-                            nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, 0.f, thisZ};
+                            nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size()) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, 0.f, thisZ};
                         }
                     }
                     ++layerCount;
                 }
                 reRandomPosition = false;
-                reIntervalPosition = false;
-                reIntervalValue = 0.f;
 
                 mtx.lock();
                 NodeId2Pos = nodeId2Pos;
@@ -193,7 +188,9 @@ namespace znn {
             update3dLock = false;
             mtx.unlock();
         } else {
-            mtx.unlock();
+            mtx.
+
+                    unlock();
         }
     }
 
@@ -210,8 +207,8 @@ namespace znn {
 
         // Define the camera to look into our 3d world
         Camera3D camera = {0};
-        camera.position = (Vector3) {0.f, 3.f, 5.f}; // Camera position
-        camera.target = (Vector3) {0.f, -.45f, 0.f};      // Camera looking at point
+        camera.position = (Vector3) {0.f, 1.5f, 5.f}; // Camera position
+        camera.target = (Vector3) {0.f, -.5f, 0.f};      // Camera looking at point
         camera.up = (Vector3) {0.f, 1.f, 0.f};          // Camera up vector (rotation towards target)
         camera.fovy = 60.0f;                                // Camera field-of-view Y
         camera.projection = CAMERA_PERSPECTIVE;                   // Camera mode type
@@ -237,28 +234,25 @@ namespace znn {
             if (IsKeyPressed('R')) {
                 Opts.X_Interval3d = setX_Interval3d;
                 Opts.Zy_Interval3d = setZy_Interval3d;
-                reIntervalPosition = true;
-                reRandomPosition = true;
+                if (Opts.Enable3dRandPos) {
+                    reRandomPosition = true;
+                }
                 Update3dNN_Background(last3dNN, true);
             }
             if (IsKeyDown('A') && Opts.X_Interval3d > 0.3f) {
-                reIntervalValue = -.02f;
-                Opts.X_Interval3d += reIntervalValue;
+                Opts.X_Interval3d -= .02f;
                 Update3dNN_Background(last3dNN, true);
             }
             if (IsKeyDown('D')) {
-                reIntervalValue = .02f;
-                Opts.X_Interval3d += reIntervalValue;
+                Opts.X_Interval3d += .02f;
                 Update3dNN_Background(last3dNN, true);
             }
             if (IsKeyDown('W')) {
                 Opts.Zy_Interval3d += .02f;
-                reIntervalPosition = true;
                 Update3dNN_Background(last3dNN, true);
             }
             if (IsKeyDown('S') && Opts.Zy_Interval3d > 0.3f) {
                 Opts.Zy_Interval3d -= .02f;
-                reIntervalPosition = true;
                 Update3dNN_Background(last3dNN, true);
             }
             if (IsKeyPressed(KEY_SPACE)) {
@@ -266,8 +260,8 @@ namespace znn {
                     Opts.Enable3dRandPos = false;
                 } else {
                     Opts.Enable3dRandPos = true;
+                    reRandomPosition = true;
                 }
-                reRandomPosition = true;
                 Update3dNN_Background(last3dNN, true);
             }
 
@@ -675,7 +669,11 @@ namespace znn {
 
             for (auto &n : tmpNodesOutput) {
                 if (n.second > 0.3f) {
-                    nodId2Color[n.first] = WHITE;
+                    if (tmpNeuronMap[n.first]->Layer == 0.f || tmpNeuronMap[n.first]->Layer == 1.f) {
+                        nodId2Color[n.first] = WHITE;
+                    } else {
+                        nodId2Color[n.first] = GRAY;
+                    }
                     nodId2Size[n.first] = 0.3f * n.second;
                 } else {
                     if (tmpNeuronMap[n.first]->Layer == 0.f) {
@@ -1035,6 +1033,7 @@ namespace znn {
             HiddenNeuronInnovations[{std::stoul(datas[0]), std::stoul(datas[1])}] = std::stoul(datas[2]);
         }
     }
+
 }
 
 #endif //MYNEAT_NERAULNETWORK_HPP
