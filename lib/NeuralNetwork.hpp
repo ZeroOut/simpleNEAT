@@ -109,6 +109,8 @@ namespace znn {
                                     NodId2Color[l2i.second[i]] = YELLOW;
                                     if (NN.Neurons[l2i.second[i]].Bias < 1.f) {
                                         NodId2Size[l2i.second[i]] = 0.1f;
+                                    } else if (NN.Neurons[l2i.second[i]].Bias > 6.f) {
+                                        NodId2Size[l2i.second[i]] = 0.6f;
                                     } else {
                                         NodId2Size[l2i.second[i]] = 0.1f * NN.Neurons[l2i.second[i]].Bias;
                                     }
