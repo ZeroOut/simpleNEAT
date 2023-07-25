@@ -99,9 +99,9 @@ namespace znn {
                         uint rows = uint(std::sqrt(float(l2i.second.size())));
                         uint columns = uint(l2i.second.size() / rows);
                         uint lastColumnsCount = l2i.second.size() % columns;
-                        float startZ0 = -float(lastColumnsCount-1) * Opts.Zy_Interval3d / 2.f;
-                        float startZ1 = -float(columns-1) * Opts.Zy_Interval3d / 2.f;
-                        float startY = -float(rows-1) * Opts.Zy_Interval3d / 2.f;
+                        float startZ0 = -float(lastColumnsCount - 1) * Opts.Zy_Interval3d / 2.f;
+                        float startZ1 = -float(columns - 1) * Opts.Zy_Interval3d / 2.f;
+                        float startY = -float(rows - 1) * Opts.Zy_Interval3d / 2.f;
                         float thisZ = startZ1;
                         float thisY;
                         uint column = 0;
@@ -113,12 +113,11 @@ namespace znn {
                                     NodId2Size[l2i.second[i]] = 0.1f;
                                 } else {
                                     NodId2Color[l2i.second[i]] = YELLOW;
-                                    if (NN.Neurons[l2i.second[i]].Bias < 1.f) {
+                                    float newNodeSize = NN.Neurons[l2i.second[i]].Bias / float(Opts.BiasRange) * 0.3f;
+                                    if (newNodeSize < 0.1f) {
                                         NodId2Size[l2i.second[i]] = 0.1f;
-                                    } else if (NN.Neurons[l2i.second[i]].Bias > 6.f) {
-                                        NodId2Size[l2i.second[i]] = 0.6f;
                                     } else {
-                                        NodId2Size[l2i.second[i]] = 0.1f * NN.Neurons[l2i.second[i]].Bias;
+                                        NodId2Size[l2i.second[i]] = newNodeSize;
                                     }
                                 }
                             }
@@ -126,8 +125,9 @@ namespace znn {
                             thisY = startY + Opts.Zy_Interval3d * float(column);
 
                             if (Opts.Enable3dRandPos) {
-                                nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size()) * Opts.X_Interval3d / 2.f + nodeId2RandPosDiff[l2i.second[i]].x * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount, -thisY + nodeId2RandPosDiff[l2i.second[i]].y * Opts.Zy_Interval3d,
-                                                             thisZ + nodeId2RandPosDiff[l2i.second[i]].z * Opts.Zy_Interval3d};
+                                nodeId2Pos[l2i.second[i]] = {
+                                        -(float(layer2Ids.size()) * Opts.X_Interval3d / 2.f + nodeId2RandPosDiff[l2i.second[i]].x * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount,
+                                        -thisY + nodeId2RandPosDiff[l2i.second[i]].y * Opts.Zy_Interval3d, thisZ + nodeId2RandPosDiff[l2i.second[i]].z * Opts.Zy_Interval3d};
                             } else {
                                 nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size()) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, -thisY, thisZ};
                             }
@@ -144,7 +144,7 @@ namespace znn {
                             }
                         }
                     } else {
-                        float startZ = -float(l2i.second.size()-1) * Opts.Zy_Interval3d / 2.f;
+                        float startZ = -float(l2i.second.size() - 1) * Opts.Zy_Interval3d / 2.f;
                         for (ulong i = 0; i < l2i.second.size(); ++i) {
                             NodId2Color[l2i.second[i]] = RED;
                             NodId2Size[l2i.second[i]] = 0.1f;
@@ -167,9 +167,9 @@ namespace znn {
                 for (auto &conn: NN.Connections) {
                     if (conn.Enable) {
                         if (conn.Weight > 0) {
-                            connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], conn.Weight * 0.0015f + 0.0001f, ColorAlpha(RED, 0.5f)});
+                            connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], conn.Weight / Opts.WeightRange * 0.0045f + 0.0001f, ColorAlpha(RED, 0.5f)});
                         } else {
-                            connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], -conn.Weight * 0.0015f + 0.0001f, ColorAlpha(BLUE, 0.5f)});
+                            connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], -conn.Weight / Opts.WeightRange * 0.0045f + 0.0001f, ColorAlpha(BLUE, 0.5f)});
                         }
                     }
                 }
@@ -188,9 +188,7 @@ namespace znn {
             update3dLock = false;
             mtx.unlock();
         } else {
-            mtx.
-
-                    unlock();
+            mtx.unlock();
         }
     }
 
@@ -239,7 +237,7 @@ namespace znn {
                 }
                 Update3dNN_Background(last3dNN, true);
             }
-            if (IsKeyDown('A') && Opts.X_Interval3d > 0.3f) {
+            if (IsKeyDown('A')) {
                 Opts.X_Interval3d -= .02f;
                 Update3dNN_Background(last3dNN, true);
             }
@@ -251,7 +249,7 @@ namespace znn {
                 Opts.Zy_Interval3d += .02f;
                 Update3dNN_Background(last3dNN, true);
             }
-            if (IsKeyDown('S') && Opts.Zy_Interval3d > 0.3f) {
+            if (IsKeyDown('S')) {
                 Opts.Zy_Interval3d -= .02f;
                 Update3dNN_Background(last3dNN, true);
             }
@@ -587,7 +585,8 @@ namespace znn {
         }
 
         if (tmpLayerMap[0.].size() != Opts.InputSize || tmpLayerMap[1.].size() != Opts.OutputSize) {
-            std::cerr << "NeuralNetwork Nodes Error: Opts.InputSize " << Opts.InputSize << " Input Layer Size: " << tmpLayerMap[0.].size() << " Opts.OutputSize: " << Opts.OutputSize << " Output Layer Size: " << tmpLayerMap[1.].size() << std::endl;
+            std::cerr << "NeuralNetwork Nodes Error: Opts.InputSize " << Opts.InputSize << " Input Layer Size: " << tmpLayerMap[0.].size() << " Opts.OutputSize: " << Opts.OutputSize
+                      << " Output Layer Size: " << tmpLayerMap[1.].size() << std::endl;
             std::exit(0);
         }
 
@@ -667,7 +666,7 @@ namespace znn {
             std::unordered_map<ulong, Color> nodId2Color;
             std::unordered_map<ulong, float> nodId2Size;
 
-            for (auto &n : tmpNodesOutput) {
+            for (auto &n: tmpNodesOutput) {
                 if (n.second > 0.3f) {
                     if (tmpNeuronMap[n.first]->Layer == 0.f || tmpNeuronMap[n.first]->Layer == 1.f) {
                         nodId2Color[n.first] = WHITE;
@@ -690,9 +689,9 @@ namespace znn {
             std::vector<lineInfo> connectedNodesInfo;
 
             if (Opts.ShowCalc3dNN) {
-                for (auto &c : nn->Connections) {
-                    if (nodId2Size[c.ConnectedNeuronId[0]] > 0.1f && nodId2Size[c.ConnectedNeuronId[1]] > 0.1f && c.Enable) {
-                        connectedNodesInfo.push_back(lineInfo{c.ConnectedNeuronId[0], c.ConnectedNeuronId[1], c.Weight * 0.0015f, ColorAlpha(WHITE, 0.3f)});
+                for (auto &c: nn->Connections) {
+                    if (nodId2Size[c.ConnectedNeuronId[0]] >= 0.09 && nodId2Size[c.ConnectedNeuronId[1]] >= 0.09 && c.Enable) {
+                        connectedNodesInfo.push_back(lineInfo{c.ConnectedNeuronId[0], c.ConnectedNeuronId[1], c.Weight / Opts.WeightRange * 0.0045f, ColorAlpha(WHITE, 0.3f)});
                     }
                 }
             }
@@ -720,7 +719,8 @@ namespace znn {
         return outputs;
     };
 
-    std::vector<float> NeuralNetwork::BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants, bool isAccelerate) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回计算结果, 在使用CPU多核运算时，由于多线程开销问题，神经网络结构太简单反而会运算得更慢 TODO: 权重和偏置范围该怎么限制?丢弃?
+    std::vector<float> NeuralNetwork::BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants,
+                                                      bool isAccelerate) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回计算结果, 在使用CPU多核运算时，由于多线程开销问题，神经网络结构太简单反而会运算得更慢 TODO: 权重和偏置范围该怎么限制?丢弃?
         std::unordered_map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
         std::map<double, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
@@ -854,12 +854,23 @@ namespace znn {
 
 
         for (auto &connection: nn->Connections) { // 更新连接权重
-            connection.Weight += Opts.LearnRate * tmpNodesOutputError[connection.ConnectedNeuronId[1]] * tmpNodesOutput[connection.ConnectedNeuronId[0]];
+            float newWeight = connection.Weight + Opts.LearnRate * tmpNodesOutputError[connection.ConnectedNeuronId[1]] * tmpNodesOutput[connection.ConnectedNeuronId[0]];
+            if (std::abs(newWeight) > float(Opts.WeightRange)) {
+//                std::cerr << "Weight out of range: [" << connection.ConnectedNeuronId[0] << "," << connection.ConnectedNeuronId[1] << "], " << connection.Weight << " -> " << newWeight << "\n";
+            } else {
+                connection.Weight = newWeight;
+            }
+
         }
 
         for (auto &n: nn->Neurons) { // 更新神经元偏置
             if (n.Layer != 0.) {
-                n.Bias += Opts.LearnRate * tmpNodesOutputError[n.Id];
+                float newBias = n.Bias + Opts.LearnRate * tmpNodesOutputError[n.Id];
+                if (std::abs(newBias) > float(Opts.BiasRange)) {
+//                    std::cerr << "Bias out of range: [" << n.Id << "], " << n.Bias << " -> " << newBias << "\n";
+                } else {
+                    n.Bias = newBias;
+                }
             }
         }
 
@@ -882,11 +893,13 @@ namespace znn {
             std::string line;
             std::stringstream streamBias;
             if (n.Layer == 0.) {
-                line = "    subgraph cluster0{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightblue,style=filled,shape=component,width=1,height=1,label=\"Input_" + std::to_string(inId) + "\"]}\n";
+                line = "    subgraph cluster0{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightblue,style=filled,shape=component,width=1,height=1,label=\"Input_" +
+                       std::to_string(inId) + "\"]}\n";
                 ++inId;
             } else if (n.Layer == 1.) {
                 streamBias << std::setprecision(3) << n.Bias;
-                line = "    subgraph cluster1{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightgray,style=filled,shape=diamond,width=1,height=1,label=\"Output_" + std::to_string(outId) + "\\n(" + streamBias.str() + ")\"]}\n";
+                line = "    subgraph cluster1{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightgray,style=filled,shape=diamond,width=1,height=1,label=\"Output_" +
+                       std::to_string(outId) + "\\n(" + streamBias.str() + ")\"]}\n";
                 ++outId;
             } else {
                 streamBias << std::setprecision(3) << n.Bias;
@@ -1001,7 +1014,9 @@ namespace znn {
 
         if (Opts.OutputSize > OutputSize) {
             for (ulong i = 0; i < Opts.OutputSize - OutputSize; ++i) {
-                newNeurons.push_back(Neuron{.Id = HiddenNeuronInnovations.size() + OutputSize + i + Opts.InputSize + FCHidenNeuronSize, .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100, .Layer = 1.,});
+                newNeurons.push_back(
+                        Neuron{.Id = HiddenNeuronInnovations.size() + OutputSize + i + Opts.InputSize + FCHidenNeuronSize, .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) /
+                                                                                                                                   100, .Layer = 1.,});
             }
         }
 
