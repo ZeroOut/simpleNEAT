@@ -163,7 +163,6 @@ namespace znn {
 
             if (!Opts.ShowCalc3dNN) {
                 std::vector<lineInfo> connectedNodesInfo;
-
                 for (auto &conn: NN.Connections) {
                     if (conn.Enable) {
                         if (conn.Weight > 0) {
@@ -690,8 +689,8 @@ namespace znn {
 
             if (Opts.ShowCalc3dNN) {
                 for (auto &c: nn->Connections) {
-                    if (nodId2Size[c.ConnectedNeuronId[0]] >= 0.09 && nodId2Size[c.ConnectedNeuronId[1]] >= 0.09 && c.Enable) {
-                        connectedNodesInfo.push_back(lineInfo{c.ConnectedNeuronId[0], c.ConnectedNeuronId[1], c.Weight / Opts.WeightRange * 0.0045f, ColorAlpha(WHITE, 0.3f)});
+                    if (nodId2Size[c.ConnectedNeuronId[0]] > 0.09f && nodId2Size[c.ConnectedNeuronId[1]] > 0.09f && c.Enable && c.Weight > 0.f) {
+                        connectedNodesInfo.push_back(lineInfo{c.ConnectedNeuronId[0], c.ConnectedNeuronId[1], c.Weight / Opts.WeightRange * 0.0045f + 0.0001f, ColorAlpha(WHITE, 0.3f)});
                     }
                 }
             }
