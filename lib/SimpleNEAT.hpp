@@ -195,7 +195,7 @@ namespace znn {
                 population.generation.neuralNetwork.ExportNN(compressedRightBestNN, "./champion");
                 population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
 
-                if (Opts.Enable3dNN) {
+                if (Opts.Enable3dNN && !Opts.ShowCalc3dNN) {
                     Update3dNN_Background(compressedRightBestNN, true);
                     std::cout << "需保持主线程不退出,防止3d显示bug\n";
                 }
@@ -257,7 +257,7 @@ namespace znn {
 
             tPool.wait_for_tasks();
 
-            if (Opts.Enable3dNN) {
+            if (Opts.Enable3dNN && !Opts.ShowCalc3dNN) {
                 Update3dNN_Background(*orderedPopulation[0], false);
             }
 
@@ -298,7 +298,7 @@ namespace znn {
         population.generation.neuralNetwork.ExportNN(compressedRightBestNN, "./champion");
         population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
 
-        if (Opts.Enable3dNN) {
+        if (Opts.Enable3dNN && !Opts.ShowCalc3dNN) {
             Update3dNN_Background(compressedRightBestNN, true);
             std::cout << "需保持主线程不退出,防止3d显示bug\n";
         }
@@ -350,7 +350,7 @@ namespace znn {
                 population.generation.neuralNetwork.ExportNN(compressedRightBestNN, "./champion");
                 population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
 
-                if (Opts.Enable3dNN) {
+                if (Opts.Enable3dNN && !Opts.ShowCalc3dNN) {
                     Update3dNN_Background(compressedRightBestNN, true);
                     std::cout << "需保持主线程不退出,防止3d显示bug\n";
                 }
@@ -413,7 +413,7 @@ namespace znn {
 
             tPool.wait_for_tasks();
 
-            if (Opts.Enable3dNN) {
+            if (Opts.Enable3dNN && !Opts.ShowCalc3dNN) {
                 Update3dNN_Background(*orderedPopulation[0], false);
             }
 
@@ -439,7 +439,7 @@ namespace znn {
         population.generation.neuralNetwork.ExportNN(compressedRightBestNN, "./champion");
         population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
 
-        if (Opts.Enable3dNN) {
+        if (Opts.Enable3dNN && !Opts.ShowCalc3dNN) {
             Update3dNN_Background(compressedRightBestNN, true);
             std::cout << "需保持主线程不退出,防止3d显示bug\n";
         }
