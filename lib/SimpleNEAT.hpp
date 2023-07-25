@@ -317,7 +317,13 @@ namespace znn {
         float lastFitness = 0.f;
 
         for (; rounds <= Opts.IterationTimes || Opts.IterationTimes <= 0; ++rounds) {
-            if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
+            bool isGreater = populationFitness[orderedPopulation[0]] > lastFitness;
+
+            if (isGreater) {
+                lastFitness = populationFitness[orderedPopulation[0]];
+            }
+
+            if ((Opts.SaveEveryTime && isGreater) || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
                 lastFitness = populationFitness[orderedPopulation[0]];
 
                 population.generation.neuralNetwork.ExportInnovations(Opts.CheckPointPath);
