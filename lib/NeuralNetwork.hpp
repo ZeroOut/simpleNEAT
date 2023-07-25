@@ -48,6 +48,7 @@ namespace znn {
     NetworkGenome last3dNN;
     bool canClose3dNN = false;  // 用于中途关闭3d显示
     bool reRandomPosition = true;
+    bool isOutputNodePosRand = false;
 
     bool isLast3dNN(NetworkGenome &NN) {
         if (NN.Neurons.size() != last3dNN.Neurons.size()) {
@@ -88,7 +89,13 @@ namespace znn {
 
                 if (Opts.Enable3dRandPos && (!isLastNN || reRandomPosition)) {
                     for (auto &nn: NN.Neurons) {
-                        nodeId2RandPosDiff[nn.Id] = {float(random() % 30) / 100.f - 0.15f, float(random() % 30) / 100.f - 0.15f, float(random() % 30) / 100.f - 0.15f};
+                        if ((nn.Layer == 0.f && !isOutputNodePosRand) || (nn.Layer > 0.f && nn.Layer < 1.f)) {
+                            nodeId2RandPosDiff[nn.Id] = {float(random() % 30) / 100.f - 0.15f, float(random() % 30) / 100.f - 0.15f, float(random() % 30) / 100.f - 0.15f};
+                        }
+                    }
+
+                    if (!isOutputNodePosRand) {
+                        isOutputNodePosRand = true;
                     }
                 }
 
@@ -125,9 +132,8 @@ namespace znn {
                             thisY = startY + Opts.Zy_Interval3d * float(column);
 
                             if (Opts.Enable3dRandPos) {
-                                nodeId2Pos[l2i.second[i]] = {
-                                        -(float(layer2Ids.size()) * Opts.X_Interval3d / 2.f + nodeId2RandPosDiff[l2i.second[i]].x * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount,
-                                        -thisY + nodeId2RandPosDiff[l2i.second[i]].y * Opts.Zy_Interval3d, thisZ + nodeId2RandPosDiff[l2i.second[i]].z * Opts.Zy_Interval3d};
+                                nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size()) * Opts.X_Interval3d / 2.f + nodeId2RandPosDiff[l2i.second[i]].x * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount, -thisY + nodeId2RandPosDiff[l2i.second[i]].y * Opts.Zy_Interval3d,
+                                                             thisZ + nodeId2RandPosDiff[l2i.second[i]].z * Opts.Zy_Interval3d};
                             } else {
                                 nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size()) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, -thisY, thisZ};
                             }
@@ -584,8 +590,7 @@ namespace znn {
         }
 
         if (tmpLayerMap[0.].size() != Opts.InputSize || tmpLayerMap[1.].size() != Opts.OutputSize) {
-            std::cerr << "NeuralNetwork Nodes Error: Opts.InputSize " << Opts.InputSize << " Input Layer Size: " << tmpLayerMap[0.].size() << " Opts.OutputSize: " << Opts.OutputSize
-                      << " Output Layer Size: " << tmpLayerMap[1.].size() << std::endl;
+            std::cerr << "NeuralNetwork Nodes Error: Opts.InputSize " << Opts.InputSize << " Input Layer Size: " << tmpLayerMap[0.].size() << " Opts.OutputSize: " << Opts.OutputSize << " Output Layer Size: " << tmpLayerMap[1.].size() << std::endl;
             std::exit(0);
         }
 
@@ -718,8 +723,7 @@ namespace znn {
         return outputs;
     };
 
-    std::vector<float> NeuralNetwork::BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants,
-                                                      bool isAccelerate) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回计算结果, 在使用CPU多核运算时，由于多线程开销问题，神经网络结构太简单反而会运算得更慢 TODO: 权重和偏置范围该怎么限制?丢弃?
+    std::vector<float> NeuralNetwork::BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants, bool isAccelerate) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回计算结果, 在使用CPU多核运算时，由于多线程开销问题，神经网络结构太简单反而会运算得更慢 TODO: 权重和偏置范围该怎么限制?丢弃?
         std::unordered_map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
         std::map<double, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
@@ -892,13 +896,11 @@ namespace znn {
             std::string line;
             std::stringstream streamBias;
             if (n.Layer == 0.) {
-                line = "    subgraph cluster0{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightblue,style=filled,shape=component,width=1,height=1,label=\"Input_" +
-                       std::to_string(inId) + "\"]}\n";
+                line = "    subgraph cluster0{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightblue,style=filled,shape=component,width=1,height=1,label=\"Input_" + std::to_string(inId) + "\"]}\n";
                 ++inId;
             } else if (n.Layer == 1.) {
                 streamBias << std::setprecision(3) << n.Bias;
-                line = "    subgraph cluster1{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightgray,style=filled,shape=diamond,width=1,height=1,label=\"Output_" +
-                       std::to_string(outId) + "\\n(" + streamBias.str() + ")\"]}\n";
+                line = "    subgraph cluster1{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightgray,style=filled,shape=diamond,width=1,height=1,label=\"Output_" + std::to_string(outId) + "\\n(" + streamBias.str() + ")\"]}\n";
                 ++outId;
             } else {
                 streamBias << std::setprecision(3) << n.Bias;
@@ -1013,9 +1015,7 @@ namespace znn {
 
         if (Opts.OutputSize > OutputSize) {
             for (ulong i = 0; i < Opts.OutputSize - OutputSize; ++i) {
-                newNeurons.push_back(
-                        Neuron{.Id = HiddenNeuronInnovations.size() + OutputSize + i + Opts.InputSize + FCHidenNeuronSize, .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) /
-                                                                                                                                   100, .Layer = 1.,});
+                newNeurons.push_back(Neuron{.Id = HiddenNeuronInnovations.size() + OutputSize + i + Opts.InputSize + FCHidenNeuronSize, .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100, .Layer = 1.,});
             }
         }
 
