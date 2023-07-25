@@ -132,10 +132,10 @@ namespace znn {
                             thisY = startY + Opts.Zy_Interval3d * float(column);
 
                             if (Opts.Enable3dRandPos) {
-                                nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size()) * Opts.X_Interval3d / 2.f + nodeId2RandPosDiff[l2i.second[i]].x * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount, -thisY + nodeId2RandPosDiff[l2i.second[i]].y * Opts.Zy_Interval3d,
+                                nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size()-1) * Opts.X_Interval3d / 2.f + nodeId2RandPosDiff[l2i.second[i]].x * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount, -thisY + nodeId2RandPosDiff[l2i.second[i]].y * Opts.Zy_Interval3d,
                                                              thisZ + nodeId2RandPosDiff[l2i.second[i]].z * Opts.Zy_Interval3d};
                             } else {
-                                nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size()) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, -thisY, thisZ};
+                                nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size()-1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, -thisY, thisZ};
                             }
 
                             thisZ += Opts.Zy_Interval3d;
@@ -155,7 +155,7 @@ namespace znn {
                             NodId2Color[l2i.second[i]] = RED;
                             NodId2Size[l2i.second[i]] = 0.1f;
                             float thisZ = startZ + Opts.Zy_Interval3d * float(i);
-                            nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size()) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, 0.f, thisZ};
+                            nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size()-1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, 0.f, thisZ};
                         }
                     }
                     ++layerCount;
