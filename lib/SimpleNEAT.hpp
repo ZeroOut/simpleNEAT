@@ -164,15 +164,13 @@ namespace znn {
         float lastFitness = 0.f;
 
         for (; rounds <= Opts.IterationTimes || Opts.IterationTimes <= 0; ++rounds) {
-            bool isGreater = populationFitness[orderedPopulation[0]] > lastFitness;
-
-            if (isGreater) {
+            if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
                 lastFitness = populationFitness[orderedPopulation[0]];
-            }
 
-            if ((Opts.SaveEveryTime && isGreater) || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
-                population.generation.neuralNetwork.ExportInnovations(Opts.CheckPointPath);
-                population.generation.neuralNetwork.ExportNN(*orderedPopulation[0], Opts.CheckPointPath);
+                if (Opts.SaveEveryTime || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
+                    population.generation.neuralNetwork.ExportInnovations(Opts.CheckPointPath);
+                    population.generation.neuralNetwork.ExportNN(*orderedPopulation[0], Opts.CheckPointPath);
+                }
 
                 std::cout << "gen: " << rounds << " ptr: " << orderedPopulation[0] << " age: " << orderedPopulation[0]->Age << " neurons: " << orderedPopulation[0]->Neurons.size() << " connections: " << orderedPopulation[0]->Connections.size() << " fitness: "
                           << populationFitness[orderedPopulation[0]] << "\n";
@@ -317,17 +315,13 @@ namespace znn {
         float lastFitness = 0.f;
 
         for (; rounds <= Opts.IterationTimes || Opts.IterationTimes <= 0; ++rounds) {
-            bool isGreater = populationFitness[orderedPopulation[0]] > lastFitness;
-
-            if (isGreater) {
-                lastFitness = populationFitness[orderedPopulation[0]];
-            }
-
-            if ((Opts.SaveEveryTime && isGreater) || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
+            if (populationFitness[orderedPopulation[0]] > lastFitness || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
                 lastFitness = populationFitness[orderedPopulation[0]];
 
-                population.generation.neuralNetwork.ExportInnovations(Opts.CheckPointPath);
-                population.generation.neuralNetwork.ExportNN(*orderedPopulation[0], Opts.CheckPointPath);
+                if (Opts.SaveEveryTime || (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0)) {
+                    population.generation.neuralNetwork.ExportInnovations(Opts.CheckPointPath);
+                    population.generation.neuralNetwork.ExportNN(*orderedPopulation[0], Opts.CheckPointPath);
+                }
 
                 std::cout << "gen: " << rounds << " ptr: " << orderedPopulation[0] << " age: " << orderedPopulation[0]->Age << " neurons: " << orderedPopulation[0]->Neurons.size() << " connections: " << orderedPopulation[0]->Connections.size() << " fitness: "
                           << populationFitness[orderedPopulation[0]] << "\n";
