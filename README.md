@@ -81,25 +81,31 @@ predict:
 ```
 
 可输出神经网络和可视化dot格式图像：
+
 ![image](img/00.png)
 
 #### 鸢尾花实验（test_iris.cpp）
 
 `Fitness` 达到 `0.979` 的神经网络有 `18` 个神经元和 `111` 条神经连接:
+
 ![image](img/01.png)
 
 raylib 实时显示神经网络结构
+
 ![image](img/02.png)
 
 #### 基于 `sfml` 的分类实验（test_classification_sfml.cpp）
 
 两个类型：
+
 ![image](img/03.png)
 
 三个类型：
+
 ![image](img/04.png)
 
 四个类型：
+
 ![image](img/05.png)
 
 以此类推...
@@ -109,6 +115,7 @@ raylib 实时显示神经网络结构
 ![image](img/06.png)
 
 对于局部最优解的陷阱还没有找到高效的解决办法，个体会倾向于贴边走...
+
 ![image](img/07.png)
 
 ![image](img/08.png)
