@@ -1,6 +1,7 @@
 # simpleNEAT
 
 ## 致谢
+
 * 两位博士 `Kenneth O. Stanley` 和 `Risto Miikkulainen` [论文链接](https://nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf)
 * 接触是从 [莫烦PYTHON](https://mofanpy.com/)
 * 线程池用的 [BS_thread_pool](https://github.com/bshoshany/thread-pool/blob/master/BS_thread_pool.hpp)
@@ -8,8 +9,42 @@
 * 待补充...
 
 ## 描述
+
 * JSF，试着用 `C++` 简单实现 `NEAT` 算法，还没有写种群。
+
 * 没有做过程序员，而且感觉 `C++` 是真的难，实在不会用高级写法。
+
+## 编译
+
+### 显示3d神经网络需要用到 `raylib`
+
+* g++
+
+```bash
+g++ -lraylib -std=c++23 -O2 xxx.cpp
+```
+
+* cmake
+
+```cmake
+add_executable(xxx xxx.cpp)
+target_link_libraries(xxx raylib)
+```
+
+### 不显示3d神经网络需要宏定义 `NO_3DNN`
+
+* g++
+
+```bash
+g++ -DNO_3DNN -std=c++23 -O2 xxx.cpp
+```
+
+* cmake
+
+```cmake
+add_executable(xxx xxx.cpp)
+target_compile_definitions(xxx PRIVATE NO_3DNN)
+```
 
 ### 实验
 
