@@ -683,13 +683,13 @@ namespace znn {
             std::unordered_map<ulong, float> nodId2Size;
 
             for (auto &n: tmpNodesOutput) {
-                if (n.second > 0.3f) {
+                if (n.second > 0.1f) {
                     if (tmpNeuronMap[n.first]->Layer == 0.f || tmpNeuronMap[n.first]->Layer == 1.f) {
                         nodId2Color[n.first] = WHITE;
                     } else {
                         nodId2Color[n.first] = GRAY;
                     }
-                    nodId2Size[n.first] = 0.3f * n.second;
+                    nodId2Size[n.first] = 0.1f * (n.second + 0.9f);
                 } else {
                     if (tmpNeuronMap[n.first]->Layer == 0.f) {
                         nodId2Color[n.first] = BLUE;
@@ -698,7 +698,7 @@ namespace znn {
                     } else {
                         nodId2Color[n.first] = YELLOW;
                     }
-                    nodId2Size[n.first] = 0.09f;
+                    nodId2Size[n.first] = 0.1f;
                 }
             }
 
@@ -706,7 +706,7 @@ namespace znn {
 
             if (Opts.ShowCalc3dNN) {
                 for (auto &c: nn->Connections) {
-                    if (nodId2Size[c.ConnectedNeuronId[0]] > 0.09f && nodId2Size[c.ConnectedNeuronId[1]] > 0.09f && c.Enable && c.Weight > 0.f) {
+                    if (nodId2Size[c.ConnectedNeuronId[0]] > 0.1f && nodId2Size[c.ConnectedNeuronId[1]] > 0.1f && c.Enable && c.Weight > 0.f) {
                         connectedNodesInfo.push_back(lineInfo{c.ConnectedNeuronId[0], c.ConnectedNeuronId[1], c.Weight / Opts.WeightRange * 0.009f + 0.0001f, ColorAlpha(WHITE, 0.3f)});
                     }
                 }
