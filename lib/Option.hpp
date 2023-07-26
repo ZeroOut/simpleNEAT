@@ -28,11 +28,11 @@ namespace znn {
         float MutateWeightRate = 0.1f;
         int MutateWeightNearRange = 2;
         float MutateWeightDirectOrNear = 0.5f;
-        float WeightRange = 1;
+        float WeightRange = 1.f;
         float MutateBiasRate = 0.1f;
         float MutateBiasNearRange = 2;
         float MutateBiasDirectOrNear = 0.5f;
-        float BiasRange = 3;
+        float BiasRange = 3.f;
         float MutateAddNeuronRate = 0.003f;
         float MutateAddConnectionRate = 0.5f;
         float MutateEnableConnectionRate = 0.3f;

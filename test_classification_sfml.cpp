@@ -34,7 +34,8 @@ int main() {
     uint outputLen;
 
     znn::SimpleNeat sneat;
-    znn::NetworkGenome NN;
+    znn::BestOne bestOne{.Fit = 0.f};
+    znn::NetworkGenome choosingNN;
 
     bool isInitialed = false;
 
@@ -83,73 +84,38 @@ int main() {
             znn::Opts.OutputSize = outputLen;
             znn::Opts.ActiveFunction = znn::Sigmoid;
             znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
-            znn::Opts.FCNN_hideLayers = {40};
+            znn::Opts.IterationTimes = 0;
             znn::Opts.FitnessThreshold = 0.999f;
-            znn::Opts.LearnRate = .3f;
-            znn::Opts.Update3dIntercalMs = 100;
-            znn::Opts.Enable3dRandPos = false;
-            znn::Opts.X_Interval3d = 1.5f;
+            znn::Opts.IterationCheckPoint = 0;
+            znn::Opts.ThreadCount = 16;
+            znn::Opts.MutateAddNeuronRate = 0.3f;
+            znn::Opts.MutateAddConnectionRate = 0.99f;
+            znn::Opts.PopulationSize = 64;
+            znn::Opts.ChampionKeepSize = 8;
+            znn::Opts.NewSize = 1;
+            znn::Opts.KeepWorstSize = 0;
+            znn::Opts.ChampionToNewSize = 24;
+            znn::Opts.KeepComplexSize = 0;
             znn::Opts.WeightRange = 3.f;
-            znn::Opts.BiasRange = 6.f;
+            znn::Opts.BiasRange = 3.f;
+            znn::Opts.MutateWeightDirectOrNear = 0.36f;
+            znn::Opts.MutateWeightNearRange = 6;
+            znn::Opts.MutateBiasDirectOrNear = 0.36f;
+            znn::Opts.LearnRate = 0.3f;
+            znn::Opts.Enable3dNN = true;
+//            znn::Opts.StartWithFCNN = true;
+//            znn::Opts.FCNN_hideLayers = {8, 8};
+            znn::Opts.Update3dIntercalMs = 100;
+            znn::Opts.X_Interval3d = 0.3f;
+            znn::Opts.Zy_Interval3d = 1.5f;
 
-            std::vector<znn::NetworkGenome> initNNs(30);
-            float bestFit = 0.f;
-
-            std::vector<std::future<void>> thisFuture;
-
-            for (auto &nn : initNNs) {
-                thisFuture.push_back(znn::tPool.submit([&]() {
-                    nn = sneat.population.generation.neuralNetwork.NewFCNN();
-
-                    float fitness = 0.f;
-
-                    for (int i = 0; i < inputs.size(); ++i) {
-                        std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.FeedForwardPredict(&nn, inputs[i], false);
-                        fitness += znn::GetPrecision(thisOutputs, wantedOutputs[i]);
-                    }
-
-                    fitness /= float(inputs.size());
-
-                    znn::mtx.lock();
-                    if (fitness > bestFit) {
-                        bestFit = fitness;
-                        NN = nn;
-                    }
-                    znn::mtx.unlock();
-                }));
-            }
-
-            for (auto &f: thisFuture) {
-                f.wait();
-            }
-
-            std::thread show3d(znn::Show3dNN);
-            show3d.detach();
+            sneat.StartNew();
         }
 
         std::thread start([&]() {
-            int rounds = 0;
-            float fitness = 0.f;
-            while (isTrainingStart) {
-                ++rounds;
-                fitness = 0.f;
-                for (int i = 0; i < inputs.size(); ++i) {
-                    std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.BackPropagation(&NN, inputs[i], wantedOutputs[i], false);
-                    fitness += znn::GetPrecision(thisOutputs, wantedOutputs[i]);
-                }
-                fitness /= float(inputs.size());
-                if (fitness >= znn::Opts.FitnessThreshold) {
-                    break;
-                }
-                if (rounds % 100 == 0) {
-                    std::cout << rounds << " fitness: " << fitness << "\n";
-                    znn::Update3dNN_Background(NN, false);
-                }
-            }
-            std::cout << rounds << " fitness: " << fitness << "\n";
+            bestOne = sneat.TrainByWanted(inputs, wantedOutputs, 0, [&isTrainingStart]() { return !isTrainingStart; });
             isTrainingStart = false;
         });
-
         start.detach();
     };
 
@@ -198,13 +164,21 @@ int main() {
                 case sf::Event::MouseButtonPressed:
                     if (ev.mouseButton.button == sf::Mouse::Left && !isTrainingStart) {
                         clickPos = sf::Mouse::getPosition(window);
-                        //                        std::cout << clickPos.x << ", " << clickPos.y << "\n";
+//                        std::cout << clickPos.x << ", " << clickPos.y << "\n";
                     }
                     break;
             }
         }
 
         // Update
+        znn::mtx.lock();
+        if (isTrainingStart) {
+            choosingNN = sneat.population.NeuralNetworks[0];
+        } else if (bestOne.Fit > 0.f) {
+            choosingNN = bestOne.NN;
+        }
+        znn::mtx.unlock();
+
 
         // Render
 //        window.clear(sf::Color(0, 0, 0, 255)); // Clear old frame
@@ -215,7 +189,7 @@ int main() {
             pos.x += 8.f;
             pos.y += 8.f;
             if (isTrainingStart && !markedBlocks.contains({pos.x, pos.y})) {
-                auto outputs = sneat.population.generation.neuralNetwork.FeedForwardPredict(&NN, {pos.x / 1024.f, pos.y / 1024.f}, false);
+                auto outputs = sneat.population.generation.neuralNetwork.FeedForwardPredict(&choosingNN, {pos.x / 1024.f, pos.y / 1024.f}, false);
                 switch (outputLen) {
                     case 2: {
                         auto thisValue = int(outputs[0] / (outputs[0] + outputs[1]) * 255);
@@ -224,20 +198,20 @@ int main() {
                         break;
                     case 3:
                         if (outputs[0] > outputs[1] && outputs[0] > outputs[2]) {
-                            b.setFillColor(sf::Color(int(outputs[0] * 255), 50, 50, 200));
+                            b.setFillColor(sf::Color(int(outputs[0] * 255), 0, 0, 200));
                         } else if (outputs[1] > outputs[0] && outputs[1] > outputs[2]) {
-                            b.setFillColor(sf::Color(50, int(outputs[1] * 255), 50, 200));
+                            b.setFillColor(sf::Color(0, int(outputs[1] * 255), 0, 200));
                         } else {
-                            b.setFillColor(sf::Color(50, 50, int(outputs[2] * 255), 200));
+                            b.setFillColor(sf::Color(0, 0, int(outputs[2] * 255), 200));
                         }
                         break;
                     case 4:
                         if (outputs[0] > outputs[1] && outputs[0] > outputs[2] && outputs[0] > outputs[3]) {
-                            b.setFillColor(sf::Color(int(outputs[0] * 255), 50, 50, 200));
+                            b.setFillColor(sf::Color(int(outputs[0] * 255), 0, 0, 200));
                         } else if (outputs[1] > outputs[0] && outputs[1] > outputs[2] && outputs[1] > outputs[3]) {
-                            b.setFillColor(sf::Color(50, int(outputs[1] * 255), 50, 200));
+                            b.setFillColor(sf::Color(0, int(outputs[1] * 255), 0, 200));
                         } else if (outputs[2] > outputs[0] && outputs[2] > outputs[1] && outputs[2] > outputs[3]) {
-                            b.setFillColor(sf::Color(50, 50, int(outputs[2] * 255), 200));
+                            b.setFillColor(sf::Color(0, 0, int(outputs[2] * 255), 200));
                         } else {
                             auto thisValue = int(outputs[3] * 255);
                             b.setFillColor(sf::Color(thisValue, thisValue, thisValue, 200));
