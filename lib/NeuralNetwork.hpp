@@ -127,7 +127,7 @@ namespace znn {
                                     NodId2Size[l2i.second[i]] = 0.1f;
                                 } else {
                                     NodId2Color[l2i.second[i]] = YELLOW;
-                                    float newNodeSize = NN.Neurons[l2i.second[i]].Bias / float(Opts.BiasRange) * 0.3f;
+                                    float newNodeSize = NN.Neurons[l2i.second[i]].Bias / Opts.BiasRange * 0.3f;
                                     if (newNodeSize < 0.1f) {
                                         NodId2Size[l2i.second[i]] = 0.1f;
                                     } else {
@@ -364,12 +364,12 @@ namespace znn {
 
         for (ulong i = 0; i < Opts.OutputSize; ++i) {
             ulong id = i + Opts.InputSize;
-            Neuron tmpNeuron = {.Id = id, .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100, .Layer = 1.,};
+            Neuron tmpNeuron = {.Id = id, .Bias = float(random() % long(Opts.BiasRange * 200) - long(Opts.BiasRange * 100)) / 100, .Layer = 1.,};
             newNeurons.push_back(tmpNeuron);
 
             for (auto &n: newNeurons) {
                 if (n.Layer == 0.) {
-                    Connection tmpConnection = {.ConnectedNeuronId= {n.Id, id}, .Weight = float(random() % (Opts.WeightRange * 200) - Opts.WeightRange * 100) / 100, .Enable = true,};
+                    Connection tmpConnection = {.ConnectedNeuronId= {n.Id, id}, .Weight = float(random() % long(Opts.WeightRange * 200) - long(Opts.WeightRange * 100)) / 100, .Enable = true,};
                     newConnections.push_back(tmpConnection);
                     //                    if (ConnectionInnovations.find({n.Id, tmpNeuron.Id}) == ConnectionInnovations.end()) {
                     //                        ConnectionInnovations[{n.Id, tmpNeuron.Id}] = ConnectionInnovations.size();
@@ -403,7 +403,7 @@ namespace znn {
 
         for (ulong i = 0; i < Opts.OutputSize; ++i) {
             ulong id = i + Opts.InputSize;
-            Neuron tmpNeuron = {.Id = id, .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100, .Layer = 1.,};
+            Neuron tmpNeuron = {.Id = id, .Bias = float(random() % long(Opts.BiasRange * 200) - long(Opts.BiasRange * 100)) / 100, .Layer = 1.,};
             newNeurons.push_back(tmpNeuron);
         }
 
@@ -414,7 +414,7 @@ namespace znn {
         for (ulong &l: Opts.FCNN_hideLayers) {
             thisLayer += layerStep;
             for (ulong i = 0; i < l; ++i) {
-                Neuron tmpNeuron = {.Id = id, .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) / 100, .Layer = thisLayer,};
+                Neuron tmpNeuron = {.Id = id, .Bias = float(random() % long(Opts.BiasRange * 200) - long(Opts.BiasRange * 100)) / 100, .Layer = thisLayer,};
                 newNeurons.push_back(tmpNeuron);
                 ++id;
             }
@@ -432,7 +432,7 @@ namespace znn {
             if (t.first != 0.) {
                 for (auto &n: t.second) {
                     for (auto &ln: tmpLayerMap[lastLayer]) {
-                        Connection tmpConnection = {.ConnectedNeuronId= {ln->Id, n->Id}, .Weight = float(random() % (Opts.WeightRange * 200) - Opts.WeightRange * 100) / 100, .Enable = true,};
+                        Connection tmpConnection = {.ConnectedNeuronId= {ln->Id, n->Id}, .Weight = float(random() % long(Opts.WeightRange * 200) - long(Opts.WeightRange * 100)) / 100, .Enable = true,};
                         newConnections.push_back(tmpConnection);
                     }
                 }
@@ -707,7 +707,7 @@ namespace znn {
             if (Opts.ShowCalc3dNN) {
                 for (auto &c: nn->Connections) {
                     if (nodId2Size[c.ConnectedNeuronId[0]] > 0.09f && nodId2Size[c.ConnectedNeuronId[1]] > 0.09f && c.Enable && c.Weight > 0.f) {
-                        connectedNodesInfo.push_back(lineInfo{c.ConnectedNeuronId[0], c.ConnectedNeuronId[1], c.Weight / Opts.WeightRange * 0.0045f + 0.0001f, ColorAlpha(WHITE, 0.3f)});
+                        connectedNodesInfo.push_back(lineInfo{c.ConnectedNeuronId[0], c.ConnectedNeuronId[1], c.Weight / Opts.WeightRange * 0.009f + 0.0001f, ColorAlpha(WHITE, 0.3f)});
                     }
                 }
             }
@@ -873,7 +873,7 @@ namespace znn {
 
         for (auto &connection: nn->Connections) { // 更新连接权重
             float newWeight = connection.Weight + Opts.LearnRate * tmpNodesOutputError[connection.ConnectedNeuronId[1]] * tmpNodesOutput[connection.ConnectedNeuronId[0]];
-            if (std::abs(newWeight) > float(Opts.WeightRange)) {
+            if (std::abs(newWeight) > Opts.WeightRange) {
 //                std::cerr << "Weight out of range: [" << connection.ConnectedNeuronId[0] << "," << connection.ConnectedNeuronId[1] << "], " << connection.Weight << " -> " << newWeight << "\n";
             } else {
                 connection.Weight = newWeight;
@@ -884,7 +884,7 @@ namespace znn {
         for (auto &n: nn->Neurons) { // 更新神经元偏置
             if (n.Layer != 0.) {
                 float newBias = n.Bias + Opts.LearnRate * tmpNodesOutputError[n.Id];
-                if (std::abs(newBias) > float(Opts.BiasRange)) {
+                if (std::abs(newBias) > Opts.BiasRange) {
 //                    std::cerr << "Bias out of range: [" << n.Id << "], " << n.Bias << " -> " << newBias << "\n";
                 } else {
                     n.Bias = newBias;
@@ -1033,7 +1033,7 @@ namespace znn {
         if (Opts.OutputSize > OutputSize) {
             for (ulong i = 0; i < Opts.OutputSize - OutputSize; ++i) {
                 newNeurons.push_back(
-                        Neuron{.Id = HiddenNeuronInnovations.size() + OutputSize + i + Opts.InputSize + FCHidenNeuronSize, .Bias = float(random() % (Opts.BiasRange * 200) - Opts.BiasRange * 100) /
+                        Neuron{.Id = HiddenNeuronInnovations.size() + OutputSize + i + Opts.InputSize + FCHidenNeuronSize, .Bias = float(random() % long(Opts.BiasRange * 200) - long(Opts.BiasRange * 100)) /
                                                                                                                                    100, .Layer = 1.,});
             }
         }

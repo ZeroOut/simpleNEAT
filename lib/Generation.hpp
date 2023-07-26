@@ -32,34 +32,34 @@ namespace znn {
     };
 
     void Generation::MutateWeightDirect(Connection &c) {
-        c.Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000.f;
+        c.Weight = float(random() % long(Opts.WeightRange * 2000000) - long(Opts.WeightRange * 1000000)) / 1000000.f;
     }
 
     void Generation::MutateWeightNear(Connection &c) {
         float tmpWeight = c.Weight + float(random() % (Opts.MutateWeightNearRange * 2000000) - Opts.MutateWeightNearRange * 1000000) / 1000000.f;
-        if (tmpWeight > float(Opts.WeightRange)) {
-            c.Weight = float(Opts.WeightRange);
+        if (tmpWeight > Opts.WeightRange) {
+            c.Weight = Opts.WeightRange;
             return;
         }
-        if (tmpWeight < -float(Opts.WeightRange)) {
-            c.Weight = -float(Opts.WeightRange);
+        if (tmpWeight < -Opts.WeightRange) {
+            c.Weight = -Opts.WeightRange;
             return;
         }
         c.Weight = tmpWeight;
     }
 
     void Generation::MutateBiasDirect(Neuron &o) {
-        o.Bias = float(random() % (Opts.BiasRange * 2000000) - Opts.BiasRange * 1000000) / 1000000;
+        o.Bias = float(random() % long(Opts.BiasRange * 2000000) - long(Opts.BiasRange * 1000000)) / 1000000;
     }
 
     void Generation::MutateBiasNear(Neuron &o) {
-        float tmpBias = o.Bias + float(random() % (Opts.MutateBiasNearRange * 2000000) - Opts.MutateBiasNearRange * 1000000) / 1000000.f;
-        if (tmpBias > float(Opts.BiasRange)) {
-            o.Bias = float(Opts.BiasRange);
+        float tmpBias = o.Bias + float(random() % long(Opts.MutateBiasNearRange * 2000000) - long(Opts.MutateBiasNearRange * 1000000)) / 1000000.f;
+        if (tmpBias > Opts.BiasRange) {
+            o.Bias = Opts.BiasRange;
             return;
         }
-        if (tmpBias < -float(Opts.BiasRange)) {
-            o.Bias = -float(Opts.BiasRange);
+        if (tmpBias < -Opts.BiasRange) {
+            o.Bias = -Opts.BiasRange;
             return;
         }
         o.Bias = tmpBias;
@@ -107,17 +107,17 @@ namespace znn {
 //            }
         }
 
-        Neuron newNeuron = {.Id = newNid, .Bias = float(random() % (Opts.BiasRange * 2000000) - Opts.BiasRange * 1000000) / 1000000.f, .Layer = (tmpNeuronMap[nid0]->Layer + tmpNeuronMap[nid1]->Layer) / 2.,};
+        Neuron newNeuron = {.Id = newNid, .Bias = float(random() % long(Opts.BiasRange * 2000000) - long(Opts.BiasRange * 1000000)) / 1000000.f, .Layer = (tmpNeuronMap[nid0]->Layer + tmpNeuronMap[nid1]->Layer) / 2.,};
         nn.Neurons.push_back(newNeuron);
 
         choosingConnection.Enable = false;  // 禁用此条连接
 
         Connection newConn0 = {  // 添加左侧连接
-                .ConnectedNeuronId = {nid0, newNid,}, .Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000.f, .Enable = true,};
+                .ConnectedNeuronId = {nid0, newNid,}, .Weight = float(random() % long(Opts.WeightRange * 2000000) - long(Opts.WeightRange * 1000000)) / 1000000.f, .Enable = true,};
         nn.Connections.push_back(newConn0);
 
         Connection newConn1 = {  // 添加右侧连接
-                .ConnectedNeuronId = {newNid, nid1,}, .Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000.f, .Enable = true,};
+                .ConnectedNeuronId = {newNid, nid1,}, .Weight = float(random() % long(Opts.WeightRange * 2000000) - long(Opts.WeightRange * 1000000)) / 1000000.f, .Enable = true,};
         nn.Connections.push_back(newConn1);
 
 //        mtx.lock();
@@ -149,7 +149,7 @@ namespace znn {
         }
 
         Connection newConn = {  // 添加连接
-                .ConnectedNeuronId = {nid0, nid1,}, .Weight = float(random() % (Opts.WeightRange * 2000000) - Opts.WeightRange * 1000000) / 1000000.f, .Enable = true,};
+                .ConnectedNeuronId = {nid0, nid1,}, .Weight = float(random() % long(Opts.WeightRange * 2000000) - long(Opts.WeightRange * 1000000)) / 1000000.f, .Enable = true,};
         nn.Connections.push_back(newConn);
 
 //        mtx.lock();
