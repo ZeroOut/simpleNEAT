@@ -115,8 +115,6 @@ raylib 实时显示神经网络结构
 
 ![image](img/09.png)
 
-![image](img/10.png)
-
 #### `MNIST` 的全连接神经网络训练与识别（test_train_MNIST_FC.cpp/test_deploy_MNIST.cpp）
 
 训练：
@@ -152,4 +150,4 @@ r: 1 i: 4000 0.953082
 1 - 1[0.97], 7[0.02], 2[0.01], 4[0.00], 8[0.00], 6[0.00], 3[0.00], 5[0.00], 9[0.00], 0[0.00],
 ```
 
-![image](img/11.png)
+![image](img/10.png)
