@@ -60,10 +60,14 @@ namespace znn {
         tPool.reset(Opts.ThreadCount);
         srandom((unsigned) clock());
 
+#ifndef NO_3DNN
+
         if (Opts.Enable3dNN) {
             std::thread show3d(znn::Show3dNN);
             show3d.detach();
         }
+
+#endif
 
         if (Opts.StartWithFCNN && Opts.FCNN_hideLayers.empty()) {
             std::cerr << "Opts.usingFCNN = " << Opts.StartWithFCNN << " and Opts.FCNN_hideLayers.size() = " << Opts.FCNN_hideLayers.size() << std::endl;
@@ -72,11 +76,17 @@ namespace znn {
     }
 
     NetworkGenome SimpleNeat::StartDeploy(std::string fileName) { // 在部署模式下开启3d显示，则强制将神经网络显示为计算时
+
+#ifndef NO_3DNN
+
         if (Opts.Enable3dNN) {
             Opts.ShowCalc3dNN = true;
             std::thread show3d(znn::Show3dNN);
             show3d.detach();
         }
+
+#endif
+
         return population.generation.neuralNetwork.ImportNN(fileName);
     }
 
@@ -193,10 +203,14 @@ namespace znn {
                 population.generation.neuralNetwork.ExportNN(compressedRightBestNN, "./champion");
                 population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
 
+#ifndef NO_3DNN
+
                 if (Opts.Enable3dNN && !Opts.ShowCalc3dNN) {
                     Update3dNN_Background(compressedRightBestNN, true);
                     std::cout << "需保持主线程不退出,防止3d显示bug\n";
                 }
+
+#endif
 
                 return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
                         //                        .NN = *orderedPopulation[0],
@@ -255,9 +269,13 @@ namespace znn {
 
             tPool.wait_for_tasks();
 
+#ifndef NO_3DNN
+
             if (Opts.Enable3dNN && !Opts.ShowCalc3dNN) {
                 Update3dNN_Background(*orderedPopulation[0], false);
             }
+
+#endif
 
             population.NeuralNetworks = tmpPopulation;
 
@@ -296,10 +314,14 @@ namespace znn {
         population.generation.neuralNetwork.ExportNN(compressedRightBestNN, "./champion");
         population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
 
+#ifndef NO_3DNN
+
         if (Opts.Enable3dNN && !Opts.ShowCalc3dNN) {
             Update3dNN_Background(compressedRightBestNN, true);
             std::cout << "需保持主线程不退出,防止3d显示bug\n";
         }
+
+#endif
 
         return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
                 //                        .NN = *orderedPopulation[0],
@@ -344,10 +366,14 @@ namespace znn {
                 population.generation.neuralNetwork.ExportNN(compressedRightBestNN, "./champion");
                 population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
 
+#ifndef NO_3DNN
+
                 if (Opts.Enable3dNN && !Opts.ShowCalc3dNN) {
                     Update3dNN_Background(compressedRightBestNN, true);
                     std::cout << "需保持主线程不退出,防止3d显示bug\n";
                 }
+
+#endif
 
                 return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
                         //                        .NN = *orderedPopulation[0],
@@ -407,9 +433,13 @@ namespace znn {
 
             tPool.wait_for_tasks();
 
+#ifndef NO_3DNN
+
             if (Opts.Enable3dNN && !Opts.ShowCalc3dNN) {
                 Update3dNN_Background(*orderedPopulation[0], false);
             }
+
+#endif
 
             population.NeuralNetworks = tmpPopulation;
 
@@ -433,10 +463,14 @@ namespace znn {
         population.generation.neuralNetwork.ExportNN(compressedRightBestNN, "./champion");
         population.generation.neuralNetwork.ExportNNToDot(compressedRightBestNN, "./champion");
 
+#ifndef NO_3DNN
+
         if (Opts.Enable3dNN && !Opts.ShowCalc3dNN) {
             Update3dNN_Background(compressedRightBestNN, true);
             std::cout << "需保持主线程不退出,防止3d显示bug\n";
         }
+
+#endif
 
         return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
                 //                        .NN = *orderedPopulation[0],

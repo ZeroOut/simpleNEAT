@@ -40,6 +40,9 @@ namespace znn {
         float LearnRate = 0.3f;
         uint ThreadCount = std::thread::hardware_concurrency();
         bool SaveEveryTime = true;
+
+#ifndef NO_3DNN
+
         bool Enable3dNN = false;
         bool ShowCalc3dNN = false;
         float X_Interval3d = 1.f;
@@ -48,6 +51,8 @@ namespace znn {
         uint Update3dIntercalMs = 1000;
         int ScreenWidth = 960;
         int ScreenHeight = 720;
+
+#endif
 
         bool StartWithFCNN = false;
         std::vector<ulong> FCNN_hideLayers;  // TODO: 断点续训练的时候，如果设置了每一代新建神经网络，则需要判断初始神经网络是不是多层全连接
