@@ -21,12 +21,13 @@
 * g++
 
 ```bash
-g++ -lraylib -std=c++23 -O2 xxx.cpp
+g++ -lraylib -std=c++23 -O2 xxx.cpp -o xxx
 ```
 
 * cmake
 
 ```cmake
+set(CMAKE_CXX_STANDARD 23)
 add_executable(xxx xxx.cpp)
 target_link_libraries(xxx raylib)
 ```
@@ -36,12 +37,13 @@ target_link_libraries(xxx raylib)
 * g++
 
 ```bash
-g++ -DNO_3DNN -std=c++23 -O2 xxx.cpp
+g++ -DNO_3DNN -std=c++23 -O2 xxx.cpp -o xxx
 ```
 
 * cmake
 
 ```cmake
+set(CMAKE_CXX_STANDARD 23)
 add_executable(xxx xxx.cpp)
 target_compile_definitions(xxx PRIVATE NO_3DNN)
 ```
