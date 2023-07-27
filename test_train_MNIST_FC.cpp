@@ -7,15 +7,16 @@ int main() {
     znn::Opts.ActiveFunction = znn::Sigmoid;
     znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
     znn::Opts.ThreadCount = 16;
-    znn::Opts.FCNN_hideLayers = {30};
+    znn::Opts.FCNN_hideLayers = {40};
     znn::Opts.FitnessThreshold = 0.999f;
     znn::Opts.LearnRate = 1.f;
     znn::Opts.Update3dIntercalMs = 1000;
-    znn::Opts.IterationTimes = 1000;
     znn::Opts.Enable3dRandPos = false;
     znn::Opts.Enable3dNN = false;
     znn::Opts.WeightRange = 1.f;
     znn::Opts.BiasRange = 3.f;
+
+    float batchSize = 1000;
 
     znn::SimpleNeat sneat;
     znn::NetworkGenome NN = sneat.population.generation.neuralNetwork.NewFCNN();
@@ -59,8 +60,7 @@ int main() {
         ++rounds;
         fitness = 0.f;
 
-        for (int i = 0; i < znn::Opts.IterationTimes; ++i) {
-
+        for (int i = 0; i < batchSize; ++i) {
             std::vector<float> prepairedInput = inputs[random() % inputs.size()];
 
             if (random() % 100 < 50) {
@@ -75,15 +75,14 @@ int main() {
             fitness += znn::GetPrecision(thisOutputs, wanted[i]);
 
             if (i % 100 == 0) {
-                std::cout << "r: " << rounds << " i: " << i << " " << fitness / float(i + 1) << "\n";
-
                 if (znn::Opts.Enable3dNN) {
                     znn::tPool.push_task(znn::Update3dNN, NN, false);
                 }
             }
         }
+        fitness /= float(batchSize);
 
-        fitness /= float(znn::Opts.IterationTimes);
+        std::cout << "r: " << rounds << " f: " << fitness << "\n";
 
         sneat.population.generation.neuralNetwork.ExportNN(NN, "MNIST");
         sneat.population.generation.neuralNetwork.ExportInnovations("MNIST");

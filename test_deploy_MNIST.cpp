@@ -124,12 +124,13 @@ int main() {
             //        std::vector<float> thisInput(d.begin() + 1, d.end());
             std::vector<float> thisInput;
             for (uint i = 0; i < 784; ++i) {
-                if (chooseData[i + 1] > 0.f) {
+                if (chooseData[i + 1] > 0.f && (chooseData[i + 1] > 204.f && random() % 100 < 50)) {
                     thisInput.push_back(chooseData[i + 1] / 255.f);
                 } else {
                     thisInput.push_back(0.f);
                 }
             }
+
             inputData = thisInput;  // auto test
             for (uint b = 0; b < blocks.size(); ++b) {  // auto test
                 if (inputData[b + 1] > 0.f) {
