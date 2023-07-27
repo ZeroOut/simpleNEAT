@@ -121,7 +121,7 @@ namespace znn {
                         uint column = 0;
 
                         for (ulong i = 0; i < l2i.second.size(); ++i) {
-                            if (!Opts.ShowCalc3dNN) {
+                            if (!Opts.EnableCalc3dNN) {
                                 if (l2i.first == 0.f) {
                                     NodId2Color[l2i.second[i]] = BLUE;
                                     NodId2Size[l2i.second[i]] = 0.1f;
@@ -139,10 +139,10 @@ namespace znn {
                             thisY = startY + Opts.Zy_Interval3d * float(column);
 
                             if (Opts.Enable3dRandPos) {
-                                nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size()-1) * Opts.X_Interval3d / 2.f + nodeId2RandPosDiff[l2i.second[i]].x * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount, -thisY + nodeId2RandPosDiff[l2i.second[i]].y * Opts.Zy_Interval3d,
+                                nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f + nodeId2RandPosDiff[l2i.second[i]].x * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount, -thisY + nodeId2RandPosDiff[l2i.second[i]].y * Opts.Zy_Interval3d,
                                                              thisZ + nodeId2RandPosDiff[l2i.second[i]].z * Opts.Zy_Interval3d};
                             } else {
-                                nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size()-1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, -thisY, thisZ};
+                                nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, -thisY, thisZ};
                             }
 
                             thisZ += Opts.Zy_Interval3d;
@@ -162,7 +162,7 @@ namespace znn {
                             NodId2Color[l2i.second[i]] = RED;
                             NodId2Size[l2i.second[i]] = 0.1f;
                             float thisZ = startZ + Opts.Zy_Interval3d * float(i);
-                            nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size()-1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, 0.f, thisZ};
+                            nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, 0.f, thisZ};
                         }
                     }
                     ++layerCount;
@@ -174,7 +174,7 @@ namespace znn {
                 mtx.unlock();
             }
 
-            if (!Opts.ShowCalc3dNN) {
+            if (!Opts.EnableCalc3dNN) {
                 std::vector<lineInfo> connectedNodesInfo;
                 for (auto &conn: NN.Connections) {
                     if (conn.Enable) {
@@ -599,8 +599,7 @@ namespace znn {
         }
 
         if (tmpLayerMap[0.].size() != Opts.InputSize || tmpLayerMap[1.].size() != Opts.OutputSize) {
-            std::cerr << "NeuralNetwork Nodes Error: Opts.InputSize " << Opts.InputSize << " Input Layer Size: " << tmpLayerMap[0.].size() << " Opts.OutputSize: " << Opts.OutputSize
-                      << " Output Layer Size: " << tmpLayerMap[1.].size() << std::endl;
+            std::cerr << "NeuralNetwork Nodes Error: Opts.InputSize " << Opts.InputSize << " Input Layer Size: " << tmpLayerMap[0.].size() << " Opts.OutputSize: " << Opts.OutputSize << " Output Layer Size: " << tmpLayerMap[1.].size() << std::endl;
             std::exit(0);
         }
 
@@ -674,10 +673,9 @@ namespace znn {
 #ifndef NO_3DNN
 
         mtx.lock();
-        if (Opts.Enable3dNN && Opts.ShowCalc3dNN && !update3dCalcLock) {
+        if (Opts.Enable3dNN && Opts.EnableCalc3dNN && !update3dCalcLock) {
             update3dCalcLock = true;
             mtx.unlock();
-
 
             std::unordered_map<ulong, Color> nodId2Color;
             std::unordered_map<ulong, float> nodId2Size;
@@ -704,7 +702,7 @@ namespace znn {
 
             std::vector<lineInfo> connectedNodesInfo;
 
-            if (Opts.ShowCalc3dNN) {
+            if (Opts.EnableCalc3dNN) {
                 for (auto &c: nn->Connections) {
                     if (nodId2Size[c.ConnectedNeuronId[0]] > 0.1f && nodId2Size[c.ConnectedNeuronId[1]] > 0.1f && c.Enable && c.Weight > 0.f) {
                         connectedNodesInfo.push_back(lineInfo{c.ConnectedNeuronId[0], c.ConnectedNeuronId[1], c.Weight / Opts.WeightRange * 0.009f + 0.0001f, ColorAlpha(WHITE, 0.3f)});
@@ -737,8 +735,7 @@ namespace znn {
         return outputs;
     };
 
-    std::vector<float> NeuralNetwork::BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants,
-                                                      bool isAccelerate) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回计算结果, 在使用CPU多核运算时，由于多线程开销问题，神经网络结构太简单反而会运算得更慢 TODO: 权重和偏置范围该怎么限制?丢弃?
+    std::vector<float> NeuralNetwork::BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants, bool isAccelerate) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回计算结果, 在使用CPU多核运算时，由于多线程开销问题，神经网络结构太简单反而会运算得更慢 TODO: 权重和偏置范围该怎么限制?丢弃?
         std::unordered_map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
         std::map<double, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
@@ -911,13 +908,11 @@ namespace znn {
             std::string line;
             std::stringstream streamBias;
             if (n.Layer == 0.) {
-                line = "    subgraph cluster0{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightblue,style=filled,shape=component,width=1,height=1,label=\"Input_" +
-                       std::to_string(inId) + "\"]}\n";
+                line = "    subgraph cluster0{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightblue,style=filled,shape=component,width=1,height=1,label=\"Input_" + std::to_string(inId) + "\"]}\n";
                 ++inId;
             } else if (n.Layer == 1.) {
                 streamBias << std::setprecision(3) << n.Bias;
-                line = "    subgraph cluster1{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightgray,style=filled,shape=diamond,width=1,height=1,label=\"Output_" +
-                       std::to_string(outId) + "\\n(" + streamBias.str() + ")\"]}\n";
+                line = "    subgraph cluster1{" + std::to_string(n.Id) + " [fontsize=24,width=0,height=0,color=lightgray,style=filled,shape=diamond,width=1,height=1,label=\"Output_" + std::to_string(outId) + "\\n(" + streamBias.str() + ")\"]}\n";
                 ++outId;
             } else {
                 streamBias << std::setprecision(3) << n.Bias;
@@ -1032,9 +1027,7 @@ namespace znn {
 
         if (Opts.OutputSize > OutputSize) {
             for (ulong i = 0; i < Opts.OutputSize - OutputSize; ++i) {
-                newNeurons.push_back(
-                        Neuron{.Id = HiddenNeuronInnovations.size() + OutputSize + i + Opts.InputSize + FCHidenNeuronSize, .Bias = float(random() % long(Opts.BiasRange * 200) - long(Opts.BiasRange * 100)) /
-                                                                                                                                   100, .Layer = 1.,});
+                newNeurons.push_back(Neuron{.Id = HiddenNeuronInnovations.size() + OutputSize + i + Opts.InputSize + FCHidenNeuronSize, .Bias = float(random() % long(Opts.BiasRange * 200) - long(Opts.BiasRange * 100)) / 100, .Layer = 1.,});
             }
         }
 

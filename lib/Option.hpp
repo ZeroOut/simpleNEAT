@@ -32,7 +32,7 @@ namespace znn {
         float MutateBiasRate = 0.1f;
         float MutateBiasNearRange = 2;
         float MutateBiasDirectOrNear = 0.5f;
-        float BiasRange = 3.f;
+        float BiasRange = 1.f;
         float MutateAddNeuronRate = 0.003f;
         float MutateAddConnectionRate = 0.5f;
         float MutateEnableConnectionRate = 0.3f;
@@ -43,8 +43,8 @@ namespace znn {
 
 #ifndef NO_3DNN
 
-        bool Enable3dNN = false;
-        bool ShowCalc3dNN = false;
+        bool Enable3dNN = true;
+        bool EnableCalc3dNN = false;
         float X_Interval3d = 1.f;
         float Zy_Interval3d = 1.f;
         bool Enable3dRandPos = true;

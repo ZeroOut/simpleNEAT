@@ -6,7 +6,7 @@
 int main() {
     // Window
     sf::RenderWindow window(sf::VideoMode(1024, 1024), "classification", sf::Style::Titlebar | sf::Style::Close);
-    window.setFramerateLimit(30);
+    window.setFramerateLimit(60);
 
     sf::Event ev{};
 
@@ -103,8 +103,8 @@ int main() {
             znn::Opts.MutateBiasDirectOrNear = 0.36f;
             znn::Opts.LearnRate = 0.3f;
             znn::Opts.Enable3dNN = true;
-//            znn::Opts.StartWithFCNN = true;
-//            znn::Opts.FCNN_hideLayers = {8, 8};
+            znn::Opts.StartWithFCNN = true;
+            znn::Opts.FCNN_hideLayers = {8, 8};
             znn::Opts.Update3dIntercalMs = 100;
             znn::Opts.X_Interval3d = 0.3f;
             znn::Opts.Zy_Interval3d = 1.5f;
@@ -181,7 +181,9 @@ int main() {
 
 
         // Render
-//        window.clear(sf::Color(0, 0, 0, 255)); // Clear old frame
+        window.clear(sf::Color(0, 0, 0, 255)); // Clear old frame
+
+        auto nn = choosingNN;
 
         // Draw game
         for (auto &b: blocks) {
@@ -189,7 +191,7 @@ int main() {
             pos.x += 8.f;
             pos.y += 8.f;
             if (isTrainingStart && !markedBlocks.contains({pos.x, pos.y})) {
-                auto outputs = sneat.population.generation.neuralNetwork.FeedForwardPredict(&choosingNN, {pos.x / 1024.f, pos.y / 1024.f}, false);
+                auto outputs = sneat.population.generation.neuralNetwork.FeedForwardPredict(&nn, {pos.x / 1024.f, pos.y / 1024.f}, false);
                 switch (outputLen) {
                     case 2: {
                         auto thisValue = int(outputs[0] / (outputs[0] + outputs[1]) * 255);

@@ -11,6 +11,7 @@ int main() {
     znn::Opts.FitnessThreshold = 0.999f;
     znn::Opts.LearnRate = 1.f;
     znn::Opts.Update3dIntercalMs = 1000;
+    znn::Opts.IterationTimes = 1000;
     znn::Opts.Enable3dRandPos = false;
     znn::Opts.Enable3dNN = false;
     znn::Opts.WeightRange = 1.f;
@@ -58,13 +59,22 @@ int main() {
         ++rounds;
         fitness = 0.f;
 
-        for (int i = 0; i < inputs.size(); ++i) {
-            std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.BackPropagation(&NN, inputs[i], wanted[i], true);
+        for (int i = 0; i < znn::Opts.IterationTimes; ++i) {
+
+            std::vector<float> prepairedInput = inputs[random() % inputs.size()];
+
+            if (random() % 100 < 50) {
+                for (uint ii = 0; ii < inputs[i].size(); ++ii) {
+                    if (inputs[i][ii] > 0.8f) {
+                        prepairedInput[ii] = inputs[i][ii];
+                    }
+                }
+            }
+
+            std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.BackPropagation(&NN, prepairedInput, wanted[i], true);
             fitness += znn::GetPrecision(thisOutputs, wanted[i]);
 
-            if (i % 1000 == 0) {
-                sneat.population.generation.neuralNetwork.ExportNN(NN, "MNIST");
-                sneat.population.generation.neuralNetwork.ExportInnovations("MNIST");
+            if (i % 100 == 0) {
                 std::cout << "r: " << rounds << " i: " << i << " " << fitness / float(i + 1) << "\n";
 
                 if (znn::Opts.Enable3dNN) {
@@ -72,13 +82,11 @@ int main() {
                 }
             }
         }
-        fitness /= float(inputs.size());
 
-//        sneat.population.generation.neuralNetwork.ExportNN(NN, "MNIST");
-//        sneat.population.generation.neuralNetwork.ExportInnovations("MNIST");
+        fitness /= float(znn::Opts.IterationTimes);
 
-        std::cout << "r: " << rounds << " " << fitness << "\n----------------------------------------\n";
-//        break;
+        sneat.population.generation.neuralNetwork.ExportNN(NN, "MNIST");
+        sneat.population.generation.neuralNetwork.ExportInnovations("MNIST");
     }
 
     std::cout << "finished rounds: " << rounds << " " << fitness << "\n";

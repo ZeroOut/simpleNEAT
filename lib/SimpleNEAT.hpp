@@ -80,7 +80,7 @@ namespace znn {
 #ifndef NO_3DNN
 
         if (Opts.Enable3dNN) {
-            Opts.ShowCalc3dNN = true;
+            Opts.EnableCalc3dNN = true;
             std::thread show3d(znn::Show3dNN);
             show3d.detach();
         }
@@ -205,7 +205,7 @@ namespace znn {
 
 #ifndef NO_3DNN
 
-                if (Opts.Enable3dNN && !Opts.ShowCalc3dNN) {
+                if (Opts.Enable3dNN && !Opts.EnableCalc3dNN) {
                     Update3dNN_Background(compressedRightBestNN, true);
                     std::cout << "需保持主线程不退出,防止3d显示bug\n";
                 }
@@ -271,7 +271,7 @@ namespace znn {
 
 #ifndef NO_3DNN
 
-            if (Opts.Enable3dNN && !Opts.ShowCalc3dNN) {
+            if (Opts.Enable3dNN && !Opts.EnableCalc3dNN) {
                 Update3dNN_Background(*orderedPopulation[0], false);
             }
 
@@ -316,7 +316,7 @@ namespace znn {
 
 #ifndef NO_3DNN
 
-        if (Opts.Enable3dNN && !Opts.ShowCalc3dNN) {
+        if (Opts.Enable3dNN && !Opts.EnableCalc3dNN) {
             Update3dNN_Background(compressedRightBestNN, true);
             std::cout << "需保持主线程不退出,防止3d显示bug\n";
         }
@@ -368,7 +368,7 @@ namespace znn {
 
 #ifndef NO_3DNN
 
-                if (Opts.Enable3dNN && !Opts.ShowCalc3dNN) {
+                if (Opts.Enable3dNN && !Opts.EnableCalc3dNN) {
                     Update3dNN_Background(compressedRightBestNN, true);
                     std::cout << "需保持主线程不退出,防止3d显示bug\n";
                 }
@@ -435,7 +435,7 @@ namespace znn {
 
 #ifndef NO_3DNN
 
-            if (Opts.Enable3dNN && !Opts.ShowCalc3dNN) {
+            if (Opts.Enable3dNN && !Opts.EnableCalc3dNN) {
                 Update3dNN_Background(*orderedPopulation[0], false);
             }
 
@@ -465,7 +465,7 @@ namespace znn {
 
 #ifndef NO_3DNN
 
-        if (Opts.Enable3dNN && !Opts.ShowCalc3dNN) {
+        if (Opts.Enable3dNN && !Opts.EnableCalc3dNN) {
             Update3dNN_Background(compressedRightBestNN, true);
             std::cout << "需保持主线程不退出,防止3d显示bug\n";
         }

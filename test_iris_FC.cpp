@@ -6,9 +6,9 @@ int main() {
     znn::Opts.OutputSize = 3;
     znn::Opts.ActiveFunction = znn::Sigmoid;
     znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
-    znn::Opts.FCNN_hideLayers = {16, 16};
-    znn::Opts.FitnessThreshold = 0.99f;
-    znn::Opts.LearnRate = 0.3f;
+    znn::Opts.FCNN_hideLayers = {32, 32};
+    znn::Opts.FitnessThreshold = 0.999f;
+    znn::Opts.LearnRate = 1.f;
     znn::Opts.Update3dIntercalMs = 100;
     znn::Opts.Enable3dRandPos = false;
     znn::Opts.X_Interval3d = 1.5f;
