@@ -63,10 +63,10 @@ int main() {
         for (int i = 0; i < batchSize; ++i) {
             std::vector<float> prepairedInput = inputs[random() % inputs.size()];
 
-            if (random() % 100 < 50) {
+            if (random() % 100 < 25) {
                 for (uint ii = 0; ii < inputs[i].size(); ++ii) {
-                    if (inputs[i][ii] > 0.8f) {
-                        prepairedInput[ii] = inputs[i][ii];
+                    if (inputs[i][ii] < 0.8f) {
+                        prepairedInput[ii] = 0.f;
                     }
                 }
             }

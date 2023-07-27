@@ -52,8 +52,6 @@ int main() {
 
     auto lastTime = std::chrono::system_clock::now();
 
-    int choosenIndex;
-
     //Gmae Loop
     while (window.isOpen()) {
         while (window.pollEvent(ev)) {
@@ -77,7 +75,6 @@ int main() {
                             isAutoTest = true;
                             isStart = true;
                             window.setFramerateLimit(1);
-                            choosenIndex = random() % 42000;
                             znn::Opts.Update3dIntercalMs = 900;
                             break;
                         }
@@ -118,24 +115,26 @@ int main() {
             for (uint b = 0; b < blocks.size(); ++b) {  // auto test
                 blocks[b].setFillColor(sf::Color::Black);
             }
-            auto chooseData = trainData[++choosenIndex % 42000];  // auto test
-            int number = chooseData[0];  // auto test
+            auto chooseData = trainData[random() % trainData.size()];  // auto test
+            int number = int(chooseData[0]);  // auto test
             std::printf("%d - ", number);
-            //        std::vector<float> thisInput(d.begin() + 1, d.end());
+
             std::vector<float> thisInput;
-            for (uint i = 0; i < 784; ++i) {
-                if (chooseData[i + 1] > 0.f && (chooseData[i + 1] > 204.f && random() % 100 < 50)) {
-                    thisInput.push_back(chooseData[i + 1] / 255.f);
-                } else {
+
+            for (uint ii = 0; ii < inputData.size(); ++ii) {
+                if (random() % 100 < 25 && chooseData[ii + 1] < 204.f) {
                     thisInput.push_back(0.f);
+                } else {
+                    thisInput.push_back(chooseData[ii + 1] / 255.f);
                 }
             }
 
             inputData = thisInput;  // auto test
+
             for (uint b = 0; b < blocks.size(); ++b) {  // auto test
-                if (inputData[b + 1] > 0.f) {
-                    blocks[b].setFillColor(sf::Color(int(inputData[b + 1] * 255.f), int(inputData[b + 1] * 255.f), int(inputData[b + 1] * 255.f), 255));
-//                    blocks[b].setFillColor(sf::Color(255, 255, 255, 255));
+                if (inputData[b] > 0.f) {
+                    blocks[b].setFillColor(sf::Color(int(inputData[b] * 255.f), int(inputData[b] * 255.f), int(inputData[b] * 255.f), 255));
+                    //                    blocks[b].setFillColor(sf::Color(255, 255, 255, 255));
                     markedBlocks[&blocks[b]] = 1;
                 }
             }
