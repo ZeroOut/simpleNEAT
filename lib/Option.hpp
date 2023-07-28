@@ -24,6 +24,7 @@ namespace znn {
         uint KeepComplexSize = 1;
         std::function<float(float)> ActiveFunction = Sigmoid;
         std::function<float(float)> DerivativeFunction = DerivativeSigmoid;
+        std::function<float(std::vector<float>, std::vector<float>)> PrecisionFunction = StandardDeviation;
         float FitnessThreshold = 0.99f; // 如果<=0则不启用
         float MutateWeightRate = 0.1f;
         int MutateWeightNearRange = 2;
@@ -44,10 +45,11 @@ namespace znn {
 #ifndef NO_3DNN
 
         bool Enable3dNN = true;
-        bool EnableCalc3dNN = false;
+        bool Enable3dCalc = false;
         float X_Interval3d = 1.f;
         float Zy_Interval3d = 1.f;
         bool Enable3dRandPos = true;
+        bool Enable3dOutputOneLine = true;
         uint Update3dIntercalMs = 1000;
         int ScreenWidth = 960;
         int ScreenHeight = 720;

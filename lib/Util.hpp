@@ -11,14 +11,14 @@
 #include <random>
 
 namespace znn {
-    float Tanh(float x) {
-//        return (exp(x) - exp(-x)) / (exp(x) + exp(-x));
-        return 2.f / (1.f + std::exp(-2.f * x)) - 1.f;
-    }
-
-    float DerivativeTanh(float fx) {
-        return 1.f - std::pow(fx, 2.f);
-    }
+//    float Tanh(float x) {
+////        return (exp(x) - exp(-x)) / (exp(x) + exp(-x));
+//        return 2.f / (1.f + std::exp(-2.f * x)) - 1.f;
+//    }
+//
+//    float DerivativeTanh(float fx) {
+//        return 1.f - std::pow(fx, 2.f);
+//    }
 
     float Sigmoid(float x) {
         return 1.f / (1.f + std::exp(-x));
@@ -55,7 +55,15 @@ namespace znn {
         return 0.5f;
     }
 
-    float StandardDeviation(std::vector<float> outputs, std::vector<float> wantedOutputs) {
+    float AbsoluteDeviation(std::vector<float> outputs, std::vector<float> wantedOutputs) {
+        float result = 0.f;
+        for (uint i = 0; i < outputs.size(); ++i) {
+            result += std::abs(wantedOutputs[i] - outputs[i]);
+        }
+        return result / float(outputs.size());
+    }
+
+    float Variance(std::vector<float> outputs, std::vector<float> wantedOutputs) {
         float result = 0.f;
         for (uint i = 0; i < outputs.size(); ++i) {
             result += std::pow(wantedOutputs[i] - outputs[i], 2.f);
@@ -63,14 +71,13 @@ namespace znn {
         return result / float(outputs.size());
     }
 
-    float GetPrecision(std::vector<float> outputs, std::vector<float> wantedOutputs) {
-        return 1.f - StandardDeviation(outputs, wantedOutputs);
+    float StandardDeviation(std::vector<float> outputs, std::vector<float> wantedOutputs) {
+        return std::sqrt(Variance(outputs, wantedOutputs));
     }
 
     std::vector<std::string> SplitString(std::string &target, std::string delimiter) {
         std::vector<std::string> vs;
         size_t pos{};
-//        for (size_t fd = 0; (fd = target.find(delimiter, pos)) != std::string::npos; pos = fd + delimiter.size()) {
         for (size_t fd = 0; (fd = target.find(delimiter, pos)) != std::string::npos; pos = fd + delimiter.size()) {
             vs.emplace_back(target.data() + pos, target.data() + fd);
         }

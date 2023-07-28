@@ -55,7 +55,7 @@ namespace znn {
     NetworkGenome last3dNN;
     bool canClose3dNN = false;  // 用于中途关闭3d显示
     bool reRandomPosition = true;
-    bool isOutputNodePosRand = false;
+    bool isInputNodePosRand = false;
 
     bool isLast3dNN(NetworkGenome &NN) {
         if (NN.Neurons.size() != last3dNN.Neurons.size()) {
@@ -96,20 +96,20 @@ namespace znn {
 
                 if (Opts.Enable3dRandPos && (!isLastNN || reRandomPosition)) {
                     for (auto &nn: NN.Neurons) {
-                        if ((nn.Layer == 0.f && !isOutputNodePosRand) || (nn.Layer > 0.f && nn.Layer < 1.f)) {
+                        if ((nn.Layer == 0.f && !isInputNodePosRand) || (nn.Layer > 0.f && nn.Layer < 1.f)) {
                             nodeId2RandPosDiff[nn.Id] = {float(random() % 30) / 100.f - 0.15f, float(random() % 30) / 100.f - 0.15f, float(random() % 30) / 100.f - 0.15f};
                         }
                     }
 
-                    if (!isOutputNodePosRand) {
-                        isOutputNodePosRand = true;
+                    if (!isInputNodePosRand) {
+                        isInputNodePosRand = true;
                     }
                 }
 
                 std::unordered_map<ulong, Vector3> nodeId2Pos;
 
                 for (auto &l2i: layer2Ids) {
-                    if (l2i.first != 1.f) {
+                    if (l2i.first != 1.f || !Opts.Enable3dOutputOneLine) {
                         uint rows = uint(std::sqrt(float(l2i.second.size())));
                         uint columns = uint(l2i.second.size() / rows);
                         uint lastColumnsCount = l2i.second.size() % columns;
@@ -121,7 +121,7 @@ namespace znn {
                         uint column = 0;
 
                         for (ulong i = 0; i < l2i.second.size(); ++i) {
-                            if (!Opts.EnableCalc3dNN) {
+                            if (!Opts.Enable3dCalc) {
                                 if (l2i.first == 0.f) {
                                     NodId2Color[l2i.second[i]] = BLUE;
                                     NodId2Size[l2i.second[i]] = 0.1f;
@@ -138,7 +138,7 @@ namespace znn {
 
                             thisY = startY + Opts.Zy_Interval3d * float(column);
 
-                            if (Opts.Enable3dRandPos) {
+                            if (Opts.Enable3dRandPos && l2i.first != 1.f) {
                                 nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f + nodeId2RandPosDiff[l2i.second[i]].x * Opts.X_Interval3d) + Opts.X_Interval3d * layerCount, -thisY + nodeId2RandPosDiff[l2i.second[i]].y * Opts.Zy_Interval3d,
                                                              thisZ + nodeId2RandPosDiff[l2i.second[i]].z * Opts.Zy_Interval3d};
                             } else {
@@ -174,7 +174,7 @@ namespace znn {
                 mtx.unlock();
             }
 
-            if (!Opts.EnableCalc3dNN) {
+            if (!Opts.Enable3dCalc) {
                 std::vector<lineInfo> connectedNodesInfo;
                 for (auto &conn: NN.Connections) {
                     if (conn.Enable) {
@@ -673,7 +673,7 @@ namespace znn {
 #ifndef NO_3DNN
 
         mtx.lock();
-        if (Opts.Enable3dNN && Opts.EnableCalc3dNN && !update3dCalcLock) {
+        if (Opts.Enable3dNN && Opts.Enable3dCalc && !update3dCalcLock) {
             update3dCalcLock = true;
             mtx.unlock();
 
@@ -685,7 +685,7 @@ namespace znn {
                     if (tmpNeuronMap[n.first]->Layer == 0.f || tmpNeuronMap[n.first]->Layer == 1.f) {
                         nodId2Color[n.first] = WHITE;
                     } else {
-                        nodId2Color[n.first] = GRAY;
+                        nodId2Color[n.first] = YELLOW;
                     }
                     nodId2Size[n.first] = 0.1f * (n.second + 0.9f);
                 } else {
@@ -694,7 +694,7 @@ namespace znn {
                     } else if (tmpNeuronMap[n.first]->Layer == 1.f) {
                         nodId2Color[n.first] = RED;
                     } else {
-                        nodId2Color[n.first] = YELLOW;
+                        nodId2Color[n.first] = GRAY;
                     }
                     nodId2Size[n.first] = 0.1f;
                 }
@@ -702,7 +702,7 @@ namespace znn {
 
             std::vector<lineInfo> connectedNodesInfo;
 
-            if (Opts.EnableCalc3dNN) {
+            if (Opts.Enable3dCalc) {
                 for (auto &c: nn->Connections) {
                     if (nodId2Size[c.ConnectedNeuronId[0]] > 0.1f && nodId2Size[c.ConnectedNeuronId[1]] > 0.1f && c.Enable && c.Weight > 0.f) {
                         connectedNodesInfo.push_back(lineInfo{c.ConnectedNeuronId[0], c.ConnectedNeuronId[1], c.Weight / Opts.WeightRange * 0.009f + 0.0001f, ColorAlpha(WHITE, 0.3f)});

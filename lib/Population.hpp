@@ -41,6 +41,10 @@ namespace znn {
         }
     }
 
+    float GetPrecision(std::vector<float> outputs, std::vector<float> wantedOutputs) {
+        return 1.f - Opts.PrecisionFunction(outputs, wantedOutputs);
+    }
+
     std::unordered_map<NetworkGenome *, float> Population::CalculateFitnessByWanted(std::vector<std::vector<float>> inputs, std::vector<std::vector<float>> wantedOutputs) {  // 二维数组，第一维是实验次数，第二维输入和预期输出
         std::unordered_map<NetworkGenome *, float> populationFitness;
 
