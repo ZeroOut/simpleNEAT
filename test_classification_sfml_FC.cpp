@@ -83,15 +83,15 @@ int main() {
             znn::Opts.OutputSize = outputLen;
             znn::Opts.ActiveFunction = znn::Sigmoid;
             znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
-            znn::Opts.FCNN_hideLayers = {40, 20};
-            znn::Opts.FitnessThreshold = 0.99f;
-            znn::Opts.LearnRate = 0.3f;
+            znn::Opts.FCNN_hideLayers = {25, 25};
+            znn::Opts.FitnessThreshold = 0.999f;
+            znn::Opts.LearnRate = 0.9f;
             znn::Opts.Update3dIntercalMs = 100;
             znn::Opts.Enable3dRandPos = false;
             znn::Opts.Enable3dNN = true;
-            znn::Opts.EnableCalc3dNN = true;
+            znn::Opts.Enable3dCalc = true;
             znn::Opts.X_Interval3d = 1.5f;
-            znn::Opts.WeightRange = 3.f;
+            znn::Opts.WeightRange = 6.f;
             znn::Opts.BiasRange = 3.f;
 
             NN = sneat.population.generation.neuralNetwork.NewFCNN();

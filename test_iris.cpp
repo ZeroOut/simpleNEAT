@@ -24,7 +24,7 @@ int main() {
     znn::Opts.MutateBiasRate = 1.f;
     znn::Opts.MutateWeightRate = 1.f;
     znn::Opts.Enable3dNN = true;
-    znn::Opts.EnableCalc3dNN = false;
+    znn::Opts.Enable3dCalc = false;
     znn::Opts.Update3dIntercalMs = 300;
     znn::Opts.StartWithFCNN = false;
 
