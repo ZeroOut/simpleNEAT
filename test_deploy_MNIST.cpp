@@ -120,10 +120,10 @@ int main() {
             std::printf("%d - ", number);
 
             std::vector<float> thisInput;
-            bool isHarder = random() % 100 < 25;
+            bool isHarder = random() % 100 < 50;
 
             for (uint ii = 0; ii < inputData.size(); ++ii) {
-                if (isHarder && chooseData[ii + 1] < 204.f) {
+                if (isHarder && chooseData[ii + 1] < 191.25f) {
                     thisInput.push_back(0.f);
                 } else {
                     thisInput.push_back(chooseData[ii + 1] / 255.f);

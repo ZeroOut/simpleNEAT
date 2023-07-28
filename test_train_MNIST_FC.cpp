@@ -7,7 +7,7 @@ int main() {
     znn::Opts.ActiveFunction = znn::Sigmoid;
     znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
     znn::Opts.ThreadCount = 16;
-    znn::Opts.FCNN_hideLayers = {40};
+    znn::Opts.FCNN_hideLayers = {30};
     znn::Opts.FitnessThreshold = 0.999f;
     znn::Opts.LearnRate = 1.f;
 
@@ -21,7 +21,7 @@ int main() {
 
 #endif
 
-    float batchSize = 1000;
+    int batchSize = 1000;
 
     znn::SimpleNeat sneat;
     znn::NetworkGenome NN = sneat.population.generation.neuralNetwork.NewFCNN();
@@ -38,7 +38,7 @@ int main() {
 
 #endif
 
-    auto trainData = znn::ImportCSV("MNIST_train.csv", false);  // https://github.com/sbussmann/kaggle-mnist
+    auto trainData = znn::ImportCSV("../MNIST_train.csv", false);  // https://github.com/sbussmann/kaggle-mnist
     std::cout << "size: " << trainData.size() << "\n";
 
     std::vector<std::vector<float>> inputs;
@@ -63,25 +63,26 @@ int main() {
     }
 
     int rounds = 0;
-    float fitness = 0.9f;
+    float fitness = 0.f;
 
     while (fitness < znn::Opts.FitnessThreshold) {
         ++rounds;
         fitness = 0.f;
 
         for (int i = 0; i < batchSize; ++i) {
-            std::vector<float> prepairedInput = inputs[random() % inputs.size()];
+            int choseingIndex = random() % inputs.size();
+            std::vector<float> prepairedInput = inputs[choseingIndex];
 
-            if (random() % 100 < 25) {
-                for (uint ii = 0; ii < inputs[i].size(); ++ii) {
-                    if (inputs[i][ii] < 0.8f) {
+            if (random() % 100 < 50) {
+                for (uint ii = 0; ii < inputs[choseingIndex].size(); ++ii) {
+                    if (inputs[choseingIndex][ii] < 0.75f) {
                         prepairedInput[ii] = 0.f;
                     }
                 }
             }
 
-            std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.BackPropagation(&NN, prepairedInput, wanted[i], true);
-            fitness += znn::GetPrecision(thisOutputs, wanted[i]);
+            std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.BackPropagation(&NN, prepairedInput, wanted[choseingIndex], true);
+            fitness += znn::GetPrecision(thisOutputs, wanted[choseingIndex]);
 
 #ifndef NO_3DNN
 
@@ -94,6 +95,7 @@ int main() {
 #endif
 
         }
+
         fitness /= float(batchSize);
 
         std::cout << "r: " << rounds << " f: " << fitness << "\n";
