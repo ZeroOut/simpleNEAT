@@ -8,7 +8,7 @@ int main() {
     znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
     znn::Opts.ThreadCount = 16;
     znn::Opts.FCNN_hideLayers = {30};
-    znn::Opts.FitnessThreshold = 0.99f;
+    znn::Opts.FitnessThreshold = 0.999f;
     znn::Opts.LearnRate = 1.f;
     znn::Opts.FFCNNInsteadOfFCNN = true;
 
