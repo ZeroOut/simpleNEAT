@@ -179,9 +179,9 @@ namespace znn {
                 for (auto &conn: NN.Connections) {
                     if (conn.Enable) {
                         if (conn.Weight > 0) {
-                            connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], conn.Weight / Opts.WeightRange * 0.045f + 0.0001f, ColorAlpha(RED, 0.5f)});
+                            connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], conn.Weight / Opts.WeightRange * 0.03f + 0.0001f, ColorAlpha(RED, 0.5f)});
                         } else {
-                            connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], -conn.Weight / Opts.WeightRange * 0.045f + 0.0001f, ColorAlpha(BLUE, 0.5f)});
+                            connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], -conn.Weight / Opts.WeightRange * 0.03f + 0.0001f, ColorAlpha(BLUE, 0.5f)});
                         }
                     }
                 }
@@ -725,7 +725,7 @@ namespace znn {
             if (Opts.Enable3dCalc) {
                 for (auto &c: nn->Connections) {
                     if (nodId2Size[c.ConnectedNeuronId[0]] > 0.1f && nodId2Size[c.ConnectedNeuronId[1]] > 0.1f && c.Enable && c.Weight > 0.f) {
-                        connectedNodesInfo.push_back(lineInfo{c.ConnectedNeuronId[0], c.ConnectedNeuronId[1], c.Weight / Opts.WeightRange * 0.009f + 0.0001f, ColorAlpha(WHITE, 0.3f)});
+                        connectedNodesInfo.push_back(lineInfo{c.ConnectedNeuronId[0], c.ConnectedNeuronId[1], c.Weight / Opts.WeightRange * 0.03f + 0.0001f, ColorAlpha(WHITE, 0.3f)});
                     }
                 }
             }

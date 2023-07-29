@@ -7,8 +7,8 @@ int main() {
     znn::Opts.ActiveFunction = znn::Sigmoid;
     znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
     znn::Opts.FCNN_hideLayers = {32, 32};
-    znn::Opts.FitnessThreshold = 0.999f;
-    znn::Opts.LearnRate = 1.f;
+    znn::Opts.FitnessThreshold = 0.95f;
+    znn::Opts.LearnRate = 0.95f;
     znn::Opts.Update3dIntercalMs = 100;
     znn::Opts.Enable3dRandPos = false;
     znn::Opts.X_Interval3d = 1.5f;
@@ -322,10 +322,10 @@ int main() {
                                               {0.f, 0.f, 1.f},
                                               {0.f, 0.f, 1.f},};
 
-    //    std::thread show3d([]() {
-    //        znn::Show3dNN();
-    //    });
-    //    show3d.detach();
+        std::thread show3d([]() {
+            znn::Show3dNN();
+        });
+        show3d.detach();
 
     float fitness = 0.f;
     while (fitness < znn::Opts.FitnessThreshold) {
@@ -338,7 +338,7 @@ int main() {
         fitness /= float(inputs.size());
         if (NN.Age % 100 == 0) {
             std::cout << NN.Age << " fitness: " << fitness << "\n";
-            //            znn::Update3dNN_Background(NN, false);
+                        znn::Update3dNN_Background(NN, false);
         }
     }
 
@@ -349,6 +349,11 @@ int main() {
     }
 
     std::cout << NN.Age << " fitness: " << fitness << "\n";
+
+    znn::Update3dNN(NN, true);
+
+    char ccc;
+    std::cin >> ccc;
 
     return 0;
 }

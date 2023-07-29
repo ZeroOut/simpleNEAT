@@ -25,7 +25,7 @@ namespace znn {
         std::function<float(float)> ActiveFunction = Sigmoid;
         std::function<float(float)> DerivativeFunction = DerivativeSigmoid;
         std::function<float(std::vector<float>, std::vector<float>)> PrecisionFunction = AbsoluteDeviation;
-        float FitnessThreshold = 0.99f; // 如果<=0则不启用
+        float FitnessThreshold = 0.95f; // 如果<=0则不启用
         float MutateWeightRate = 0.1f;
         int MutateWeightNearRange = 2;
         float MutateWeightDirectOrNear = 0.5f;
