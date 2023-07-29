@@ -9,6 +9,7 @@
 #include <algorithm>    // std::sort, std::stable_sort
 #include <utility>
 #include <random>
+#include <fstream>
 
 namespace znn {
 //    float Tanh(float x) {
@@ -71,7 +72,7 @@ namespace znn {
         return result / float(outputs.size());
     }
 
-    float StandardDeviation(std::vector<float> outputs, std::vector<float> wantedOutputs) {
+    float StandardDeviation(std::vector<float> outputs, std::vector<float> wantedOutputs) {  // 如果输出节点数量为1，则标准差和绝对差的计算结果一样，应使用绝对差减少运算量
         return std::sqrt(Variance(outputs, wantedOutputs));
     }
 

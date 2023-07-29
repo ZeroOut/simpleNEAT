@@ -8,26 +8,32 @@ int main() {
     znn::Opts.DerivativeFunction = znn::DerivativeSteependSigmoid;
     znn::Opts.IterationTimes = 0;
     znn::Opts.ThreadCount = 1;
-    znn::Opts.Enable3dNN = false;
+    znn::Opts.PopulationSize = 9;
+    znn::Opts.ChampionKeepSize = 2;
+    znn::Opts.ChampionToNewSize = 6;
+    znn::Opts.KeepWorstSize = 1;
+    znn::Opts.NewSize = 1;
+    znn::Opts.KeepComplexSize = 1;
+    znn::Opts.Enable3dNN = true;
+    znn::Opts.WeightRange = 100.f;
+    znn::Opts.BiasRange = 10.f;
+    znn::Opts.MutateAddNeuronRate = 0.001f;
+    znn::Opts.PrecisionFunction = znn::AbsoluteDeviation;
+    znn::Opts.FitnessThreshold = 0.9f; // 如果<=0则不启用
     znn::Opts.CheckPointPath = "/tmp/xor";
 
     znn::SimpleNeat sneat;
     sneat.StartNew();
 
-    const std::vector<std::vector<float>> inputs = {
-            {0.f, 0.f},
-            {1.f, 1.f},
-            {0.f, 1.f},
-            {1.f, 0.f},
+    const std::vector<std::vector<float>> inputs = {{0.f, 0.f},
+                                                    {1.f, 1.f},
+                                                    {0.f, 1.f},
+                                                    {1.f, 0.f},};
 
-    };
-
-    const std::vector<std::vector<float>> wanted = {
-            {0.f},
-            {0.f},
-            {1.f},
-            {1.f},
-    };
+    const std::vector<std::vector<float>> wanted = {{0.f},
+                                                    {0.f},
+                                                    {1.f},
+                                                    {1.f},};
 
     auto best = sneat.TrainByWanted(inputs, wanted, 0, []() { return false; });
 
@@ -53,6 +59,11 @@ int main() {
 
     sneat.population.generation.neuralNetwork.ExportNNToDot(best.NN, "/tmp/xor");
 //    sneat.population.generation.neuralNetwork.ExportNN(best.NN, "/tmp/xor");
+
+    znn::Update3dNN(best.NN, true);
+
+    char ccc;
+    std::cin >> ccc;
 
     return 0;
 }

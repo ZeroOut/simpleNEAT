@@ -83,18 +83,48 @@ int main() {
             znn::Opts.OutputSize = outputLen;
             znn::Opts.ActiveFunction = znn::Sigmoid;
             znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
-            znn::Opts.FCNN_hideLayers = {25, 25};
+            znn::Opts.FCNN_hideLayers = {8,8,8};
             znn::Opts.FitnessThreshold = 0.999f;
-            znn::Opts.LearnRate = 0.9f;
+            znn::Opts.LearnRate = 0.3f;
             znn::Opts.Update3dIntercalMs = 100;
             znn::Opts.Enable3dRandPos = false;
             znn::Opts.Enable3dNN = true;
             znn::Opts.Enable3dCalc = true;
             znn::Opts.X_Interval3d = 1.5f;
-            znn::Opts.WeightRange = 6.f;
-            znn::Opts.BiasRange = 3.f;
+            znn::Opts.FFCNNInsteadOfFCNN = true;
 
             NN = sneat.population.generation.neuralNetwork.NewFCNN();
+
+//            std::vector<znn::NetworkGenome> initNNs(30);
+//            float bestFit = 0.f;
+//
+//            std::vector<std::future<void>> thisFuture;
+//
+//            for (auto &nn : initNNs) {
+//                thisFuture.push_back(znn::tPool.submit([&]() {
+//                    nn = sneat.population.generation.neuralNetwork.NewFCNN();
+//
+//                    float fitness = 0.f;
+//
+//                    for (int i = 0; i < inputs.size(); ++i) {
+//                        std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.FeedForwardPredict(&nn, inputs[i], false);
+//                        fitness += znn::GetPrecision(thisOutputs, wantedOutputs[i]);
+//                    }
+//
+//                    fitness /= float(inputs.size());
+//
+//                    znn::mtx.lock();
+//                    if (fitness > bestFit) {
+//                        bestFit = fitness;
+//                        NN = nn;
+//                    }
+//                    znn::mtx.unlock();
+//                }));
+//            }
+//
+//            for (auto &f: thisFuture) {
+//                f.wait();
+//            }
 
             std::thread show3d(znn::Show3dNN);
             show3d.detach();
@@ -114,7 +144,7 @@ int main() {
                 if (fitness >= znn::Opts.FitnessThreshold) {
                     break;
                 }
-                if (rounds % 100 == 0) {
+                if (rounds % 500 == 0) {
                     std::cout << rounds << " fitness: " << fitness << "\n";
 //                    znn::Update3dNN_Background(NN, false);
                 }

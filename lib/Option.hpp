@@ -24,16 +24,18 @@ namespace znn {
         uint KeepComplexSize = 1;
         std::function<float(float)> ActiveFunction = Sigmoid;
         std::function<float(float)> DerivativeFunction = DerivativeSigmoid;
-        std::function<float(std::vector<float>, std::vector<float>)> PrecisionFunction = StandardDeviation;
+        std::function<float(std::vector<float>, std::vector<float>)> PrecisionFunction = AbsoluteDeviation;
         float FitnessThreshold = 0.99f; // 如果<=0则不启用
         float MutateWeightRate = 0.1f;
         int MutateWeightNearRange = 2;
         float MutateWeightDirectOrNear = 0.5f;
-        float WeightRange = 1.f;
+        float WeightRange = 100.f;
+        float BiasRange = 100.f;
+        float NewNNWeightRange = 3.f;
+        float NewNNBiasRange = 1.f;
         float MutateBiasRate = 0.1f;
         float MutateBiasNearRange = 2;
         float MutateBiasDirectOrNear = 0.5f;
-        float BiasRange = 1.f;
         float MutateAddNeuronRate = 0.003f;
         float MutateAddConnectionRate = 0.5f;
         float MutateEnableConnectionRate = 0.3f;
@@ -41,6 +43,9 @@ namespace znn {
         float LearnRate = 0.3f;
         uint ThreadCount = std::thread::hardware_concurrency();
         bool SaveEveryTime = true;
+        bool StartWithFCNN = false;
+        bool FFCNNInsteadOfFCNN = false;
+        std::vector<ulong> FCNN_hideLayers;
 
 #ifndef NO_3DNN
 
@@ -55,9 +60,6 @@ namespace znn {
         int ScreenHeight = 720;
 
 #endif
-
-        bool StartWithFCNN = false;
-        std::vector<ulong> FCNN_hideLayers;  // TODO: 断点续训练的时候，如果设置了每一代新建神经网络，则需要判断初始神经网络是不是多层全连接
     };
 
     static Option Opts;

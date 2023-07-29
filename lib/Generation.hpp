@@ -81,6 +81,7 @@ namespace znn {
                 tmpRightNeuronIds.push_back(n.ConnectedNeuronId[1]);
             }
         }
+
         for (auto &n: nn.Connections) {
             if (n.ConnectedNeuronId[1] == nid1) {
                 for (auto &tnn: tmpRightNeuronIds) {

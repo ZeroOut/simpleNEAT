@@ -179,9 +179,9 @@ namespace znn {
                 for (auto &conn: NN.Connections) {
                     if (conn.Enable) {
                         if (conn.Weight > 0) {
-                            connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], conn.Weight / Opts.WeightRange * 0.0045f + 0.0001f, ColorAlpha(RED, 0.5f)});
+                            connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], conn.Weight / Opts.WeightRange * 0.045f + 0.0001f, ColorAlpha(RED, 0.5f)});
                         } else {
-                            connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], -conn.Weight / Opts.WeightRange * 0.0045f + 0.0001f, ColorAlpha(BLUE, 0.5f)});
+                            connectedNodesInfo.push_back(lineInfo{conn.ConnectedNeuronId[0], conn.ConnectedNeuronId[1], -conn.Weight / Opts.WeightRange * 0.045f + 0.0001f, ColorAlpha(BLUE, 0.5f)});
                         }
                     }
                 }
@@ -364,12 +364,12 @@ namespace znn {
 
         for (ulong i = 0; i < Opts.OutputSize; ++i) {
             ulong id = i + Opts.InputSize;
-            Neuron tmpNeuron = {.Id = id, .Bias = float(random() % long(Opts.BiasRange * 200) - long(Opts.BiasRange * 100)) / 100, .Layer = 1.,};
+            Neuron tmpNeuron = {.Id = id, .Bias = float(random() % long(Opts.NewNNBiasRange * 200) - long(Opts.NewNNBiasRange * 100)) / 100.f, .Layer = 1.,};
             newNeurons.push_back(tmpNeuron);
 
             for (auto &n: newNeurons) {
                 if (n.Layer == 0.) {
-                    Connection tmpConnection = {.ConnectedNeuronId= {n.Id, id}, .Weight = float(random() % long(Opts.WeightRange * 200) - long(Opts.WeightRange * 100)) / 100, .Enable = true,};
+                    Connection tmpConnection = {.ConnectedNeuronId= {n.Id, id}, .Weight = float(random() % long(Opts.NewNNWeightRange * 200) - long(Opts.NewNNWeightRange * 100)) / 100.f, .Enable = true,};
                     newConnections.push_back(tmpConnection);
                     //                    if (ConnectionInnovations.find({n.Id, tmpNeuron.Id}) == ConnectionInnovations.end()) {
                     //                        ConnectionInnovations[{n.Id, tmpNeuron.Id}] = ConnectionInnovations.size();
@@ -381,7 +381,7 @@ namespace znn {
         return NetworkGenome{.Neurons = newNeurons, .Connections = newConnections,};
     }
 
-    NetworkGenome NeuralNetwork::NewFCNN() {  // 固定神经网络，输入隐藏层及对应神经元数量数
+    NetworkGenome NeuralNetwork::NewFCNN() {  // 跨层全连接神经网络，输入隐藏层及对应神经元数量数
         if (Opts.InputSize <= 0 || Opts.OutputSize <= 0) {
             std::cerr << "Input or Output size fault: Input " << Opts.InputSize << ", Output " << Opts.OutputSize << std::endl;
             exit(0);
@@ -403,7 +403,7 @@ namespace znn {
 
         for (ulong i = 0; i < Opts.OutputSize; ++i) {
             ulong id = i + Opts.InputSize;
-            Neuron tmpNeuron = {.Id = id, .Bias = float(random() % long(Opts.BiasRange * 200) - long(Opts.BiasRange * 100)) / 100, .Layer = 1.,};
+            Neuron tmpNeuron = {.Id = id, .Bias = float(random() % long(Opts.NewNNBiasRange * 200) - long(Opts.NewNNBiasRange * 100)) / 100.f, .Layer = 1.,};
             newNeurons.push_back(tmpNeuron);
         }
 
@@ -414,31 +414,51 @@ namespace znn {
         for (ulong &l: Opts.FCNN_hideLayers) {
             thisLayer += layerStep;
             for (ulong i = 0; i < l; ++i) {
-                Neuron tmpNeuron = {.Id = id, .Bias = float(random() % long(Opts.BiasRange * 200) - long(Opts.BiasRange * 100)) / 100, .Layer = thisLayer,};
+                Neuron tmpNeuron = {.Id = id, .Bias = float(random() % long(Opts.NewNNBiasRange * 200) - long(Opts.NewNNBiasRange * 100)) / 100.f, .Layer = thisLayer,};
                 newNeurons.push_back(tmpNeuron);
                 ++id;
             }
         }
 
         std::map<double, std::vector<Neuron *>> tmpLayerMap;  // 记录全部层，因为记录的是神经元地址，需要的时候才能临时生成记录
-        double lastLayer = 0.;
-        thisLayer = 0.;
 
         for (auto &n: newNeurons) {
             tmpLayerMap[n.Layer].push_back(&n);
         }
 
+        double lastLayer = 0.;
+        thisLayer = 0.;
+        std::vector<double> allLayerId;
+        std::map<double, std::vector<Neuron *>>::iterator it = tmpLayerMap.begin();
+
         for (auto &t: tmpLayerMap) {
             if (t.first != 0.) {
                 for (auto &n: t.second) {
-                    for (auto &ln: tmpLayerMap[lastLayer]) {
-                        Connection tmpConnection = {.ConnectedNeuronId= {ln->Id, n->Id}, .Weight = float(random() % long(Opts.WeightRange * 200) - long(Opts.WeightRange * 100)) / 100, .Enable = true,};
-                        newConnections.push_back(tmpConnection);
+                    if (Opts.FFCNNInsteadOfFCNN) {
+                        for (auto &tt: tmpLayerMap) {
+                            for (auto &ln: tt.second) {
+                                Connection tmpConnection = {.ConnectedNeuronId= {ln->Id, n->Id}, .Weight = float(random() % long(Opts.NewNNWeightRange * 200) - long(Opts.NewNNWeightRange * 100)) / 100.f, .Enable = true,};
+                                newConnections.push_back(tmpConnection);
+                            }
+                            if (tt.first == lastLayer) {
+                                break;
+                            }
+                        }
+                    } else {
+                        for (auto &ln: tmpLayerMap[lastLayer]) {
+                            Connection tmpConnection = {.ConnectedNeuronId= {ln->Id, n->Id}, .Weight = float(random() % long(Opts.NewNNWeightRange * 200) - long(Opts.NewNNWeightRange * 100)) / 100.f, .Enable = true,};
+                            newConnections.push_back(tmpConnection);
+                        }
                     }
                 }
             }
-            lastLayer = thisLayer;
-            thisLayer += layerStep;
+
+            if (t.first < 1.) {
+                lastLayer = thisLayer;
+
+                it = std::next(it);
+                thisLayer = it->first;
+            }
         }
 
         return NetworkGenome{.Neurons = newNeurons, .Connections = newConnections,};
@@ -1027,7 +1047,7 @@ namespace znn {
 
         if (Opts.OutputSize > OutputSize) {
             for (ulong i = 0; i < Opts.OutputSize - OutputSize; ++i) {
-                newNeurons.push_back(Neuron{.Id = HiddenNeuronInnovations.size() + OutputSize + i + Opts.InputSize + FCHidenNeuronSize, .Bias = float(random() % long(Opts.BiasRange * 200) - long(Opts.BiasRange * 100)) / 100, .Layer = 1.,});
+                newNeurons.push_back(Neuron{.Id = HiddenNeuronInnovations.size() + OutputSize + i + Opts.InputSize + FCHidenNeuronSize, .Bias = float(random() % long(Opts.NewNNBiasRange * 200) - long(Opts.NewNNBiasRange * 100)) / 100.f, .Layer = 1.,});
             }
         }
 

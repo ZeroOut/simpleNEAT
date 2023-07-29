@@ -10,6 +10,7 @@ int main() {
     znn::Opts.FCNN_hideLayers = {30};
     znn::Opts.FitnessThreshold = 0.99f;
     znn::Opts.LearnRate = 1.f;
+    znn::Opts.FFCNNInsteadOfFCNN = true;
 
 #ifndef NO_3DNN
 

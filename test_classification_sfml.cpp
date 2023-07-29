@@ -108,6 +108,7 @@ int main() {
             znn::Opts.Update3dIntercalMs = 100;
             znn::Opts.X_Interval3d = 0.3f;
             znn::Opts.Zy_Interval3d = 1.5f;
+            znn::Opts.FFCNNInsteadOfFCNN = true;
 
             sneat.StartNew();
         }
