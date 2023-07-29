@@ -83,25 +83,17 @@ int main() {
             znn::Opts.OutputSize = outputLen;
             znn::Opts.ActiveFunction = znn::Sigmoid;
             znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
-<<<<<<< HEAD
-            znn::Opts.FCNN_hideLayers = {8,8,8};
-            znn::Opts.FitnessThreshold = 0.999f;
-=======
-            znn::Opts.FCNN_hideLayers = {40, 20};
+            znn::Opts.FCNN_hideLayers = {8, 8, 8};
             znn::Opts.FitnessThreshold = 0.99f;
->>>>>>> parent of 841f34b (启用tanh，添加标准差公式，以及其他小改动)
             znn::Opts.LearnRate = 0.3f;
             znn::Opts.Update3dIntercalMs = 100;
             znn::Opts.Enable3dRandPos = false;
             znn::Opts.Enable3dNN = true;
-            znn::Opts.EnableCalc3dNN = true;
+            znn::Opts.Enable3dCalc = true;
             znn::Opts.X_Interval3d = 1.5f;
-<<<<<<< HEAD
             znn::Opts.FFCNNInsteadOfFCNN = true;
-=======
-            znn::Opts.WeightRange = 3.f;
-            znn::Opts.BiasRange = 3.f;
->>>>>>> parent of 841f34b (启用tanh，添加标准差公式，以及其他小改动)
+            znn::Opts.NewNNWeightRange = 3.f;
+            znn::Opts.NewNNBiasRange = 3.f;
 
             NN = sneat.population.generation.neuralNetwork.NewFCNN();
 
