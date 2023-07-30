@@ -6,38 +6,22 @@ int main() {
     znn::Opts.OutputSize = 10;
     znn::Opts.ActiveFunction = znn::Sigmoid;
     znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
+    znn::Opts.PrecisionFunction = znn::AbsoluteDeviation;
     znn::Opts.ThreadCount = 16;
-    znn::Opts.FCNN_hideLayers = {30};
-    znn::Opts.FitnessThreshold = 0.999f;
+    znn::Opts.FCNN_hideLayers = {25};
+    znn::Opts.FitnessThreshold = 0.99f;
     znn::Opts.LearnRate = 1.f;
     znn::Opts.FFCNNInsteadOfFCNN = true;
-
-#ifndef NO_3DNN
-
-    znn::Opts.Enable3dRandPos = false;
-    znn::Opts.Update3dIntercalMs = 1000;
-    znn::Opts.Enable3dNN = false;
     znn::Opts.WeightRange = 1.f;
     znn::Opts.BiasRange = 3.f;
-
-#endif
+    znn::Opts.NewNNWeightRange = 1.f;
+    znn::Opts.NewNNBiasRange = 3.f;
 
     int batchSize = 1000;
 
     znn::SimpleNeat sneat;
     znn::NetworkGenome NN = sneat.population.generation.neuralNetwork.NewFCNN();
 //    znn::NetworkGenome NN = sneat.population.generation.neuralNetwork.ImportNN("MNIST");
-
-#ifndef NO_3DNN
-
-    if (znn::Opts.Enable3dNN) {
-        std::thread show3d([]() {
-            znn::Show3dNN();
-        });
-        show3d.detach();
-    }
-
-#endif
 
     auto trainData = znn::ImportCSV("../MNIST_train.csv", false);  // https://github.com/sbussmann/kaggle-mnist
     std::cout << "size: " << trainData.size() << "\n";
@@ -84,17 +68,6 @@ int main() {
 
             std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.BackPropagation(&NN, prepairedInput, wanted[choseingIndex], true);
             fitness += znn::GetPrecision(thisOutputs, wanted[choseingIndex]);
-
-#ifndef NO_3DNN
-
-            if (i % 100 == 0) {
-                if (znn::Opts.Enable3dNN) {
-                    znn::tPool.push_task(znn::Update3dNN, NN, false);
-                }
-            }
-
-#endif
-
         }
 
         fitness /= float(batchSize);
