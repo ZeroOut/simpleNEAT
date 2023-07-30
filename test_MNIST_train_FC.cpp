@@ -20,8 +20,8 @@ int main() {
     int batchSize = 1000;
 
     znn::SimpleNeat sneat;
-    znn::NetworkGenome NN = sneat.population.generation.neuralNetwork.NewFCNN();
-//    znn::NetworkGenome NN = sneat.population.generation.neuralNetwork.ImportNN("MNIST");
+//    znn::NetworkGenome NN = sneat.population.generation.neuralNetwork.NewFCNN();
+    znn::NetworkGenome NN = sneat.population.generation.neuralNetwork.ImportNN("MNIST");
 
     auto trainData = znn::ImportCSV("../MNIST_train.csv", false);  // https://github.com/sbussmann/kaggle-mnist
     std::cout << "size: " << trainData.size() << "\n";
@@ -48,11 +48,11 @@ int main() {
     }
 
     int rounds = 0;
-    float fitness = 0.f;
+    float score = 0.f;
 
-    while (fitness < znn::Opts.FitnessThreshold) {
+    while (score < znn::Opts.FitnessThreshold) {
         ++rounds;
-        fitness = 0.f;
+        score = 0.f;
 
         for (int i = 0; i < batchSize; ++i) {
             int choseingIndex = random() % inputs.size();
@@ -67,17 +67,18 @@ int main() {
             }
 
             std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.BackPropagation(&NN, prepairedInput, wanted[choseingIndex], true);
-            fitness += znn::GetPrecision(thisOutputs, wanted[choseingIndex]);
+            auto answer = znn::SortIndexes(thisOutputs);
+            score += thisOutputs[answer[0]];
         }
 
-        fitness /= float(batchSize);
+        score /= float(batchSize);
 
-        std::cout << "r: " << rounds << " f: " << fitness << "\n";
+        std::cout << "r: " << rounds << " s: " << score << "\n";
 
         sneat.population.generation.neuralNetwork.ExportNN(NN, "MNIST");
         sneat.population.generation.neuralNetwork.ExportInnovations("MNIST");
     }
 
-    std::cout << "finished rounds: " << rounds << " " << fitness << "\n";
+    std::cout << "finished rounds: " << rounds << " " << score << "\n";
     return 0;
 }
