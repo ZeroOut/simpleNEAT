@@ -48,8 +48,8 @@ namespace znn {
             exit(0);
         }
 
-        if (Opts.ChampionKeepSize * 3 > Opts.ChampionToNewSize) {
-            std::cerr << "Opts.ChampionKeepSize * 3 > Opts.ChampionToNewSize" << std::endl;
+        if (Opts.ChampionKeepSize * 2 > Opts.ChampionToNewSize) {
+            std::cerr << "Opts.ChampionKeepSize * 2 > Opts.ChampionToNewSize" << std::endl;
             exit(0);
         }
 
@@ -69,7 +69,7 @@ namespace znn {
 
 #endif
 
-        if (Opts.StartWithFCNN && Opts.FCNN_hideLayers.empty()) {
+if (Opts.StartWithFCNN && Opts.FCNN_hideLayers.empty()) {
             std::cerr << "Opts.usingFCNN = " << Opts.StartWithFCNN << " and Opts.FCNN_hideLayers.size() = " << Opts.FCNN_hideLayers.size() << std::endl;
             exit(0);
         }
@@ -87,7 +87,7 @@ namespace znn {
 
 #endif
 
-        return population.generation.neuralNetwork.ImportNN(fileName);
+return population.generation.neuralNetwork.ImportNN(fileName);
     }
 
     void SimpleNeat::StartNew() {
@@ -143,7 +143,8 @@ namespace znn {
         return result;
     }
 
-    BestOne SimpleNeat::TrainByWanted(const std::vector<std::vector<float>> &rawInputs, const std::vector<std::vector<float>> &rawWantedOutputs, uint randomSize, const std::function<bool()> &isBreakFunc) {
+    BestOne
+    SimpleNeat::TrainByWanted(const std::vector<std::vector<float>> &rawInputs, const std::vector<std::vector<float>> &rawWantedOutputs, uint randomSize, const std::function<bool()> &isBreakFunc) {
         if (rawInputs.size() != rawWantedOutputs.size()) {
             std::cerr << "rawInputs size: " << rawInputs.size() << " != rawWantedOutputs size: " << rawWantedOutputs.size() << "\n";
             exit(0);
@@ -182,8 +183,8 @@ namespace znn {
                     population.generation.neuralNetwork.ExportNN(*orderedPopulation[0], Opts.CheckPointPath);
                 }
 
-                std::cout << "gen: " << rounds << " ptr: " << orderedPopulation[0] << " age: " << orderedPopulation[0]->Age << " neurons: " << orderedPopulation[0]->Neurons.size() << " connections: " << orderedPopulation[0]->Connections.size() << " fitness: "
-                          << populationFitness[orderedPopulation[0]] << "\n";
+                std::cout << "gen: " << rounds << " ptr: " << orderedPopulation[0] << " age: " << orderedPopulation[0]->Age << " neurons: " << orderedPopulation[0]->Neurons.size() << " connections: "
+                << orderedPopulation[0]->Connections.size() << " fitness: " << populationFitness[orderedPopulation[0]] << "\n";
             }
 
             for (auto nn: orderedPopulation) {
@@ -212,9 +213,9 @@ namespace znn {
 
 #endif
 
-                return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
-                        //                        .NN = *orderedPopulation[0],
-                        .Fit = populationFitness[orderedPopulation[0]],};
+return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
+               //                        .NN = *orderedPopulation[0],
+               .Fit = populationFitness[orderedPopulation[0]],};
             }
 
             if (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0) {
@@ -233,21 +234,20 @@ namespace znn {
                 tPool.push_task([&](uint index, NetworkGenome *nn) {
                     if (index < Opts.ChampionToNewSize) {
                         *nn = *orderedPopulation[index % Opts.ChampionKeepSize];  // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
-                        if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
-                            population.generation.MutateNetworkGenome(*nn);  // 冠军一份副本进行变异
-                        }
-                        if (index >= Opts.ChampionKeepSize * 2) {
-                            for (uint i = 0; i < inputs.size(); ++i) {  // 保留的冠军一份副本全部进行反向传播更新weight和bias
-                                population.generation.neuralNetwork.BackPropagation(nn, inputs[i], wantedOutputs[i], false);
-                            }
-                        }
+//                        if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
+//                            population.generation.MutateNetworkGenome(*nn);  // 冠军一份副本进行变异
+//                        }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
-                        long chooseAnother = random() % Opts.PopulationSize;
-                        auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
+                        long chooseAnother = random() % Opts.ChampionKeepSize;
+                        long chooseChampion = random() % Opts.ChampionKeepSize;
+                        if (chooseAnother == chooseChampion) {
+                            chooseAnother = random() % (Opts.PopulationSize - Opts.ChampionKeepSize) + Opts.ChampionKeepSize;
+                        }
+                        auto nn0 = orderedPopulation[chooseChampion];
                         auto nn1 = orderedPopulation[chooseAnother];
-//                        auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
+                        //                        auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
                         *nn = population.generation.GetChildByCrossing(nn0, nn1);
-                        if (random() % 2 == 0 || nn0 == nn1 || chooseAnother < Opts.ChampionKeepSize) {
+                        if (random() % 2 == 0 || chooseAnother < Opts.ChampionKeepSize) {
                             population.generation.MutateNetworkGenome(*nn);  // 繁殖以后进行变异
                         }
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
@@ -263,7 +263,15 @@ namespace znn {
                         *nn = *orderedPopulation[index];
                         population.generation.MutateNetworkGenome(*nn);
                     }
-                }, indexOutside, &n);
+
+                    if (index >= Opts.ChampionKeepSize) {
+                        for (uint bt = 0; bt < Opts.BackLearnTimesPerBatch; ++bt) {
+                            for (uint i = 0; i < inputs.size(); ++i) {  // 除掉保留的冠军，全部进行反向传播更新weight和bias
+                                population.generation.neuralNetwork.BackPropagation(nn, inputs[i], wantedOutputs[i], false);
+                            }
+                        }
+                    }
+                    }, indexOutside, &n);
                 ++indexOutside;
             }
 
@@ -277,7 +285,7 @@ namespace znn {
 
 #endif
 
-            population.NeuralNetworks = tmpPopulation;
+population.NeuralNetworks = tmpPopulation;
 
             populationFitness.clear();
             orderedPopulation.clear();
@@ -323,9 +331,9 @@ namespace znn {
 
 #endif
 
-        return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
-                //                        .NN = *orderedPopulation[0],
-                .Fit = populationFitness[orderedPopulation[0]],};
+return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
+               //                        .NN = *orderedPopulation[0],
+               .Fit = populationFitness[orderedPopulation[0]],};
     }
 
     BestOne SimpleNeat::TrainByInteractive(const std::function<std::unordered_map<NetworkGenome *, float>()> &interactiveFunc, const std::function<bool()> &isBreakFunc) {
@@ -345,8 +353,8 @@ namespace znn {
                     population.generation.neuralNetwork.ExportNN(*orderedPopulation[0], Opts.CheckPointPath);
                 }
 
-                std::cout << "gen: " << rounds << " ptr: " << orderedPopulation[0] << " age: " << orderedPopulation[0]->Age << " neurons: " << orderedPopulation[0]->Neurons.size() << " connections: " << orderedPopulation[0]->Connections.size() << " fitness: "
-                          << populationFitness[orderedPopulation[0]] << "\n";
+                std::cout << "gen: " << rounds << " ptr: " << orderedPopulation[0] << " age: " << orderedPopulation[0]->Age << " neurons: " << orderedPopulation[0]->Neurons.size() << " connections: "
+                << orderedPopulation[0]->Connections.size() << " fitness: " << populationFitness[orderedPopulation[0]] << "\n";
             }
 
             for (auto nn: orderedPopulation) {
@@ -375,9 +383,9 @@ namespace znn {
 
 #endif
 
-                return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
-                        //                        .NN = *orderedPopulation[0],
-                        .Fit = populationFitness[orderedPopulation[0]],};
+return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
+               //                        .NN = *orderedPopulation[0],
+               .Fit = populationFitness[orderedPopulation[0]],};
             }
 
             if (Opts.IterationCheckPoint > 0 && rounds % Opts.IterationCheckPoint == 0) {
@@ -399,17 +407,17 @@ namespace znn {
                         if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
                             population.generation.MutateNetworkGenome(*nn);  // 冠军一份副本进行变异
                         }
-                        if (index >= Opts.ChampionKeepSize * 2) {
-                            long choose = index % Opts.ChampionKeepSize;
-                            auto nn0 = orderedPopulation[choose];
-                            auto nn1 = orderedPopulation[choose + 1];
-                            *nn = population.generation.GetChildByCrossing(nn0, nn1);
-                        }
+                        //                        if (index >= Opts.ChampionKeepSize * 2) {
+                        //                            long choose = index % Opts.ChampionKeepSize;
+                        //                            auto nn0 = orderedPopulation[choose];
+                        //                            auto nn1 = orderedPopulation[choose + 1];
+                        //                            *nn = population.generation.GetChildByCrossing(nn0, nn1);
+                        //                        }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
                         long chooseAnother = random() % Opts.PopulationSize;
                         auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
                         auto nn1 = orderedPopulation[chooseAnother];
-//                        auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
+                        //                        auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
                         *nn = population.generation.GetChildByCrossing(nn0, nn1);
                         if (random() % 2 == 0 || nn0 == nn1 || chooseAnother < Opts.ChampionKeepSize) {
                             population.generation.MutateNetworkGenome(*nn);  // 繁殖以后进行变异
@@ -427,7 +435,7 @@ namespace znn {
                         *nn = *orderedPopulation[index];
                         population.generation.MutateNetworkGenome(*nn);
                     }
-                }, indexOutside, &n);
+                    }, indexOutside, &n);
                 ++indexOutside;
             }
 
@@ -441,7 +449,7 @@ namespace znn {
 
 #endif
 
-            population.NeuralNetworks = tmpPopulation;
+population.NeuralNetworks = tmpPopulation;
 
             populationFitness.clear();
             orderedPopulation.clear();
@@ -472,9 +480,9 @@ namespace znn {
 
 #endif
 
-        return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
-                //                        .NN = *orderedPopulation[0],
-                .Fit = populationFitness[orderedPopulation[0]],};
+return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
+               //                        .NN = *orderedPopulation[0],
+               .Fit = populationFitness[orderedPopulation[0]],};
     }
 }
 
