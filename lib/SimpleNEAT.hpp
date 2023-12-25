@@ -234,9 +234,9 @@ return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格
                 tPool.push_task([&](uint index, NetworkGenome *nn) {
                     if (index < Opts.ChampionToNewSize) {
                         *nn = *orderedPopulation[index % Opts.ChampionKeepSize];  // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
-//                        if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
-//                            population.generation.MutateNetworkGenome(*nn);  // 冠军一份副本进行变异
-//                        }
+                        //                        if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
+                        //                            population.generation.MutateNetworkGenome(*nn);  // 冠军一份副本进行变异
+                        //                        }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
                         long chooseAnother = random() % Opts.ChampionKeepSize;
                         long chooseChampion = random() % Opts.ChampionKeepSize;
@@ -404,22 +404,20 @@ return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格
                 tPool.push_task([&](uint index, NetworkGenome *nn) {
                     if (index < Opts.ChampionToNewSize) {
                         *nn = *orderedPopulation[index % Opts.ChampionKeepSize];  // 选取ChampionKeepSize个个体填满前ChampionToNewSize个
-                        if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
-                            population.generation.MutateNetworkGenome(*nn);  // 冠军一份副本进行变异
-                        }
-                        //                        if (index >= Opts.ChampionKeepSize * 2) {
-                        //                            long choose = index % Opts.ChampionKeepSize;
-                        //                            auto nn0 = orderedPopulation[choose];
-                        //                            auto nn1 = orderedPopulation[choose + 1];
-                        //                            *nn = population.generation.GetChildByCrossing(nn0, nn1);
+                        //                        if (index >= Opts.ChampionKeepSize && index < Opts.ChampionKeepSize * 2) {
+                        //                            population.generation.MutateNetworkGenome(*nn);  // 冠军一份副本进行变异
                         //                        }
                     } else if (index < Opts.PopulationSize - Opts.NewSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
-                        long chooseAnother = random() % Opts.PopulationSize;
-                        auto nn0 = orderedPopulation[random() % Opts.ChampionKeepSize];
+                        long chooseAnother = random() % Opts.ChampionKeepSize;
+                        long chooseChampion = random() % Opts.ChampionKeepSize;
+                        if (chooseAnother == chooseChampion) {
+                            chooseAnother = random() % (Opts.PopulationSize - Opts.ChampionKeepSize) + Opts.ChampionKeepSize;
+                        }
+                        auto nn0 = orderedPopulation[chooseChampion];
                         auto nn1 = orderedPopulation[chooseAnother];
                         //                        auto nn1 = orderedPopulation[Opts.ChampionKeepSize + random() % (Opts.PopulationSize - Opts.ChampionKeepSize)];
                         *nn = population.generation.GetChildByCrossing(nn0, nn1);
-                        if (random() % 2 == 0 || nn0 == nn1 || chooseAnother < Opts.ChampionKeepSize) {
+                        if (random() % 2 == 0 || chooseAnother < Opts.ChampionKeepSize) {
                             population.generation.MutateNetworkGenome(*nn);  // 繁殖以后进行变异
                         }
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize - Opts.KeepComplexSize) {
