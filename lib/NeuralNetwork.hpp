@@ -613,6 +613,70 @@ namespace znn {
         return NetworkGenome{.Neurons = newNeurons, .Connections = newConnections,};
     }
 
+#ifndef NO_3DNN
+
+    void Update3dCalc(std::unordered_map<ulong, float> &tmpNodesOutput, std::unordered_map<ulong, Neuron *> &tmpNeuronMap, NetworkGenome *nn) {
+        mtx.lock();
+        if (!update3dCalcLock) {
+            update3dCalcLock = true;
+            mtx.unlock();
+
+            std::unordered_map<ulong, Color> nodId2Color;
+            std::unordered_map<ulong, float> nodId2Size;
+
+            for (auto &n: tmpNodesOutput) {
+                if (n.second > 0.1f) {
+                    if (tmpNeuronMap[n.first]->Layer == 0.f || tmpNeuronMap[n.first]->Layer == 1.f) {
+                        nodId2Color[n.first] = WHITE;
+                    } else {
+                        nodId2Color[n.first] = YELLOW;
+                    }
+                    nodId2Size[n.first] = 0.1f * (n.second + 0.9f);
+                } else {
+                    if (tmpNeuronMap[n.first]->Layer == 0.f) {
+                        nodId2Color[n.first] = BLUE;
+                    } else if (tmpNeuronMap[n.first]->Layer == 1.f) {
+                        nodId2Color[n.first] = RED;
+                    } else {
+                        nodId2Color[n.first] = GRAY;
+                    }
+                    nodId2Size[n.first] = 0.1f;
+                }
+            }
+
+            std::vector<lineInfo> connectedNodesInfo;
+
+            if (Opts.Enable3dCalc) {
+                for (auto &c: nn->Connections) {
+                    if (nodId2Size[c.ConnectedNeuronId[0]] > 0.1f && nodId2Size[c.ConnectedNeuronId[1]] > 0.1f && c.Enable && c.Weight > 0.f) {
+                        connectedNodesInfo.push_back(lineInfo{c.ConnectedNeuronId[0], c.ConnectedNeuronId[1], c.Weight / Opts.WeightRange * 0.03f + 0.0001f, ColorAlpha(WHITE, 0.3f)});
+                    }
+                }
+            }
+
+            mtx.lock();
+            NodId2Color = nodId2Color;
+            NodId2Size = nodId2Size;
+            ConnectedNodesInfo = connectedNodesInfo;
+            mtx.unlock();
+
+            Update3dNN_Background(*nn, false);
+
+            std::thread updateNNCalc([]() {
+                std::this_thread::sleep_for(std::chrono::milliseconds(Opts.Update3dIntercalMs));
+
+                mtx.lock();
+                update3dCalcLock = false;
+                mtx.unlock();
+            });
+            updateNNCalc.detach();
+        } else {
+            mtx.unlock();
+        }
+    }
+
+#endif
+
     std::vector<float> NeuralNetwork::FCNNFeedForwardPredict(NetworkGenome *nn, std::vector<float> inputs, bool isAccelerate) {
         std::vector<float> outputs(Opts.OutputSize);
 
@@ -693,6 +757,33 @@ namespace znn {
                 outputPerResult(ol);
             }
         }
+
+#ifndef NO_3DNN
+
+        if (Opts.Enable3dNN && Opts.Enable3dCalc) {
+            std::unordered_map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
+            for (auto &n: nn->Neurons) {
+                tmpNeuronMap[n.Id] = &n;
+            }
+
+            std::unordered_map<ulong, float> tmpNodesOutput;
+
+            for (ulong i = 0; i < Opts.InputSize; ++i) {
+                tmpNodesOutput[i] = inputs[i];
+            }
+
+            for (ulong i = 0; i < Opts.OutputSize; ++i) {
+                tmpNodesOutput[Opts.InputSize + i] = outputs[i];
+            }
+
+            for (ulong i = 0; i < neuronValues.size(); ++i) {
+                tmpNodesOutput[Opts.InputSize + Opts.OutputSize + i] = neuronValues[i];
+            }
+
+            Update3dCalc(tmpNodesOutput, tmpNeuronMap, nn);
+        }
+
+#endif
 
         return outputs;
     }
@@ -780,65 +871,12 @@ namespace znn {
 
 #ifndef NO_3DNN
 
-        mtx.lock();
-        if (Opts.Enable3dNN && Opts.Enable3dCalc && !update3dCalcLock) {
-            update3dCalcLock = true;
-            mtx.unlock();
-
-            std::unordered_map<ulong, Color> nodId2Color;
-            std::unordered_map<ulong, float> nodId2Size;
-
-            for (auto &n: tmpNodesOutput) {
-                if (n.second > 0.1f) {
-                    if (tmpNeuronMap[n.first]->Layer == 0.f || tmpNeuronMap[n.first]->Layer == 1.f) {
-                        nodId2Color[n.first] = WHITE;
-                    } else {
-                        nodId2Color[n.first] = YELLOW;
-                    }
-                    nodId2Size[n.first] = 0.1f * (n.second + 0.9f);
-                } else {
-                    if (tmpNeuronMap[n.first]->Layer == 0.f) {
-                        nodId2Color[n.first] = BLUE;
-                    } else if (tmpNeuronMap[n.first]->Layer == 1.f) {
-                        nodId2Color[n.first] = RED;
-                    } else {
-                        nodId2Color[n.first] = GRAY;
-                    }
-                    nodId2Size[n.first] = 0.1f;
-                }
-            }
-
-            std::vector<lineInfo> connectedNodesInfo;
-
-            if (Opts.Enable3dCalc) {
-                for (auto &c: nn->Connections) {
-                    if (nodId2Size[c.ConnectedNeuronId[0]] > 0.1f && nodId2Size[c.ConnectedNeuronId[1]] > 0.1f && c.Enable && c.Weight > 0.f) {
-                        connectedNodesInfo.push_back(lineInfo{c.ConnectedNeuronId[0], c.ConnectedNeuronId[1], c.Weight / Opts.WeightRange * 0.03f + 0.0001f, ColorAlpha(WHITE, 0.3f)});
-                    }
-                }
-            }
-
-            mtx.lock();
-            NodId2Color = nodId2Color;
-            NodId2Size = nodId2Size;
-            ConnectedNodesInfo = connectedNodesInfo;
-            mtx.unlock();
-
-            Update3dNN_Background(*nn, false);
-
-            std::thread updateNNCalc([]() {
-                std::this_thread::sleep_for(std::chrono::milliseconds(Opts.Update3dIntercalMs));
-
-                mtx.lock();
-                update3dCalcLock = false;
-                mtx.unlock();
-            });
-            updateNNCalc.detach();
-        } else {
-            mtx.unlock();
+        if (Opts.Enable3dNN && Opts.Enable3dCalc) {
+            Update3dCalc(tmpNodesOutput, tmpNeuronMap, nn);
         }
 
 #endif
+
         return outputs;
     };
 
@@ -1177,7 +1215,7 @@ namespace znn {
         for (uint ol = 0; ol < Opts.OutputSize; ++ol) {
             for (uint lastHiddenLayer = 0; lastHiddenLayer < Opts.FCNN_hideLayers[Opts.FCNN_hideLayers.size() - 1]; ++lastHiddenLayer) {
                 float newWeight = nn->Connections[Opts.FCNN_hideLayers[Opts.FCNN_hideLayers.size() - 1] * ol + lastHiddenLayer + lastLayerConnectionCounter].Weight +
-                        Opts.LearnRate * resultErrors[ol] * neuronValues[lastLayerNeuronCounter - Opts.FCNN_hideLayers[Opts.FCNN_hideLayers.size() - 1] + lastHiddenLayer];
+                                  Opts.LearnRate * resultErrors[ol] * neuronValues[lastLayerNeuronCounter - Opts.FCNN_hideLayers[Opts.FCNN_hideLayers.size() - 1] + lastHiddenLayer];
                 if (std::abs(newWeight) > Opts.WeightRange) {
                     //                std::cerr << "Weight out of range: [" << connection.ConnectedNeuronId[0] << "," << connection.ConnectedNeuronId[1] << "], " << connection.Weight << " -> " << newWeight << "\n";
                 } else {
@@ -1240,7 +1278,13 @@ namespace znn {
     }
 
     void NeuralNetwork::ExportNN(NetworkGenome &nn, std::string fileName) {
-        std::string data = std::to_string(Opts.InputSize) + "," + std::to_string(Opts.OutputSize) + "\n~\n";
+        std::string data = std::to_string(Opts.InputSize) + ",";
+
+        for (auto hl : Opts.FCNN_hideLayers) {
+            data += std::to_string(hl) + ",";
+        }
+
+        data += std::to_string(Opts.OutputSize) + "\n~\n";
 
         for (auto &n: nn.Neurons) {
             std::stringstream streamLayer;
@@ -1288,8 +1332,20 @@ namespace znn {
 
             if (dataType == 0) {
                 auto datas = SplitString(line, ",");
+                if (datas.size() < 2) {
+                    std::cerr << "datas.size() < 2";
+                    exit(0);
+                }
+
+                if (datas.size() > 2) {
+                    Opts.FCNN_hideLayers.clear();
+                    for (uint hl = 1; hl < datas.size() - 1; ++hl) {
+                        Opts.FCNN_hideLayers.push_back(std::stoul(datas[hl]));
+                    }
+                }
+
                 InputSize = std::stoul(datas[0]);
-                OutputSize = std::stoul(datas[1]);
+                OutputSize = std::stoul(datas[datas.size() - 1]);
                 continue;
             }
 
@@ -1369,6 +1425,7 @@ namespace znn {
         }
 
         int dataType = 0;
+        uint hl = 0;
         while (getline(input_file, line)) {
             if (line == "~") {
                 ++dataType;
@@ -1376,8 +1433,11 @@ namespace znn {
             }
 
             if (dataType == 0) {
-                Opts.FCNN_hideLayers.clear();
-                Opts.FCNN_hideLayers.push_back(std::stoi(line));
+                if (Opts.FCNN_hideLayers[hl] != std::stoi(line)) {
+                    std::cerr << "Innovations based FCNN wrong\n";
+                    exit(0);
+                }
+                ++hl;
             }
 
             if (dataType == 1) {
