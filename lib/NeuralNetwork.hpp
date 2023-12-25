@@ -940,9 +940,7 @@ namespace znn {
                 }
             }
 
-            float tmpNodesOutputNid = tmpNodesOutput[nid];
-
-            thisOutputError *= Opts.DerivativeFunction(tmpNodesOutputNid) * tmpNodesOutputNid;
+            thisOutputError *= Opts.DerivativeFunction(tmpNodesOutput[nid]) * tmpNodesOutput[nid];
 
             float newBias = tmpNeuronMap[nid]->Bias + Opts.LearnRate * thisOutputError;
             if (std::abs(newBias) > Opts.BiasRange) {
@@ -1108,14 +1106,17 @@ namespace znn {
             }
 
             // 计算最后一层隐藏节点的误差
-            for (uint lastHiddenLayer = 0; lastHiddenLayer < Opts.FCNN_hideLayers[Opts.FCNN_hideLayers.size() - 1]; ++lastHiddenLayer) {
-                neuronErrors[neuronErrorCounter + lastHiddenLayer] += resultErrors[oi] * nn->Connections[Opts.FCNN_hideLayers[Opts.FCNN_hideLayers.size() - 1] * oi + lastHiddenLayer + connectionErrorCounter].Weight;
+            for (uint lastHiddenLayerNeuron = 0; lastHiddenLayerNeuron < Opts.FCNN_hideLayers[Opts.FCNN_hideLayers.size() - 1]; ++lastHiddenLayerNeuron) {
+                neuronErrors[neuronErrorCounter + lastHiddenLayerNeuron] += resultErrors[oi] * nn->Connections[Opts.FCNN_hideLayers[Opts.FCNN_hideLayers.size() - 1] * oi + lastHiddenLayerNeuron + connectionErrorCounter].Weight;
             }
         }
 
         // 计算最后一层隐藏层之前、第一层隐藏层节点以后的误差
-
         for (uint hl = Opts.FCNN_hideLayers.size() - 1; hl > 0; --hl) {
+            for (uint thisHiddenLayerNeuron = 0; thisHiddenLayerNeuron < Opts.FCNN_hideLayers[hl]; ++thisHiddenLayerNeuron) {
+                neuronErrors[neuronErrorCounter + thisHiddenLayerNeuron] *= Opts.DerivativeFunction(neuronValues[neuronErrorCounter + thisHiddenLayerNeuron]) * neuronValues[neuronErrorCounter + thisHiddenLayerNeuron];
+            }
+
             neuronErrorCounter -= Opts.FCNN_hideLayers[hl - 1];
             connectionErrorCounter -= Opts.FCNN_hideLayers[hl] * Opts.FCNN_hideLayers[hl - 1];
 
@@ -1127,32 +1128,33 @@ namespace znn {
         }
 
         // 计算第一层隐藏层节点的误差
-
         if (Opts.FCNN_hideLayers.size() > 1) {
-            for (uint firstHiddenLayer = 0; firstHiddenLayer < Opts.FCNN_hideLayers[0]; ++firstHiddenLayer) {
+            for (uint firstHiddenLayerNeuron = 0; firstHiddenLayerNeuron < Opts.FCNN_hideLayers[0]; ++firstHiddenLayerNeuron) {
                 for (uint ii = 0; ii < Opts.InputSize; ++ii) {
-                    neuronErrors[firstHiddenLayer] += resultErrors[Opts.FCNN_hideLayers[0] + firstHiddenLayer] * nn->Connections[Opts.InputSize * firstHiddenLayer + ii].Weight;
+                    neuronErrors[firstHiddenLayerNeuron] += resultErrors[Opts.FCNN_hideLayers[0] + firstHiddenLayerNeuron] * nn->Connections[Opts.InputSize * firstHiddenLayerNeuron + ii].Weight;
                 }
+            }
+
+            for (uint firstHiddenLayerNeuron = 0; firstHiddenLayerNeuron < Opts.FCNN_hideLayers[0]; ++firstHiddenLayerNeuron) {
+                neuronErrors[firstHiddenLayerNeuron] *= Opts.DerivativeFunction(neuronValues[firstHiddenLayerNeuron]) * neuronValues[firstHiddenLayerNeuron];
             }
         }
 
         // 更新连接权重
 
         // 更新第一二层节点间连接权重
-
-        for (uint firttHiddenLayer = 0; firttHiddenLayer < Opts.FCNN_hideLayers[0]; ++firttHiddenLayer) {
+        for (uint firstHiddenLayer = 0; firstHiddenLayer < Opts.FCNN_hideLayers[0]; ++firstHiddenLayer) {
             for (uint in = 0; in < Opts.InputSize; ++in) {
-                float newWeight = nn->Connections[Opts.InputSize * firttHiddenLayer + in].Weight + Opts.LearnRate * neuronErrors[firttHiddenLayer] * inputs[in];
+                float newWeight = nn->Connections[Opts.InputSize * firstHiddenLayer + in].Weight + Opts.LearnRate * neuronErrors[firstHiddenLayer] * inputs[in];
                 if (std::abs(newWeight) > Opts.WeightRange) {
                     //                std::cerr << "Weight out of range: [" << connection.ConnectedNeuronId[0] << "," << connection.ConnectedNeuronId[1] << "], " << connection.Weight << " -> " << newWeight << "\n";
                 } else {
-                    nn->Connections[Opts.InputSize * firttHiddenLayer + in].Weight = newWeight;
+                    nn->Connections[Opts.InputSize * firstHiddenLayer + in].Weight = newWeight;
                 }
             }
         }
 
         // 更新第二层至最后一层节点间连接权重
-
         lastLayerConnectionCounter = Opts.FCNN_hideLayers[0] * Opts.InputSize;
         lastLayerNeuronCounter = Opts.FCNN_hideLayers[0];
 
@@ -1172,7 +1174,6 @@ namespace znn {
         }
 
         // 更新输出层节点的连接权重
-
         for (uint ol = 0; ol < Opts.OutputSize; ++ol) {
             for (uint lastHiddenLayer = 0; lastHiddenLayer < Opts.FCNN_hideLayers[Opts.FCNN_hideLayers.size() - 1]; ++lastHiddenLayer) {
                 float newWeight = nn->Connections[Opts.FCNN_hideLayers[Opts.FCNN_hideLayers.size() - 1] * ol + lastHiddenLayer + lastLayerConnectionCounter].Weight +
@@ -1186,7 +1187,6 @@ namespace znn {
         }
 
         // 更新神经元偏置
-
         for (uint ni = 0; ni < neuronErrors.size(); ++ni) {
             float newBias = nn->Neurons[Opts.InputSize + Opts.OutputSize + ni].Bias + Opts.LearnRate * neuronErrors[ni];
             if (std::abs(newBias) > Opts.BiasRange) {
