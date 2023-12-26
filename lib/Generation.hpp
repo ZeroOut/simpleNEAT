@@ -97,8 +97,8 @@ namespace znn {
         mtx.lock();
         ulong newNid = neuralNetwork.HiddenNeuronInnovations.size() + Opts.InputSize + Opts.OutputSize + neuralNetwork.FCHidenNeuronSize;  // 新的神经元id为全部藏神经元数量+输入神经元数量+输出神经元数量+全连接网络隐藏神经元数量(如有)
         if (!neuralNetwork.HiddenNeuronInnovations.contains({nid0, nid1})) {  // 从全部隐藏神经元innovMap里面查看是否存在相同位置的神经元
-            neuralNetwork.HiddenNeuronInnovations.insert({{nid0, nid1}, newNid});
-//            neuralNetwork.HiddenNeuronInnovations[{nid0, nid1}] = newNid;  // 如果不存在则新增记录插入连接左右两个神经元id对应的隐藏层神经元id
+//            neuralNetwork.HiddenNeuronInnovations.insert({{nid0, nid1}, newNid});
+            neuralNetwork.HiddenNeuronInnovations[{nid0, nid1}] = newNid;  // 如果不存在则新增记录插入连接左右两个神经元id对应的隐藏层神经元id
         } else {
             //            std::vector<ulong> tmpRightNeuronIds;
             //            for (auto &n: nn.Connections) {
@@ -121,21 +121,21 @@ namespace znn {
             //                }
             //            }
 
-            if (random() % 100 < 1) {
-//            if (random() % 100 > 0) {
-                //                    mtx.unlock();
-                //                    return;
-                //                } else {
-                neuralNetwork.HiddenNeuronInnovations.insert({{nid0, nid1}, newNid});
-                //                }
-            } else {
-                auto HI_Range = neuralNetwork.HiddenNeuronInnovations.equal_range({nid0, nid1});
-                std::mt19937 gen(random());
-                std::uniform_int_distribution<> dis(0, std::distance(HI_Range.first, HI_Range.second) - 1);
-                auto randomIt = std::next(HI_Range.first, dis(gen));
-                newNid = randomIt->second;  // 如果存在则使用已有隐藏层神经元id
-//            newNid = neuralNetwork.HiddenNeuronInnovations[{nid0, nid1}];
-            }
+//            if (random() % 100 < 1) {
+////            if (random() % 100 > 0) {
+//                //                    mtx.unlock();
+//                //                    return;
+//                //                } else {
+//                neuralNetwork.HiddenNeuronInnovations.insert({{nid0, nid1}, newNid});
+//                //                }
+//            } else {
+//                auto HI_Range = neuralNetwork.HiddenNeuronInnovations.equal_range({nid0, nid1});
+//                std::mt19937 gen(random());
+//                std::uniform_int_distribution<> dis(0, std::distance(HI_Range.first, HI_Range.second) - 1);
+//                auto randomIt = std::next(HI_Range.first, dis(gen));
+//                newNid = randomIt->second;  // 如果存在则使用已有隐藏层神经元id
+            newNid = neuralNetwork.HiddenNeuronInnovations[{nid0, nid1}];
+//            }
         }
 
         mtx.unlock();
