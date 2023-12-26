@@ -29,10 +29,10 @@ namespace znn {
         float MutateWeightRate = 0.1f;
         int MutateWeightNearRange = 2;
         float MutateWeightDirectOrNear = 0.5f;
-        float WeightRange = 2.f;
-        float BiasRange = 10.f;
-        float NewNNWeightRange = 30.f;
-        float NewNNBiasRange = 10.f;
+        float WeightRange = 10.f;
+        float BiasRange = 30.f;
+        float NewNNWeightRange = 1.f;
+        float NewNNBiasRange = 3.f;
         float MutateBiasRate = 0.1f;
         float MutateBiasNearRange = 2;
         float MutateBiasDirectOrNear = 0.5f;
