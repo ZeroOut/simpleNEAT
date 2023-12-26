@@ -6,15 +6,22 @@ int main() {
     znn::Opts.OutputSize = 3;
     znn::Opts.ActiveFunction = znn::Sigmoid;
     znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
-    znn::Opts.FCNN_hideLayers = {32, 32};
-    znn::Opts.FitnessThreshold = 0.95f;
-    znn::Opts.LearnRate = 0.95f;
+    znn::Opts.FCNN_hideLayers = {8};
+    znn::Opts.StartWithFCNN = true;
+    znn::Opts.FitnessThreshold = 0.99f;
+    znn::Opts.LearnRate = .1f;
     znn::Opts.Update3dIntercalMs = 100;
     znn::Opts.Enable3dRandPos = false;
     znn::Opts.X_Interval3d = 1.5f;
+    znn::Opts.ThreadCount = 16;
 
     znn::SimpleNeat sneat;
-    auto NN = sneat.population.generation.neuralNetwork.NewFCNN();
+//    auto NN = sneat.population.generation.neuralNetwork.NewFCNN();
+//    sneat.population.generation.neuralNetwork.ExportNN(NN, "./irisfc");
+//
+    auto NN = sneat.population.generation.neuralNetwork.ImportNN("./irisfc");
+
+
 
     std::vector<std::vector<float>> inputs = {{5.1f, 3.5f, 1.4f, 0.2f},
                                               {4.9f, 3.0f, 1.4f, 0.2f},
@@ -322,38 +329,47 @@ int main() {
                                               {0.f, 0.f, 1.f},
                                               {0.f, 0.f, 1.f},};
 
-        std::thread show3d([]() {
-            znn::Show3dNN();
-        });
-        show3d.detach();
+//        std::thread show3d([]() {
+//            znn::Show3dNN();
+//        });
+//        show3d.detach();
 
     float fitness = 0.f;
     while (fitness < znn::Opts.FitnessThreshold) {
         fitness = 0.f;
-        ++NN.Age;
         for (int i = 0; i < inputs.size(); ++i) {
-            std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.BackPropagation(&NN, inputs[i], wanted[i], false);
+//            uint chooseId = random() % inputs.size();
+//            std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.BackPropagation(&NN, inputs[i], wanted[i], false);
+            std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.FCNNBackPropagation(&NN, inputs[i], wanted[i], false);
             fitness += znn::GetPrecision(thisOutputs, wanted[i]);
+//            exit(0);
         }
-        fitness /= float(inputs.size());
-        if (NN.Age % 100 == 0) {
-            std::cout << NN.Age << " fitness: " << fitness << "\n";
-                        znn::Update3dNN_Background(NN, false);
-        }
-    }
 
-    std::cout << "predict: \n";
-    for (int i = 0; i < inputs.size(); ++i) {
-        auto predict = sneat.population.generation.neuralNetwork.FeedForwardPredict(&NN, inputs[i], false);
-        std::cout << inputs[i][0] << " " << inputs[i][1] << inputs[i][2] << " " << inputs[i][3] << " [" << wanted[i][0] << " " << wanted[i][1] << " " << wanted[i][2] << "] " << predict[0] << " " << predict[1] << " " << predict[2] << std::endl;
+        fitness /= float(inputs.size());
+
+        if (NN.Age % 1000 == 0) {
+        std::cout << NN.Age << " fitness: " << fitness << "\n";
+//                        znn::Update3dNN_Background(NN, false);
+        sneat.population.generation.neuralNetwork.ExportNN(NN, "./irisfc");
+        }
+        ++NN.Age;
+//        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
     std::cout << NN.Age << " fitness: " << fitness << "\n";
 
-    znn::Update3dNN(NN, true);
+    std::cout << "predict: \n";
+    for (int i = 0; i < inputs.size(); ++i) {
+        auto predict = sneat.population.generation.neuralNetwork.FCNNFeedForwardPredict(&NN, inputs[i], false);
+        std::cout << inputs[i][0] << " " << inputs[i][1] << " " << inputs[i][2] << " " << inputs[i][3] << " [" << wanted[i][0] << " " << wanted[i][1] << " " << wanted[i][2] << "] " << predict[0] << " " << predict[1] << " " << predict[2] << std::endl;
+    }
 
-    char ccc;
-    std::cin >> ccc;
+//    znn::Update3dNN(NN, true);
+
+//    sneat.population.generation.neuralNetwork.ExportNN(NN, "./irisfc");
+
+//    char ccc;
+//    std::cin >> ccc;
 
     return 0;
 }

@@ -14,12 +14,11 @@ int main() {
     znn::Opts.KeepWorstSize = 1;
     znn::Opts.NewSize = 1;
     znn::Opts.KeepComplexSize = 1;
-    znn::Opts.Enable3dNN = true;
-    znn::Opts.WeightRange = 100.f;
-    znn::Opts.BiasRange = 10.f;
-    znn::Opts.MutateAddNeuronRate = 0.001f;
+    znn::Opts.Enable3dNN = false;
+    znn::Opts.MutateAddNeuronRate = 0.3f;
+    znn::Opts.MutateAddConnectionRate = 1.f;
     znn::Opts.PrecisionFunction = znn::AbsoluteDeviation;
-    znn::Opts.FitnessThreshold = 0.9f; // 如果<=0则不启用
+    znn::Opts.FitnessThreshold = 0.95f; // 如果<=0则不启用
     znn::Opts.CheckPointPath = "/tmp/xor";
 
     znn::SimpleNeat sneat;
@@ -60,10 +59,10 @@ int main() {
     sneat.population.generation.neuralNetwork.ExportNNToDot(best.NN, "/tmp/xor");
 //    sneat.population.generation.neuralNetwork.ExportNN(best.NN, "/tmp/xor");
 
-    znn::Update3dNN(best.NN, true);
-
-    char ccc;
-    std::cin >> ccc;
+//    znn::Update3dNN(best.NN, true);
+//
+//    char ccc;
+//    std::cin >> ccc;
 
     return 0;
 }

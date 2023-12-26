@@ -83,15 +83,15 @@ int main() {
             znn::Opts.OutputSize = outputLen;
             znn::Opts.ActiveFunction = znn::Sigmoid;
             znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
-            znn::Opts.FCNN_hideLayers = {8, 8, 8};
+            znn::Opts.FCNN_hideLayers = {16,16,16,16};
             znn::Opts.FitnessThreshold = 0.99f;
-            znn::Opts.LearnRate = 0.3f;
+            znn::Opts.LearnRate = 0.03f;
             znn::Opts.Update3dIntercalMs = 100;
             znn::Opts.Enable3dRandPos = false;
             znn::Opts.Enable3dNN = true;
             znn::Opts.Enable3dCalc = true;
             znn::Opts.X_Interval3d = 1.5f;
-            znn::Opts.FFCNNInsteadOfFCNN = true;
+            znn::Opts.FFCNNInsteadOfFCNN = false;
             znn::Opts.NewNNWeightRange = 3.f;
             znn::Opts.NewNNBiasRange = 3.f;
 
@@ -139,7 +139,8 @@ int main() {
                 ++rounds;
                 fitness = 0.f;
                 for (int i = 0; i < inputs.size(); ++i) {
-                    std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.BackPropagation(&NN, inputs[i], wantedOutputs[i], false);
+                    std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.FCNNBackPropagation(&NN, inputs[i], wantedOutputs[i], false);
+//                    std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.BackPropagation(&NN, inputs[i], wantedOutputs[i], false);
                     fitness += znn::GetPrecision(thisOutputs, wantedOutputs[i]);
                 }
                 fitness /= float(inputs.size());
@@ -222,7 +223,8 @@ int main() {
             pos.x += 8.f;
             pos.y += 8.f;
             if (isTrainingStart && !markedBlocks.contains({pos.x, pos.y})) {
-                auto outputs = sneat.population.generation.neuralNetwork.FeedForwardPredict(&nn, {pos.x / 1024.f, pos.y / 1024.f}, false);
+                auto outputs = sneat.population.generation.neuralNetwork.FCNNFeedForwardPredict(&nn, {pos.x / 1024.f, pos.y / 1024.f}, false);
+//                auto outputs = sneat.population.generation.neuralNetwork.FeedForwardPredict(&nn, {pos.x / 1024.f, pos.y / 1024.f}, false);
                 switch (outputLen) {
                     case 2: {
                         auto thisValue = int(outputs[0] / (outputs[0] + outputs[1] + 0.000001f) * 255);

@@ -8,20 +8,18 @@ int main() {
     znn::Opts.DerivativeFunction = znn::DerivativeSigmoid;
     znn::Opts.PrecisionFunction = znn::AbsoluteDeviation;
     znn::Opts.ThreadCount = 16;
-    znn::Opts.FCNN_hideLayers = {25};
-    znn::Opts.FitnessThreshold = 0.99f;
-    znn::Opts.LearnRate = 1.f;
-    znn::Opts.FFCNNInsteadOfFCNN = true;
-    znn::Opts.WeightRange = 1.f;
-    znn::Opts.BiasRange = 3.f;
-    znn::Opts.NewNNWeightRange = 1.f;
-    znn::Opts.NewNNBiasRange = 3.f;
+    znn::Opts.FCNN_hideLayers = {32,32,32};
+    znn::Opts.FitnessThreshold = 0.999f;
+    znn::Opts.LearnRate = 0.3f;
+    znn::Opts.FFCNNInsteadOfFCNN = false;
+    znn::Opts.WeightRange = 10.f;
+    znn::Opts.BiasRange = 30.f;
 
-    int batchSize = 1000;
+    int batchSize = 3000;
 
     znn::SimpleNeat sneat;
-//    znn::NetworkGenome NN = sneat.population.generation.neuralNetwork.NewFCNN();
-    znn::NetworkGenome NN = sneat.population.generation.neuralNetwork.ImportNN("MNIST");
+    znn::NetworkGenome NN = sneat.population.generation.neuralNetwork.NewFCNN();
+//    znn::NetworkGenome NN = sneat.population.generation.neuralNetwork.ImportNN("MNIST");
 
     auto trainData = znn::ImportCSV("../MNIST_train.csv", false);  // https://github.com/sbussmann/kaggle-mnist
     std::cout << "size: " << trainData.size() << "\n";
@@ -58,7 +56,7 @@ int main() {
             int choseingIndex = random() % inputs.size();
             std::vector<float> prepairedInput = inputs[choseingIndex];
 
-            if (random() % 100 < 50) {
+            if (random() % 1 == 0) {
                 for (uint ii = 0; ii < inputs[choseingIndex].size(); ++ii) {
                     if (inputs[choseingIndex][ii] < 0.75f) {
                         prepairedInput[ii] = 0.f;
@@ -66,7 +64,8 @@ int main() {
                 }
             }
 
-            std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.BackPropagation(&NN, prepairedInput, wanted[choseingIndex], true);
+            //            std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.BackPropagation(&NN, prepairedInput, wanted[choseingIndex], false);
+            std::vector<float> thisOutputs = sneat.population.generation.neuralNetwork.FCNNBackPropagation(&NN, prepairedInput, wanted[choseingIndex], false);
             auto answer = znn::SortIndexes(thisOutputs);
             score += thisOutputs[answer[0]];
         }
@@ -75,8 +74,11 @@ int main() {
 
         std::cout << "r: " << rounds << " s: " << score << "\n";
 
-        sneat.population.generation.neuralNetwork.ExportNN(NN, "MNIST");
-        sneat.population.generation.neuralNetwork.ExportInnovations("MNIST");
+        if ((rounds - 1) % 100 == 0) {
+            sneat.population.generation.neuralNetwork.ExportNN(NN, "MNIST");
+            sneat.population.generation.neuralNetwork.ExportInnovations("MNIST");
+        }
+
     }
 
     std::cout << "finished rounds: " << rounds << " " << score << "\n";

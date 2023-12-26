@@ -96,8 +96,8 @@ int main() {
             znn::Opts.KeepWorstSize = 0;
             znn::Opts.ChampionToNewSize = 24;
             znn::Opts.KeepComplexSize = 0;
-            znn::Opts.WeightRange = 3.f;
-            znn::Opts.BiasRange = 3.f;
+            znn::Opts.WeightRange = 30.f;
+            znn::Opts.BiasRange = 10.f;
             znn::Opts.MutateWeightDirectOrNear = 0.36f;
             znn::Opts.MutateWeightNearRange = 6;
             znn::Opts.MutateBiasDirectOrNear = 0.36f;

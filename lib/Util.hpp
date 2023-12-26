@@ -12,14 +12,14 @@
 #include <fstream>
 
 namespace znn {
-//    float Tanh(float x) {
-////        return (exp(x) - exp(-x)) / (exp(x) + exp(-x));
-//        return 2.f / (1.f + std::exp(-2.f * x)) - 1.f;
-//    }
-//
-//    float DerivativeTanh(float fx) {
-//        return 1.f - std::pow(fx, 2.f);
-//    }
+    float Tanh(float x) {
+//        return (exp(x) - exp(-x)) / (exp(x) + exp(-x));
+        return 2.f / (1.f + std::exp(-2.f * x)) - 1.f;
+    }
+
+    float DerivativeTanh(float fx) {
+        return 1.f - std::pow(fx, 2.f);
+    }
 
     float Sigmoid(float x) {
         return 1.f / (1.f + std::exp(-x));

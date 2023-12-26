@@ -10,6 +10,7 @@ int main() {
     znn::Opts.OutputSize = 10;
     znn::Opts.ActiveFunction = znn::Sigmoid;
     znn::Opts.Enable3dNN = true;
+    znn::Opts.FCNN_hideLayers = {25};
     znn::Opts.X_Interval3d = 5.f;
     znn::Opts.Update3dIntercalMs = 100;
     znn::Opts.WeightRange = 1.f;
@@ -68,7 +69,7 @@ int main() {
                             znn::Opts.Update3dIntercalMs = 100;
                             markedBlocks.clear();
                             inputData = inputEmptyData;
-                            sneat.population.generation.neuralNetwork.FeedForwardPredict(&nn, inputEmptyData, true);
+                            sneat.population.generation.neuralNetwork.FCNNFeedForwardPredict(&nn, inputEmptyData, true);
                             break;
                         }
                         if (input_file.is_open()) {
@@ -85,7 +86,7 @@ int main() {
                     }
                     if (ev.mouseButton.button == sf::Mouse::Right && !isAutoTest) {
                         markedBlocks.clear();
-                        sneat.population.generation.neuralNetwork.FeedForwardPredict(&nn, inputEmptyData, true);
+                        sneat.population.generation.neuralNetwork.FCNNFeedForwardPredict(&nn, inputEmptyData, true);
                         inputData = inputEmptyData;
                         isStart = false;
                         window.clear(sf::Color(0, 0, 0, 255)); // Clear old frame
@@ -144,7 +145,7 @@ int main() {
         auto nowTime = std::chrono::system_clock::now();
         if ((isStart && (nowTime - lastTime).count() > 300000000 && isKeepLeft) || isAutoTest) {
             lastTime = nowTime;
-            auto predict = sneat.population.generation.neuralNetwork.FeedForwardPredict(&nn, inputData, true);
+            auto predict = sneat.population.generation.neuralNetwork.FCNNFeedForwardPredict(&nn, inputData, false);
             for (auto &si : znn::SortIndexes(predict)) {
                 std::printf("%i[%.2f], ", si, predict[si]);
             }

@@ -116,7 +116,7 @@ int main() {
         znn::Opts.FitnessThreshold = 0.f;
         znn::Opts.IterationCheckPoint = 0;
         znn::Opts.ThreadCount = 16;
-        znn::Opts.MutateAddNeuronRate = 0.0001f;
+        znn::Opts.MutateAddNeuronRate = 0.1f;
         znn::Opts.MutateAddConnectionRate = 0.99f;
         znn::Opts.PopulationSize = 300;
         znn::Opts.ChampionKeepSize = 30;
