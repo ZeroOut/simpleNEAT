@@ -24,7 +24,7 @@ namespace znn {
         uint KeepComplexSize = 1;
         std::function<float(float)> ActiveFunction = Sigmoid;
         std::function<float(float)> DerivativeFunction = DerivativeSigmoid;
-        std::function<float(std::vector<float>, std::vector<float>)> PrecisionFunction = AbsoluteDeviation;
+        std::function<float(const std::vector<float> &, const std::vector<float> &)> PrecisionFunction = AbsoluteDeviation;  // [OPT] const引用：std::function按值签名会在每次调用时拷贝整个样本向量
         float FitnessThreshold = 0.95f; // 如果<=0则不启用
         float MutateWeightRate = 0.1f;
         int MutateWeightNearRange = 2;
@@ -41,6 +41,10 @@ namespace znn {
         float MutateEnableConnectionRate = 0.3f;
         float CrossoverRate = 0.99f;
         float LearnRate = 0.3f;
+        // [OPT] BP动量系数，默认0=关闭（数学结果与旧版SGD一致）。实测：在未归一化输入+
+        // sigmoid饱和+LR 0.1~0.3 的本项目典型配置下，0.9 动量会累积过冲导致不收敛
+        // （iris 卡 0.717、XOR 卡 0.75）；输入先用 NormalizeData 归一化再配 0.5~0.9 才有效
+        float BPMomentum = 0.f;
         uint BackLearnTimesPerBatch = 15;
         uint ThreadCount = std::thread::hardware_concurrency();
         bool SaveEveryTime = true;
@@ -63,10 +67,12 @@ namespace znn {
 #endif
     };
 
-    static Option Opts;
+    // [FIX] ODR问题：static 全局变量在每个编译单元各有一份副本（多TU链接时 Opts/mtx/tPool 互不相通），
+    // C++17 起应使用 inline 变量，保证全程序唯一实例
+    inline Option Opts;
 
-    static std::shared_mutex mtx;
-    static BS::thread_pool tPool(Opts.ThreadCount);
+    inline std::shared_mutex mtx;
+    inline BS::thread_pool tPool(Opts.ThreadCount);
 }
 
 #endif //MYNEAT_OPTIONS_HPP

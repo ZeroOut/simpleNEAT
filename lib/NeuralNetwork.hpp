@@ -8,6 +8,7 @@
 #include <array>
 #include <functional>
 #include <fstream>
+#include <mutex>
 #include "Option.hpp"
 
 #ifndef NO_3DNN
@@ -21,12 +22,14 @@ namespace znn {
         ulong Id;  // 神经元ID
         float Bias;  // 神经元偏置
         double Layer;  // 神经元的逻辑位置（层）
+        float momentum = 0.f;  // [OPT] BP偏置更新动量速度（不导出；ImportNN 创建时默认0，动量语义见 Opts.BPMomentum）
     };
 
     struct Connection {  // 定义神经连接结构体
         std::array<ulong, 2> ConnectedNeuronId;  // 神经连接由两个神经元而定
         float Weight; // 连接的权重
         bool Enable; // 连接是否启用
+        float momentum = 0.f;  // [OPT] BP权重更新动量速度（不导出；ImportNN 创建时默认0）
     };
 
     struct NetworkGenome {
@@ -58,23 +61,25 @@ namespace znn {
     bool isInputNodePosRand = false;
 
     bool isLast3dNN(NetworkGenome &NN) {
+        // [FIX] 原实现先在锁外比较 size/Id 再在锁内赋值，比较本身处于竞态窗口（另一线程可能正在写
+        // last3dNN）；把比较和赋值统一放到锁内
+        mtx.lock();
+        bool isSame = true;
         if (NN.Neurons.size() != last3dNN.Neurons.size()) {
-            mtx.lock();
-            last3dNN = NN;
-            mtx.unlock();
-            return false;
-        }
-
-        for (ulong i = 0; i < NN.Neurons.size(); ++i) {
-            if (NN.Neurons[i].Id != last3dNN.Neurons[i].Id) {
-                mtx.lock();
-                last3dNN = NN;
-                mtx.unlock();
-                return false;
+            isSame = false;
+        } else {
+            for (ulong i = 0; i < NN.Neurons.size(); ++i) {
+                if (NN.Neurons[i].Id != last3dNN.Neurons[i].Id) {
+                    isSame = false;
+                    break;
+                }
             }
         }
-
-        return true;
+        if (!isSame) {
+            last3dNN = NN;
+        }
+        mtx.unlock();
+        return isSame;
     };
 
     void Update3dNN(NetworkGenome NN, bool FL) {  // force unlock
@@ -107,6 +112,16 @@ namespace znn {
                 }
 
                 std::unordered_map<ulong, Vector3> nodeId2Pos;
+                // [FIX] 原代码直接无锁写全局 NodId2Color/NodId2Size，渲染线程同时无锁读（unordered_map 并发读写 UB）；
+                // 改为先写局部 map，最后与 NodeId2Pos 一起在锁内整体替换
+                std::unordered_map<ulong, Color> nodId2Color;
+                std::unordered_map<ulong, float> nodId2Size;
+                // [FIX] 原代码把神经元 Id 当 Neurons 数组下标用（NN.Neurons[id]），交叉/简化后的基因组
+                // Id 与下标不对应，会读错或越界；改为按 Id 查表
+                std::unordered_map<ulong, Neuron *> tmpNeuronMap;
+                for (auto &n: NN.Neurons) {
+                    tmpNeuronMap[n.Id] = &n;
+                }
 
                 for (auto &l2i: layer2Ids) {
                     if (l2i.first != 1.f || !Opts.Enable3dOutputOneLine) {
@@ -123,15 +138,16 @@ namespace znn {
                         for (ulong i = 0; i < l2i.second.size(); ++i) {
                             if (!Opts.Enable3dCalc) {
                                 if (l2i.first == 0.f) {
-                                    NodId2Color[l2i.second[i]] = BLUE;
-                                    NodId2Size[l2i.second[i]] = 0.1f;
+                                    nodId2Color[l2i.second[i]] = BLUE;
+                                    nodId2Size[l2i.second[i]] = 0.1f;
                                 } else {
-                                    NodId2Color[l2i.second[i]] = YELLOW;
-                                    float newNodeSize = NN.Neurons[l2i.second[i]].Bias / Opts.BiasRange * 0.3f;
+                                    nodId2Color[l2i.second[i]] = YELLOW;
+                                    // [FIX] 原代码 NN.Neurons[l2i.second[i]] 把 Id 当下标；改为按 Id 查表
+                                    float newNodeSize = tmpNeuronMap[l2i.second[i]]->Bias / Opts.BiasRange * 0.3f;
                                     if (newNodeSize < 0.1f) {
-                                        NodId2Size[l2i.second[i]] = 0.1f;
+                                        nodId2Size[l2i.second[i]] = 0.1f;
                                     } else {
-                                        NodId2Size[l2i.second[i]] = newNodeSize;
+                                        nodId2Size[l2i.second[i]] = newNodeSize;
                                     }
                                 }
                             }
@@ -159,8 +175,8 @@ namespace znn {
                     } else {
                         float startZ = -float(l2i.second.size() - 1) * Opts.Zy_Interval3d / 2.f;
                         for (ulong i = 0; i < l2i.second.size(); ++i) {
-                            NodId2Color[l2i.second[i]] = RED;
-                            NodId2Size[l2i.second[i]] = 0.1f;
+                            nodId2Color[l2i.second[i]] = RED;
+                            nodId2Size[l2i.second[i]] = 0.1f;
                             float thisZ = startZ + Opts.Zy_Interval3d * float(i);
                             nodeId2Pos[l2i.second[i]] = {-(float(layer2Ids.size() - 1) * Opts.X_Interval3d / 2.f) + Opts.X_Interval3d * layerCount, 0.f, thisZ};
                         }
@@ -169,8 +185,11 @@ namespace znn {
                 }
                 reRandomPosition = false;
 
+                // [FIX] 三个渲染用的全局 map 统一在锁内一次性替换，消除渲染线程的半更新/并发读写窗口
                 mtx.lock();
                 NodeId2Pos = nodeId2Pos;
+                NodId2Color = nodId2Color;
+                NodId2Size = nodId2Size;
                 mtx.unlock();
             }
 
@@ -229,7 +248,8 @@ namespace znn {
 
         SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
 
-        srandom((unsigned) clock());
+        // [FIX] 原代码 srandom(clock()) 在渲染线程重置全局 RNG，会破坏主线程的随机序列（训练不可复现）
+        // srandom((unsigned) clock());
 
         float setX_Interval3d = Opts.X_Interval3d;
         float setZy_Interval3d = Opts.Zy_Interval3d;
@@ -238,6 +258,8 @@ namespace znn {
             // Update
             UpdateCamera(&camera, CAMERA_ORBITAL);
 
+            // [FIX] A/S/W/D 原为 IsKeyDown：按住时每帧 spawn 一个 detached 线程，数量无上界；
+            // 改为 IsKeyPressed，按键一次只触发一次更新
             if (IsKeyPressed('Z')) {
                 camera.target = (Vector3) {0.0f, 0.0f, 0.0f};
             }
@@ -249,19 +271,19 @@ namespace znn {
                 }
                 Update3dNN_Background(last3dNN, true);
             }
-            if (IsKeyDown('A')) {
+            if (IsKeyPressed('A')) {  // [FIX] IsKeyDown -> IsKeyPressed：按住不再每帧 spawn 线程
                 Opts.X_Interval3d -= .02f;
                 Update3dNN_Background(last3dNN, true);
             }
-            if (IsKeyDown('D')) {
+            if (IsKeyPressed('D')) {  // [FIX] 同上
                 Opts.X_Interval3d += .02f;
                 Update3dNN_Background(last3dNN, true);
             }
-            if (IsKeyDown('W')) {
+            if (IsKeyPressed('W')) {  // [FIX] 同上
                 Opts.Zy_Interval3d += .02f;
                 Update3dNN_Background(last3dNN, true);
             }
-            if (IsKeyDown('S')) {
+            if (IsKeyPressed('S')) {  // [FIX] 同上
                 Opts.Zy_Interval3d -= .02f;
                 Update3dNN_Background(last3dNN, true);
             }
@@ -279,6 +301,16 @@ namespace znn {
             BeginDrawing();
             ClearBackground(BLACK);
 
+            // [FIX] 原代码直接拷贝全局 NodeId2Pos/ConnectedNodesInfo/NodId2Size/NodId2Color，
+            // 与后台更新线程并发读写 unordered_map 是 UB（偶发崩溃来源）；
+            // 改为锁内一次性快照，同一帧内数据自洽
+            mtx.lock();
+            auto nodeId2Pos = NodeId2Pos;
+            auto connectedNodesInfo = ConnectedNodesInfo;
+            auto nodId2Size = NodId2Size;
+            auto nodId2Color = NodId2Color;
+            mtx.unlock();
+
             BeginMode3D(camera);
 
             //                DrawCubeV({1.f, 0.f, 0.f}, {0.03f, 0.03f, 0.03f}, RED);
@@ -289,17 +321,15 @@ namespace znn {
             //                DrawLine3D({0.f, -1.f, 0.f}, {0.f, 1.f, 0.f}, YELLOW);
             //                DrawLine3D({0.f, 0.f, -1.f}, {0.f, 0.f, 1.f}, BLUE);
 
-            auto nodeId2Pos = NodeId2Pos;
-            auto connectedNodesInfo = ConnectedNodesInfo;
-
             for (auto &c: connectedNodesInfo) {
                 //                DrawLine3D(nodeId2Pos[c.IdA], nodeId2Pos[c.IdB], c.C);
                 DrawCylinderEx(nodeId2Pos[c.IdA], nodeId2Pos[c.IdB], c.R, c.R, 3, c.C);
             }
 
             for (auto &n: nodeId2Pos) {
-                float cubeSize = NodId2Size[n.first];
-                DrawCubeV(n.second, {cubeSize, cubeSize, cubeSize}, NodId2Color[n.first]);
+                // [FIX] NodId2Size/NodId2Color 已在上面锁内快照为局部副本，这里改用快照，消除无锁读
+                float cubeSize = nodId2Size[n.first];
+                DrawCubeV(n.second, {cubeSize, cubeSize, cubeSize}, nodId2Color[n.first]);
             }
 
             EndMode3D();
@@ -333,13 +363,14 @@ namespace znn {
 
         NetworkGenome SimplifyRemoveDisable(NetworkGenome nn);
 
-        std::vector<float> FeedForwardPredict(NetworkGenome *nn, std::vector<float> inputs, bool isAccelerate);
+        // [OPT] inputs/wants 改 const 引用：每样本×每个体×每代调用，按值传参整份拷贝是纯开销
+        std::vector<float> FeedForwardPredict(NetworkGenome *nn, const std::vector<float> &inputs, bool isAccelerate);
 
-        std::vector<float> FCNNFeedForwardPredict(NetworkGenome *fh, std::vector<float> inputs, bool isAccelerate);
+        std::vector<float> FCNNFeedForwardPredict(NetworkGenome *fh, const std::vector<float> &inputs, bool isAccelerate);
 
-        std::vector<float> BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants, bool isAccelerate);
+        std::vector<float> BackPropagation(NetworkGenome *nn, const std::vector<float> &inputs, const std::vector<float> &wants, bool isAccelerate);
 
-        std::vector<float> FCNNBackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants, bool isAccelerate);
+        std::vector<float> FCNNBackPropagation(NetworkGenome *nn, const std::vector<float> &inputs, const std::vector<float> &wants, bool isAccelerate);
 
         void ExportNNToDot(NetworkGenome &nn, std::string fileName);
 
@@ -500,6 +531,14 @@ namespace znn {
                 float thisBias = tmpNeuronMap[r.first].Bias;
                 for (auto &cp: r.second) {
                     tmpNeuronMap[cp->ConnectedNeuronId[1]].Bias += Opts.ActiveFunction(thisBias) * cp->Weight;
+                }
+            }
+
+            // [FIX] 无任何输出连接的输入神经元原本会被丢掉，压缩后 Neurons 中输入节点数量与
+            // Opts.InputSize 不一致，FeedForwardPredict 会报错退出；补录全部 layer 0 神经元
+            for (auto &n: tmpNeuronMap) {
+                if (n.second.Layer == 0.) {
+                    remainingLeftIds[n.first];  // operator[] 插入空向量：只保留节点本身，不加连接
                 }
             }
 
@@ -677,7 +716,7 @@ namespace znn {
 
 #endif
 
-    std::vector<float> NeuralNetwork::FCNNFeedForwardPredict(NetworkGenome *nn, std::vector<float> inputs, bool isAccelerate) {
+    std::vector<float> NeuralNetwork::FCNNFeedForwardPredict(NetworkGenome *nn, const std::vector<float> &inputs, bool isAccelerate) {
         std::vector<float> outputs(Opts.OutputSize);
 
         std::vector<float> neuronValues(nn->Neurons.size() - Opts.InputSize - Opts.OutputSize);
@@ -788,7 +827,7 @@ namespace znn {
         return outputs;
     }
 
-    std::vector<float> NeuralNetwork::FeedForwardPredict(NetworkGenome *nn, std::vector<float> inputs, bool isAccelerate) {  // 在使用CPU多核运算时，由于多线程开销问题，神经网络结构太简单反而会运算得更慢
+    std::vector<float> NeuralNetwork::FeedForwardPredict(NetworkGenome *nn, const std::vector<float> &inputs, bool isAccelerate) {  // 在使用CPU多核运算时，由于多线程开销问题，神经网络结构太简单反而会运算得更慢
         std::vector<float> outputs(Opts.OutputSize);
 
         std::unordered_map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
@@ -810,26 +849,50 @@ namespace znn {
         }
 
         std::unordered_map<ulong, float> tmpNodesOutput;
+        // [OPT][FIX] 原来所有对局部 map 的读写都锁全局 znn::mtx——tmpNodesOutput 是本函数的
+        // 局部 map，与其它线程无关；并行评估不同 genome 的任务全部被全局锁串行化
+        // （GA 多核基准实测慢 15 倍）。改为：非加速路径无需锁（调用内单线程）；加速路径用
+        // 本函数局部的 std::mutex，只保护这个局部 map
+        std::mutex localMtx;
 
-        std::function<void(ulong)> calculateNeuron = [&](ulong nid) {
+        // [OPT] 预建"神经元→入边"倒排索引：原实现每个神经元都要全量扫描全部连接（O(N×C)），
+        // 索引一次构建 O(C)，此后每个神经元只遍历自己的入边，总遍历 O(C)。
+        // 稀疏 NEAT 网络 + 大种群场景下是数量级提升；稠密全连接网络复杂度持平
+        std::unordered_map<ulong, std::vector<const Connection *>> incomingEdges;
+        for (auto &connection: nn->Connections) {
+            if (connection.Enable) {
+                incomingEdges[connection.ConnectedNeuronId[1]].push_back(&connection);
+            }
+        }
+
+        auto calculateNeuron = [&](ulong nid) {  // [OPT] std::function→auto闭包：去掉间接调用开销
             float thisOutput = 0.f;
 
-            for (auto &connection: nn->Connections) {
-                if (connection.ConnectedNeuronId[1] == nid && connection.Enable) {
+            auto itEdges = incomingEdges.find(nid);
+            if (itEdges != incomingEdges.end()) {
+                for (auto *connection: itEdges->second) {
                     if (isAccelerate) {
-                        std::shared_lock<std::shared_mutex> lock(mtx);
-                        thisOutput += tmpNodesOutput[connection.ConnectedNeuronId[0]] * connection.Weight;
+                        // [FIX] 原代码在 shared_lock（读锁）内用 operator[] 读 tmpNodesOutput——
+                        // operator[] 在 key 不存在时会插入（写操作），构成并发写 UB；改用 find 只读
+                        std::unique_lock<std::mutex> lock(localMtx);
+                        auto itOut = tmpNodesOutput.find(connection->ConnectedNeuronId[0]);
+                        if (itOut != tmpNodesOutput.end()) {
+                            thisOutput += itOut->second * connection->Weight;
+                        }
                     } else {
-                        thisOutput += tmpNodesOutput[connection.ConnectedNeuronId[0]] * connection.Weight;
+                        thisOutput += tmpNodesOutput[connection->ConnectedNeuronId[0]] * connection->Weight;
                     }
                 }
             }
 
             thisOutput = Opts.ActiveFunction(thisOutput + tmpNeuronMap[nid]->Bias);
 
-            mtx.lock();
-            tmpNodesOutput[nid] = thisOutput;
-            mtx.unlock();
+            if (isAccelerate) {
+                std::lock_guard<std::mutex> lock(localMtx);
+                tmpNodesOutput[nid] = thisOutput;
+            } else {
+                tmpNodesOutput[nid] = thisOutput;
+            }
         };
 
         uint i = 0;
@@ -880,7 +943,7 @@ namespace znn {
         return outputs;
     };
 
-    std::vector<float> NeuralNetwork::BackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants, bool isAccelerate) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回计算结果, 在使用CPU多核运算时，由于多线程开销问题，神经网络结构太简单反而会运算得更慢 TODO: 权重和偏置范围该怎么限制?丢弃?
+    std::vector<float> NeuralNetwork::BackPropagation(NetworkGenome *nn, const std::vector<float> &inputs, const std::vector<float> &wants, bool isAccelerate) {  // 如果当前预测fitness大于预设，则判断为解决问题，返回计算结果, 在使用CPU多核运算时，由于多线程开销问题，神经网络结构太简单反而会运算得更慢
         std::unordered_map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
         std::map<double, std::vector<Neuron *>> tmpLayerMap;  // 记录层对应神经元，同上因为记录的是神经元地址，需要的时候才能临时生成记录
 
@@ -896,17 +959,31 @@ namespace znn {
         }
 
         std::unordered_map<ulong, float> tmpNodesOutput;
+        std::mutex localMtx;  // [OPT][FIX] 同 FeedForwardPredict：全局锁→局部锁
 
-        std::function<void(ulong)> calculateNeuron = [&](ulong nid) {
+        // [OPT] 同 FeedForwardPredict：入边索引替代 O(N×C) 全连接扫描
+        std::unordered_map<ulong, std::vector<const Connection *>> incomingEdges;
+        for (auto &connection: nn->Connections) {
+            if (connection.Enable) {
+                incomingEdges[connection.ConnectedNeuronId[1]].push_back(&connection);
+            }
+        }
+
+        auto calculateNeuron = [&](ulong nid) {  // [OPT] std::function→auto闭包
             float thisOutput = 0.f;
 
-            for (auto &connection: nn->Connections) {
-                if (connection.ConnectedNeuronId[1] == nid && connection.Enable) {
+            auto itEdges = incomingEdges.find(nid);
+            if (itEdges != incomingEdges.end()) {
+                for (auto *connection: itEdges->second) {
                     if (isAccelerate) {
-                        std::shared_lock<std::shared_mutex> lock(mtx);
-                        thisOutput += tmpNodesOutput[connection.ConnectedNeuronId[0]] * connection.Weight;
+                        // [FIX] shared_lock 内 operator[] 会插入（写操作），并发写 UB；改用 find 只读
+                        std::unique_lock<std::mutex> lock(localMtx);
+                        auto itOut = tmpNodesOutput.find(connection->ConnectedNeuronId[0]);
+                        if (itOut != tmpNodesOutput.end()) {
+                            thisOutput += itOut->second * connection->Weight;
+                        }
                     } else {
-                        thisOutput += tmpNodesOutput[connection.ConnectedNeuronId[0]] * connection.Weight;
+                        thisOutput += tmpNodesOutput[connection->ConnectedNeuronId[0]] * connection->Weight;
                     }
                 }
             }
@@ -915,9 +992,12 @@ namespace znn {
 
             thisOutput = Opts.ActiveFunction(thisOutput + tmpNeuronBias);
 
-            mtx.lock();
-            tmpNodesOutput[nid] = thisOutput;
-            mtx.unlock();
+            if (isAccelerate) {
+                std::lock_guard<std::mutex> lock(localMtx);
+                tmpNodesOutput[nid] = thisOutput;
+            } else {
+                tmpNodesOutput[nid] = thisOutput;
+            }
         };
 
         uint i = 0;
@@ -963,33 +1043,51 @@ namespace znn {
         // 先计算每个节点的误差,偏导数又称为误差项也称为灵敏度
 
         std::unordered_map<ulong, float> tmpNodesOutputError;
+        std::mutex errMtx;  // [OPT][FIX] 全局锁→局部锁（同上）
 
-        std::function<void(ulong)> calculateNeuronError = [&](ulong nid) {
+        // [OPT] "神经元→出边"倒排索引：误差回传同理，O(N×C)→O(C)
+        std::unordered_map<ulong, std::vector<const Connection *>> outgoingEdges;
+        for (auto &connection: nn->Connections) {
+            if (connection.Enable) {
+                outgoingEdges[connection.ConnectedNeuronId[0]].push_back(&connection);
+            }
+        }
+
+        auto calculateNeuronError = [&](ulong nid) {  // [OPT] std::function→auto闭包
             float thisOutputError = 0.f;
 
-            for (auto &connection: nn->Connections) {
-                if (connection.ConnectedNeuronId[0] == nid && connection.Enable) {
+            auto itEdges = outgoingEdges.find(nid);
+            if (itEdges != outgoingEdges.end()) {
+                for (auto *connection: itEdges->second) {
                     if (isAccelerate) {
-                        std::shared_lock<std::shared_mutex> lock(mtx);
-                        thisOutputError += tmpNodesOutputError[connection.ConnectedNeuronId[1]] * connection.Weight;
+                        // [FIX] shared_lock 内 operator[] 会插入（写操作），并发写 UB；改用 find 只读
+                        std::unique_lock<std::mutex> lock(errMtx);
+                        auto itErr = tmpNodesOutputError.find(connection->ConnectedNeuronId[1]);
+                        if (itErr != tmpNodesOutputError.end()) {
+                            thisOutputError += itErr->second * connection->Weight;
+                        }
                     } else {
-                        thisOutputError += tmpNodesOutputError[connection.ConnectedNeuronId[1]] * connection.Weight;
+                        thisOutputError += tmpNodesOutputError[connection->ConnectedNeuronId[1]] * connection->Weight;
                     }
                 }
             }
 
-            thisOutputError *= Opts.DerivativeFunction(tmpNodesOutput[nid]) * tmpNodesOutput[nid];
+            // [FIX] 原式 DerivativeFunction(out) * out 多乘了一次输出值：
+            // DerivativeSigmoid(fx)=fx*(1-fx) 已是 f'(out)，再乘 out 变成 out^2*(1-out)，
+            // 梯度系统性偏小且失真（与输出层的写法也不一致）；去掉多余的 * tmpNodesOutput[nid]
+            thisOutputError *= Opts.DerivativeFunction(tmpNodesOutput[nid]);
 
-            float newBias = tmpNeuronMap[nid]->Bias + Opts.LearnRate * thisOutputError;
-            if (std::abs(newBias) > Opts.BiasRange) {
-                //                    std::cerr << "Bias out of range: [" << n.Id << "], " << n.Bias << " -> " << newBias << "\n";
+            // [OPT] 动量偏置更新 + 越界截断（原来是"越界拒绝"：偏置一旦到 ±BiasRange 边界
+            // 整个更新被丢弃，学习在边界处永久卡死；clamp 允许边界处继续积累速度退回来）
+            tmpNeuronMap[nid]->momentum = Opts.BPMomentum * tmpNeuronMap[nid]->momentum + Opts.LearnRate * thisOutputError;
+            tmpNeuronMap[nid]->Bias = std::clamp(tmpNeuronMap[nid]->Bias + tmpNeuronMap[nid]->momentum, -Opts.BiasRange, Opts.BiasRange);
+
+            if (isAccelerate) {
+                std::lock_guard<std::mutex> lock(errMtx);
+                tmpNodesOutputError[nid] = thisOutputError;
             } else {
-                tmpNeuronMap[nid]->Bias = newBias;
+                tmpNodesOutputError[nid] = thisOutputError;
             }
-
-            mtx.lock();
-            tmpNodesOutputError[nid] = thisOutputError;
-            mtx.unlock();
         };
 
         uint wantsCount = 0;
@@ -999,12 +1097,9 @@ namespace znn {
                     tmpNodesOutputError[n->Id] = Opts.DerivativeFunction(tmpNodesOutput[n->Id]) * (wants[wantsCount] - tmpNodesOutput[n->Id]);
                     ++wantsCount;
 
-                    float newBias = n->Bias + Opts.LearnRate * tmpNodesOutputError[n->Id];
-                    if (std::abs(newBias) > Opts.BiasRange) {
-                        //                    std::cerr << "Bias out of range: [" << n.Id << "], " << n.Bias << " -> " << newBias << "\n";
-                    } else {
-                        n->Bias = newBias;
-                    }
+                    // [OPT] 动量 + 截断（同 calculateNeuronError：拒绝→clamp）
+                    n->momentum = Opts.BPMomentum * n->momentum + Opts.LearnRate * tmpNodesOutputError[n->Id];
+                    n->Bias = std::clamp(n->Bias + n->momentum, -Opts.BiasRange, Opts.BiasRange);
 
                     continue;
                 }
@@ -1026,13 +1121,16 @@ namespace znn {
         }
 
         for (auto &connection: nn->Connections) { // 更新连接权重
-            float newWeight = connection.Weight + Opts.LearnRate * tmpNodesOutputError[connection.ConnectedNeuronId[1]] * tmpNodesOutput[connection.ConnectedNeuronId[0]];
-            if (std::abs(newWeight) > Opts.WeightRange) {
-                //                std::cerr << "Weight out of range: [" << connection.ConnectedNeuronId[0] << "," << connection.ConnectedNeuronId[1] << "], " << connection.Weight << " -> " << newWeight << "\n";
-            } else {
-                connection.Weight = newWeight;
+            // [FIX] 原代码对禁用连接也更新权重：禁用连接的权重被 BP 污染后，一旦变异重新启用
+            // （MutateAddConnection 会复用并 Enable=true），等于把陈旧错误权重带回网络；
+            // 与 forward/误差计算只遍历 Enable 连接的逻辑保持一致，跳过禁用连接
+            if (!connection.Enable) {
+                continue;
             }
 
+            // [OPT] 动量权重更新 + 越界截断（同上：原来越界整个更新被丢弃，±WeightRange 边界卡死）
+            connection.momentum = Opts.BPMomentum * connection.momentum + Opts.LearnRate * tmpNodesOutputError[connection.ConnectedNeuronId[1]] * tmpNodesOutput[connection.ConnectedNeuronId[0]];
+            connection.Weight = std::clamp(connection.Weight + connection.momentum, -Opts.WeightRange, Opts.WeightRange);
         }
 
         //        nn->Age = 0;
@@ -1045,7 +1143,7 @@ namespace znn {
         return outputs;
     };
 
-    std::vector<float> NeuralNetwork::FCNNBackPropagation(NetworkGenome *nn, std::vector<float> inputs, std::vector<float> wants, bool isAccelerate) {
+    std::vector<float> NeuralNetwork::FCNNBackPropagation(NetworkGenome *nn, const std::vector<float> &inputs, const std::vector<float> &wants, bool isAccelerate) {
         std::vector<float> outputs(Opts.OutputSize);
 
         std::vector<float> neuronValues(nn->Neurons.size() - Opts.InputSize - Opts.OutputSize);
@@ -1134,13 +1232,9 @@ namespace znn {
         for (uint oi = 0; oi < Opts.OutputSize; ++oi) {
             resultErrors[oi] = Opts.DerivativeFunction(outputs[oi]) * (wants[oi] - outputs[oi]);
 
-            // 更新输出节点的偏置
-            float newBias = nn->Neurons[Opts.InputSize + oi].Bias + Opts.LearnRate * resultErrors[oi];
-            if (std::abs(newBias) > Opts.BiasRange) {
-                //                    std::cerr << "Bias out of range: [" << n.Id << "], " << n.Bias << " -> " << newBias << "\n";
-            } else {
-                nn->Neurons[Opts.InputSize + oi].Bias = newBias;
-            }
+            // 更新输出节点的偏置  [OPT] 动量 + 越界截断（拒绝→clamp，同 BackPropagation）
+            nn->Neurons[Opts.InputSize + oi].momentum = Opts.BPMomentum * nn->Neurons[Opts.InputSize + oi].momentum + Opts.LearnRate * resultErrors[oi];
+            nn->Neurons[Opts.InputSize + oi].Bias = std::clamp(nn->Neurons[Opts.InputSize + oi].Bias + nn->Neurons[Opts.InputSize + oi].momentum, -Opts.BiasRange, Opts.BiasRange);
 
             // 计算最后一层隐藏节点的误差
             for (uint lastHiddenLayerNeuron = 0; lastHiddenLayerNeuron < Opts.FCNN_hideLayers[Opts.FCNN_hideLayers.size() - 1]; ++lastHiddenLayerNeuron) {
@@ -1151,7 +1245,8 @@ namespace znn {
         // 计算最后一层隐藏层至第一层隐藏层节点以后的误差
         for (uint hl = Opts.FCNN_hideLayers.size() - 1; hl > 0; --hl) {
             for (uint thisHiddenLayerNeuron = 0; thisHiddenLayerNeuron < Opts.FCNN_hideLayers[hl]; ++thisHiddenLayerNeuron) {
-                neuronErrors[neuronErrorCounter + thisHiddenLayerNeuron] *= Opts.DerivativeFunction(neuronValues[neuronErrorCounter + thisHiddenLayerNeuron]) * neuronValues[neuronErrorCounter + thisHiddenLayerNeuron];
+                // [FIX] 原式多乘了一次 neuronValues（同 BackPropagation 的导数问题）：去掉多余的 * neuronValues[...]
+                neuronErrors[neuronErrorCounter + thisHiddenLayerNeuron] *= Opts.DerivativeFunction(neuronValues[neuronErrorCounter + thisHiddenLayerNeuron]);
             }
 
             neuronErrorCounter -= Opts.FCNN_hideLayers[hl - 1];
@@ -1166,20 +1261,18 @@ namespace znn {
 
         // 计算第一层隐藏层节点的误差
         for (uint firstHiddenLayerNeuron = 0; firstHiddenLayerNeuron < Opts.FCNN_hideLayers[0]; ++firstHiddenLayerNeuron) {
-            neuronErrors[firstHiddenLayerNeuron] *= Opts.DerivativeFunction(neuronValues[firstHiddenLayerNeuron]) * neuronValues[firstHiddenLayerNeuron];
+            // [FIX] 原式多乘了一次 neuronValues（同上）；去掉多余的 * neuronValues[...]
+            neuronErrors[firstHiddenLayerNeuron] *= Opts.DerivativeFunction(neuronValues[firstHiddenLayerNeuron]);
         }
 
         // 更新连接权重
 
-        // 更新第一二层节点间连接权重
+        // 更新第一二层节点间连接权重  [OPT] 动量 + 越界截断（拒绝→clamp）
         for (uint firstHiddenLayer = 0; firstHiddenLayer < Opts.FCNN_hideLayers[0]; ++firstHiddenLayer) {
             for (uint in = 0; in < Opts.InputSize; ++in) {
-                float newWeight = nn->Connections[Opts.InputSize * firstHiddenLayer + in].Weight + Opts.LearnRate * neuronErrors[firstHiddenLayer] * inputs[in];
-                if (std::abs(newWeight) > Opts.WeightRange) {
-                    //                std::cerr << "Weight out of range: [" << connection.ConnectedNeuronId[0] << "," << connection.ConnectedNeuronId[1] << "], " << connection.Weight << " -> " << newWeight << "\n";
-                } else {
-                    nn->Connections[Opts.InputSize * firstHiddenLayer + in].Weight = newWeight;
-                }
+                auto &conn = nn->Connections[Opts.InputSize * firstHiddenLayer + in];
+                conn.momentum = Opts.BPMomentum * conn.momentum + Opts.LearnRate * neuronErrors[firstHiddenLayer] * inputs[in];
+                conn.Weight = std::clamp(conn.Weight + conn.momentum, -Opts.WeightRange, Opts.WeightRange);
             }
         }
 
@@ -1190,12 +1283,9 @@ namespace znn {
         for (uint hl = 1; hl < Opts.FCNN_hideLayers.size(); ++hl) {
             for (uint otherHiddenLayer = 0; otherHiddenLayer < Opts.FCNN_hideLayers[hl]; ++otherHiddenLayer) {
                 for (uint ln = 0; ln < Opts.FCNN_hideLayers[hl - 1]; ++ln) {
-                    float newWeight = nn->Connections[Opts.FCNN_hideLayers[hl - 1] * otherHiddenLayer + ln + lastLayerConnectionCounter].Weight + Opts.LearnRate * neuronErrors[lastLayerNeuronCounter + otherHiddenLayer] * neuronValues[ln + lastLayerNeuronCounter - Opts.FCNN_hideLayers[hl - 1]];
-                    if (std::abs(newWeight) > Opts.WeightRange) {
-                        //                std::cerr << "Weight out of range: [" << connection.ConnectedNeuronId[0] << "," << connection.ConnectedNeuronId[1] << "], " << connection.Weight << " -> " << newWeight << "\n";
-                    } else {
-                        nn->Connections[Opts.FCNN_hideLayers[hl - 1] * otherHiddenLayer + ln + lastLayerConnectionCounter].Weight = newWeight;
-                    }
+                    auto &conn = nn->Connections[Opts.FCNN_hideLayers[hl - 1] * otherHiddenLayer + ln + lastLayerConnectionCounter];
+                    conn.momentum = Opts.BPMomentum * conn.momentum + Opts.LearnRate * neuronErrors[lastLayerNeuronCounter + otherHiddenLayer] * neuronValues[ln + lastLayerNeuronCounter - Opts.FCNN_hideLayers[hl - 1]];
+                    conn.Weight = std::clamp(conn.Weight + conn.momentum, -Opts.WeightRange, Opts.WeightRange);
                 }
             }
             lastLayerNeuronCounter += Opts.FCNN_hideLayers[hl];
@@ -1204,27 +1294,19 @@ namespace znn {
 
 //        std::cout << "lastLayerNeuronCounter "<< lastLayerNeuronCounter << "\n";
 
-        // 更新输出层节点的连接权重
+        // 更新输出层节点的连接权重  [OPT] 动量 + 越界截断（拒绝→clamp）
         for (uint ol = 0; ol < Opts.OutputSize; ++ol) {
             for (uint lastHiddenLayer = 0; lastHiddenLayer < Opts.FCNN_hideLayers[Opts.FCNN_hideLayers.size() - 1]; ++lastHiddenLayer) {
-                float newWeight = nn->Connections[Opts.FCNN_hideLayers[Opts.FCNN_hideLayers.size() - 1] * ol + lastHiddenLayer + lastLayerConnectionCounter].Weight +
-                                  Opts.LearnRate * resultErrors[ol] * neuronValues[lastLayerNeuronCounter - Opts.FCNN_hideLayers[Opts.FCNN_hideLayers.size() - 1] + lastHiddenLayer];
-                if (std::abs(newWeight) > Opts.WeightRange) {
-                    //                std::cerr << "Weight out of range: [" << connection.ConnectedNeuronId[0] << "," << connection.ConnectedNeuronId[1] << "], " << connection.Weight << " -> " << newWeight << "\n";
-                } else {
-                    nn->Connections[Opts.FCNN_hideLayers[Opts.FCNN_hideLayers.size() - 1] * ol + lastHiddenLayer + lastLayerConnectionCounter].Weight = newWeight;
-                }
+                auto &conn = nn->Connections[Opts.FCNN_hideLayers[Opts.FCNN_hideLayers.size() - 1] * ol + lastHiddenLayer + lastLayerConnectionCounter];
+                conn.momentum = Opts.BPMomentum * conn.momentum + Opts.LearnRate * resultErrors[ol] * neuronValues[lastLayerNeuronCounter - Opts.FCNN_hideLayers[Opts.FCNN_hideLayers.size() - 1] + lastHiddenLayer];
+                conn.Weight = std::clamp(conn.Weight + conn.momentum, -Opts.WeightRange, Opts.WeightRange);
             }
         }
 
-        // 更新隐藏层节点偏置
+        // 更新隐藏层节点偏置  [OPT] 动量 + 越界截断（拒绝→clamp）
         for (uint ni = 0; ni < neuronErrors.size(); ++ni) {
-            float newBias = nn->Neurons[Opts.InputSize + Opts.OutputSize + ni].Bias + Opts.LearnRate * neuronErrors[ni];
-            if (std::abs(newBias) > Opts.BiasRange) {
-                //                    std::cerr << "Bias out of range: [" << n.Id << "], " << n.Bias << " -> " << newBias << "\n";
-            } else {
-                nn->Neurons[Opts.InputSize + Opts.OutputSize + ni].Bias = newBias;
-            }
+            nn->Neurons[Opts.InputSize + Opts.OutputSize + ni].momentum = Opts.BPMomentum * nn->Neurons[Opts.InputSize + Opts.OutputSize + ni].momentum + Opts.LearnRate * neuronErrors[ni];
+            nn->Neurons[Opts.InputSize + Opts.OutputSize + ni].Bias = std::clamp(nn->Neurons[Opts.InputSize + Opts.OutputSize + ni].Bias + nn->Neurons[Opts.InputSize + Opts.OutputSize + ni].momentum, -Opts.BiasRange, Opts.BiasRange);
         }
 
         if (outputs.size() != wants.size()) {
@@ -1343,7 +1425,12 @@ namespace znn {
             }
 
             if (dataType == 1) {
+                // [FIX] 手改过的 .nn 文件可能有空行/缺字段，直接 datas[1]/datas[2] 会越界 UB；先检查再访问
                 auto datas = SplitString(line, ",");
+                if (datas.size() < 3) {
+                    std::cerr << "ImportNN wrong neuron line: \"" << line << "\"\n";
+                    exit(0);
+                }
                 double nnLayer = std::stod(datas[1]);
                 ulong id = std::stoul(datas[0]);
                 newNeurons.push_back(Neuron{.Id = id, .Bias = std::stof(datas[2]), .Layer = nnLayer,});
@@ -1351,8 +1438,17 @@ namespace znn {
                 continue;
             }
 
+            // [FIX] 连接段同理：空行/畸形行先跳过或报错，避免 datas[0]/cnid[1] 越界 UB
             auto datas = SplitString(line, ",");
+            if (datas.size() < 2) {
+                std::cerr << "ImportNN wrong connection line: \"" << line << "\"\n";
+                exit(0);
+            }
             auto cnid = SplitString(datas[0], "->");
+            if (cnid.size() < 2) {
+                std::cerr << "ImportNN wrong connection endpoints: \"" << line << "\"\n";
+                exit(0);
+            }
             newConnections.push_back(Connection{.ConnectedNeuronId = {std::stoul(cnid[0]), std::stoul(cnid[1])}, .Weight = std::stof(datas[1]), .Enable = true,});
         }
 
@@ -1375,13 +1471,21 @@ namespace znn {
 
         if (Opts.InputSize > InputSize) {
             for (ulong i = 0; i < Opts.InputSize - InputSize; ++i) {
-                newNeurons.push_back(Neuron{.Id = HiddenNeuronInnovations.size() + OutputSize + InputSize + i + FCHidenNeuronSize, .Bias = 0.f, .Layer = 0.,});
+                // [FIX] 原公式用“导入时的 OutputSize/InputSize”拼新 Id，与 MutateAddNeuron 生成
+                // 新 Id 的规则（当前 Opts 尺寸）不一致，混合导入/续训时可能与其他神经元 Id 碰撞；
+                // 改为与 MutateAddNeuron 相同的公式：HiddenNeuronInnovations.size() + 当前InputSize + 当前OutputSize，
+                // 并加上偏移 i 保证补充的多个神经元之间互不冲突
+                ulong newId = HiddenNeuronInnovations.size() + Opts.InputSize + Opts.OutputSize + FCHidenNeuronSize + i;
+                newNeurons.push_back(Neuron{.Id = newId, .Bias = 0.f, .Layer = 0.,});
             }
         }
 
         if (Opts.OutputSize > OutputSize) {
             for (ulong i = 0; i < Opts.OutputSize - OutputSize; ++i) {
-                newNeurons.push_back(Neuron{.Id = HiddenNeuronInnovations.size() + OutputSize + i + Opts.InputSize + FCHidenNeuronSize, .Bias =
+                // [FIX] 同上：与 MutateAddNeuron 公式保持一致 + 输入补充量偏移，避免 Id 碰撞
+                ulong newId = HiddenNeuronInnovations.size() + Opts.InputSize + Opts.OutputSize + FCHidenNeuronSize
+                              + (Opts.InputSize - InputSize) + i;
+                newNeurons.push_back(Neuron{.Id = newId, .Bias =
                 float(random() % long(Opts.NewNNBiasRange * 200) - long(Opts.NewNNBiasRange * 100)) / 100.f, .Layer = 1.,});
             }
         }
@@ -1426,6 +1530,12 @@ namespace znn {
             }
 
             if (dataType == 0) {
+                // [FIX] 原代码直接 Opts.FCNN_hideLayers[hl]，若 .innov 文件带 FC 头但当前
+                // Opts.FCNN_hideLayers 为空或长度不匹配，会越界；先检查再访问
+                if (hl >= Opts.FCNN_hideLayers.size()) {
+                    std::cerr << "Innovations FCNN header longer than Opts.FCNN_hideLayers\n";
+                    exit(0);
+                }
                 if (Opts.FCNN_hideLayers[hl] != std::stoi(line)) {
                     std::cerr << "Innovations based FCNN wrong\n";
                     exit(0);

@@ -4,6 +4,7 @@
 #define MYNEAT_GENERATION_HPP
 
 #include "NeuralNetwork.hpp"
+#include <set>  // [OPT] GetChildByCrossing 用 set/map 做连接匹配去重
 
 namespace znn {
     class Generation {
@@ -36,7 +37,8 @@ namespace znn {
     }
 
     void Generation::MutateWeightNear(Connection &c) {
-        float tmpWeight = c.Weight + float(random() % (Opts.MutateWeightNearRange * 2000000) - Opts.MutateWeightNearRange * 1000000) / 1000000.f;
+        // [FIX] 原式 Opts.MutateWeightNearRange * 2000000 是 int 乘法，范围设置较大时会整型溢出；统一转 long 再乘
+        float tmpWeight = c.Weight + float(random() % (long(Opts.MutateWeightNearRange) * 2000000L) - long(Opts.MutateWeightNearRange) * 1000000L) / 1000000.f;
         if (tmpWeight > Opts.WeightRange) {
             c.Weight = Opts.WeightRange;
             return;
@@ -67,6 +69,12 @@ namespace znn {
 
     void Generation::MutateAddNeuron(NetworkGenome &nn) {
         ulong nid0, nid1;
+
+        // [FIX] 原代码在 Connections / Neurons 为空时 random() % 0 未定义（除零崩溃）；
+        // 空容器时直接返回，跳过本次变异
+        if (nn.Connections.empty() || nn.Neurons.empty()) {
+            return;
+        }
 
         if (random() % 2 == 0) {
             Connection &choosingConnection = nn.Connections[random() % nn.Connections.size()];  // 选出一条连接
@@ -154,6 +162,13 @@ namespace znn {
             //            }
         }
 
+        // [FIX] 连接若引用了不存在的神经元（如手改过的 .nn 文件），tmpNeuronMap[nid] 用 operator[] 会插入
+        // nullptr 再解引用 ->Layer 崩溃；改用 find 检查，缺失时报错跳过本次变异
+        if (tmpNeuronMap.find(nid0) == tmpNeuronMap.end() || tmpNeuronMap.find(nid1) == tmpNeuronMap.end()) {
+            std::cerr << "MutateAddNeuron: connection references missing neuron [" << nid0 << "," << nid1 << "]\n";
+            return;
+        }
+
         Neuron newNeuron = {.Id = newNid, .Bias = float(random() % long(Opts.BiasRange * 2000000) - long(Opts.BiasRange * 1000000)) / 1000000.f, .Layer =
         (tmpNeuronMap[nid0]->Layer + tmpNeuronMap[nid1]->Layer) / 2.,};
         nn.Neurons.push_back(newNeuron);
@@ -173,6 +188,11 @@ namespace znn {
     }
 
     void Generation::MutateAddConnection(NetworkGenome &nn) {
+        // [FIX] Neurons 为空时 random() % 0 除零崩溃；空容器时直接返回
+        if (nn.Neurons.empty()) {
+            return;
+        }
+
         Neuron &choosingNeuron0 = nn.Neurons[random() % nn.Neurons.size()];  // 选出第一个神经元
         Neuron &choosingNeuron1 = nn.Neurons[random() % nn.Neurons.size()];  // 选出第二个神经元
 
@@ -207,6 +227,11 @@ namespace znn {
     }
 
     void Generation::MutateEnableConnection(NetworkGenome &nn) {
+        // [FIX] Connections 为空时 random() % 0 除零崩溃；空容器时直接返回
+        if (nn.Connections.empty()) {
+            return;
+        }
+
         Connection &choosingConnection = nn.Connections[random() % nn.Connections.size()];  // 选出一条连接
         if (choosingConnection.Enable) {
             choosingConnection.Enable = false;
@@ -269,38 +294,35 @@ namespace znn {
 
         std::vector<Connection> newConnections;// 记录全部涉及的连接
 
+        // [OPT] 原实现三层嵌套循环匹配连接：nn0 每条连接线性扫 nn1（O(C0×C1)），再线性扫
+        // newConnections 去重（O(C0×C2)）。改为 map 按"两端神经元id"键 O(ClogC) 查找，
+        // 选择语义与原版完全一致（共同连接随机选一条、独有连接直接保留）
+        std::map<std::array<ulong, 2>, const Connection *> conn1Map;  // nn1 的连接按端点对索引
+        for (auto &c1: nn1->Connections) {
+            conn1Map[c1.ConnectedNeuronId] = &c1;
+        }
+        std::set<std::array<ulong, 2>> chosenKeys;  // 已选入 newConnections 的端点对，用于第二阶段去重
+
         for (auto c0: nn0->Connections) {  // 遍历第一个神经元的所有连接
-            bool isThisConnectionExists = false;
-            for (auto c1: nn1->Connections) {// 遍历第二个神经元的所有连接
-                if (c0.ConnectedNeuronId == c1.ConnectedNeuronId) {
-                    isThisConnectionExists = true;
-                    if (random() % 2 == 0) {  // 若有相同对应神经元id的连接，则随机选一条
-                        newConnections.push_back(c0);
-                    } else {
-                        newConnections.push_back(c1);
-                    }
-                    break;
+            auto it1 = conn1Map.find(c0.ConnectedNeuronId);
+            if (it1 != conn1Map.end()) {  // 两亲本共有此连接：随机选一条
+                if (random() % 2 == 0) {
+                    newConnections.push_back(c0);
+                } else {
+                    newConnections.push_back(*it1->second);
                 }
+            } else {
+                newConnections.push_back(c0);// 仅 nn0 有的连接，直接保留
             }
-            if (!isThisConnectionExists) {
-                newConnections.push_back(c0);// 无相同对应神经元id的连接，则选它
-            }
-            //            remainingIds.insert(remainingIds.end(), c0.ConnectedNeuronId.begin(), c0.ConnectedNeuronId.end());
+            chosenKeys.insert(c0.ConnectedNeuronId);
         }
 
         for (auto c1: nn1->Connections) {// 遍历第二个神经元的所有连接
-            bool isThisConnectionExists = false;
-            for (auto c2: newConnections) {// 遍历根据第一个连接加上第二个神经元中第一个神经元没有的连接
-                if (c1.ConnectedNeuronId == c2.ConnectedNeuronId) {
-                    isThisConnectionExists = true;
-                    break;
-                }
+            if (chosenKeys.find(c1.ConnectedNeuronId) == chosenKeys.end()) {
+                newConnections.push_back(c1);// 仅 nn1 有的连接，保留
+                chosenKeys.insert(c1.ConnectedNeuronId);
             }
-            if (!isThisConnectionExists) {
-                newConnections.push_back(c1);// 无相同对应神经元id的连接，则选它
-                //                remainingIds.insert(remainingIds.end(), c1.ConnectedNeuronId.begin(), c1.ConnectedNeuronId.end());
-            }
-        } // 两个for循环选出全部连接
+        } // 选出全部连接
 
         std::unordered_map<ulong, uint> remainingIds;  // 记录所有涉及的神经元id
         std::unordered_map<ulong, Neuron *> tmpNeuron0Map;

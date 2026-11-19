@@ -154,14 +154,13 @@ return population.generation.neuralNetwork.ImportNN(fileName);
         std::vector<std::vector<float>> wantedOutputs;
 
         if (randomSize > 0) {
-            uint *randIdsPtr = GetRandIndex(rawInputs.size());
+            // [FIX] GetRandIndex 改为返回 std::vector<uint>（原裸 new[] 有泄漏风险），调用方同步适配
+            std::vector<uint> randIds = GetRandIndex(rawInputs.size());
 
             for (uint i = 0; i < randomSize; ++i) {
-                inputs.push_back(rawInputs[randIdsPtr[i]]);
-                wantedOutputs.push_back(rawWantedOutputs[randIdsPtr[i]]);
+                inputs.push_back(rawInputs[randIds[i]]);
+                wantedOutputs.push_back(rawWantedOutputs[randIds[i]]);
             }
-
-            delete[] randIdsPtr;
         } else {
             inputs = rawInputs;
             wantedOutputs = rawWantedOutputs;
@@ -285,7 +284,11 @@ return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格
 
 #endif
 
-population.NeuralNetworks = tmpPopulation;
+            // [FIX] 代间重建会释放旧 vector 内存；渲染线程（classification 等）可能正锁内拷贝
+            // 种群元素，不加锁会读到已释放内存。与渲染方的 znn::mtx 配对
+            mtx.lock();
+            population.NeuralNetworks = tmpPopulation;
+            mtx.unlock();
 
             populationFitness.clear();
             orderedPopulation.clear();
@@ -295,14 +298,13 @@ population.NeuralNetworks = tmpPopulation;
                 inputs.clear();
                 wantedOutputs.clear();
 
-                uint *randIdsPtr = GetRandIndex(rawInputs.size());
+                // [FIX] GetRandIndex 改为返回 std::vector<uint>（原裸 new[] 有泄漏风险），调用方同步适配
+                std::vector<uint> randIds = GetRandIndex(rawInputs.size());
 
                 for (uint i = 0; i < randomSize; ++i) {
-                    inputs.push_back(rawInputs[randIdsPtr[i]]);
-                    wantedOutputs.push_back(rawWantedOutputs[randIdsPtr[i]]);
+                    inputs.push_back(rawInputs[randIds[i]]);
+                    wantedOutputs.push_back(rawWantedOutputs[randIds[i]]);
                 }
-
-                delete[] randIdsPtr;
             }
 
             populationFitness = population.CalculateFitnessByWanted(inputs, wantedOutputs);
@@ -447,7 +449,11 @@ return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格
 
 #endif
 
-population.NeuralNetworks = tmpPopulation;
+            // [FIX] 代间重建会释放旧 vector 内存；渲染线程（classification 等）可能正锁内拷贝
+            // 种群元素，不加锁会读到已释放内存。与渲染方的 znn::mtx 配对
+            mtx.lock();
+            population.NeuralNetworks = tmpPopulation;
+            mtx.unlock();
 
             populationFitness.clear();
             orderedPopulation.clear();
