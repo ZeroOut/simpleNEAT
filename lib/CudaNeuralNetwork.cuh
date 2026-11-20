@@ -5,6 +5,29 @@
 
 // [CUDA] 基于 cuBLAS 的全连接网络批量引擎（原文件是 FCNNFeedForwardPredict 的 CPU 草稿，无 CUDA 代码，已重写）
 //
+// ===== 编译说明 =====
+// 本文件是头文件，被 *_cuda.cpp 通过 #include 使用；含 __global__ 内核，所以**包含它的 .cpp
+// 必须用 nvcc 编译**（-x cu 强制按 CUDA 源处理），链接 cuBLAS：
+//
+//   无渲染测试（iris/xor/基准）：
+//     nvcc -O3 -std=c++20 -arch=native test_iris_FC_cuda.cpp -x cu \
+//          -o build/test_iris_FC_cuda -lcublas -lraylib
+//     （-lraylib 是 lib 头文件的链接依赖，即使 Enable3dNN=false 也要）
+//
+//   SFML 渲染版（classification）：
+//     nvcc -O3 -std=c++20 -arch=native test_classification_sfml_cuda.cpp -x cu \
+//          -o build/test_classification_sfml_cuda -lcublas -lsfml-graphics -lsfml-window -lsfml-system -lraylib
+//
+//   raylib 渲染版（pathfinder）：
+//     nvcc -O3 -std=c++20 -arch=native test_pathfindder_raylib_cuda.cpp -x cu \
+//          -o build/test_pathfindder_raylib_cuda -lcublas -lraylib
+//
+//   语法快速检查（不产出二进制）：
+//     nvcc -std=c++20 -arch=native -DNO_3DNN -I. -fsyntax-only <任意包含本文件的 .cpp>
+//
+//   CMake：-DENABLE_CUDA=ON（test_bench_fcnn / test_bench_ga / 两个 *_cuda 渲染版均已配置）
+//   -arch=native 自动匹配本机 GPU（如 RTX 2080 Ti = sm_75）；设备端激活函数固定 Sigmoid。
+//
 // 设计说明：
 // - 设备端激活函数硬编码为 Sigmoid/DerivativeSigmoid（Opts.ActiveFunction 是 std::function，无法在设备端执行）
 // - 前向/反向用 strided-batched GEMM：种群 P 个同拓扑 FCNN 的权重打包成 [P × WPG]，一次批量算完
@@ -19,6 +42,9 @@
 #include <vector>
 #include <iostream>
 #include <algorithm>
+#include <set>      // CudaNeatEngine 的层值集合
+#include <map>      // (to,from) 分组
+#include <unordered_map>
 #include <cmath>
 #include "NeuralNetwork.hpp"
 
@@ -406,6 +432,9 @@ namespace znn {
                     size_t nPrev = size_t(count) * in;
                     MulDerivKernel<<<uint((nPrev + 255) / 256), 256>>>(dPrev, dAct[l - 1], nPrev);
                     CUDA_CHECK(cudaGetLastError());
+                    // [FIX] 交替双缓冲：上一层 delta 已在 dPrev，下一轮必须读它——
+                    // 缺此交换时 gradW 永远读旧层 delta（iris/xor 退化 0.80/0.5 的根因）
+                    std::swap(dCur, dPrev);
                 }
             }
         }
@@ -452,11 +481,6 @@ namespace znn {
             for (size_t l = L; l >= 1; --l) {
                 int in = int(layers[l - 1]), out = int(layers[l]);
                 const float *actPrev = (l == 1 ? dX + offset * in : dAct[l - 1] + offset * in);
-                std::cerr << "[TB] l=" << l << " in=" << in << " out=" << out << " size=" << size << " off=" << offset << " layers:";
-                for (auto v: layers) std::cerr << " " << v;
-                std::cerr << " hides:";
-                for (auto v: Opts.FCNN_hideLayers) std::cerr << " " << v;
-                std::cerr << "\n";
                 CUBLAS_CHECK(cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_T,
                                          in, out, int(size), &alpha,
                                          actPrev, in,
@@ -474,6 +498,7 @@ namespace znn {
                     size_t nPrev = size_t(size) * in;
                     MulDerivKernel<<<uint((nPrev + 255) / 256), 256>>>(dPrev, dAct[l - 1] + offset * in, nPrev);
                     CUDA_CHECK(cudaGetLastError());
+                    std::swap(dCur, dPrev);  // [FIX] 同上
                 }
             }
         }
@@ -491,6 +516,353 @@ namespace znn {
             std::vector<float> outputs(size_t(P) * S * layers[L]);
             CUDA_CHECK(cudaMemcpy(outputs.data(), dAct[L], outputs.size() * sizeof(float), cudaMemcpyDeviceToHost));
             return outputs;
+        }
+    };
+
+    // [CUDA] supernet 评估用核函数（namespace 作用域——__global__ 不能是成员函数）
+    __global__ void NeatCopyInputKernel(const float *X, float *act, size_t total, int in, size_t S,
+                                        size_t sampleStride, size_t genomeStride, size_t inSlot) {
+        size_t idx = blockIdx.x * (size_t) blockDim.x + threadIdx.x;
+        if (idx >= total) {
+            return;
+        }
+        size_t g = idx / (S * size_t(in));
+        size_t r = idx % (S * size_t(in));
+        size_t s = r / size_t(in);
+        size_t i = r % size_t(in);
+        // [FIX] act 样本步距是 nNeurons（曾线性写 r=s*I+i，样本 1 的输入踩进样本 0 的
+        // 隐藏层槽位 → 全场错乱）
+        act[g * genomeStride + s * sampleStride + inSlot + i] = X[r];
+    }
+
+    // [FIX] 跨步寻址：act 布局 [P × S × nNeurons]（曾线性写 A[idx]，sigmoid 落到错误槽位、
+    // 真实槽位保持原始 GEMM 值 → 输出 >1 / 全 0）
+    __global__ void NeatMulMaskKernel(float *act, const float *mask, size_t total, int Nl, size_t S,
+                                      size_t sampleStride, size_t genomeStride, size_t layerOff, size_t nNeurons) {
+        size_t idx = blockIdx.x * (size_t) blockDim.x + threadIdx.x;
+        if (idx >= total) {
+            return;
+        }
+        size_t g = idx / (S * size_t(Nl));
+        size_t r = idx % (S * size_t(Nl));
+        size_t sIdx = r / size_t(Nl);
+        size_t j = r % size_t(Nl);
+        size_t addr = g * genomeStride + sIdx * sampleStride + layerOff + j;
+        act[addr] *= mask[g * nNeurons + layerOff + j];
+    }
+
+    // 跨步清零：memset 是线性写，会跨过样本/基因组边界清掉其它层的槽位（如 g0s1 的输入）
+    __global__ void NeatZeroLayerKernel(float *act, size_t total, int Nl, size_t S,
+                                        size_t sampleStride, size_t genomeStride, size_t layerOff) {
+        size_t idx = blockIdx.x * (size_t) blockDim.x + threadIdx.x;
+        if (idx >= total) {
+            return;
+        }
+        size_t g = idx / (S * size_t(Nl));
+        size_t r = idx % (S * size_t(Nl));
+        size_t sIdx = r / size_t(Nl);
+        size_t j = r % size_t(Nl);
+        act[g * genomeStride + sIdx * sampleStride + layerOff + j] = 0.f;
+    }
+
+    // [FIX] 输出收集：输出槽位在 act 里按样本跨步（间隔 nNeurons），2D memcpy 无法表达
+    // 两级跨步（曾把 s≥1 的输入槽当输出读回 → 恒 1.0）
+    __global__ void NeatGatherOutputsKernel(const float *act, float *outs, size_t total, int O, size_t S,
+                                            size_t sampleStride, size_t genomeStride, size_t outOff) {
+        size_t idx = blockIdx.x * (size_t) blockDim.x + threadIdx.x;
+        if (idx >= total) {
+            return;
+        }
+        size_t g = idx / (S * size_t(O));
+        size_t r = idx % (S * size_t(O));
+        size_t sIdx = r / size_t(O);
+        size_t j = r % size_t(O);
+        outs[idx] = act[g * genomeStride + sIdx * sampleStride + outOff + j];
+    }
+
+    // 跨步 bias+sigmoid：同上布局
+    __global__ void NeatBiasActivateKernel(float *act, const float *bias, size_t total, int Nl, size_t S,
+                                           size_t sampleStride, size_t genomeStride, size_t layerOff, size_t nNeurons) {
+        size_t idx = blockIdx.x * (size_t) blockDim.x + threadIdx.x;
+        if (idx >= total) {
+            return;
+        }
+        size_t g = idx / (S * size_t(Nl));
+        size_t r = idx % (S * size_t(Nl));
+        size_t sIdx = r / size_t(Nl);
+        size_t j = r % size_t(Nl);
+        size_t addr = g * genomeStride + sIdx * sampleStride + layerOff + j;
+        act[addr] = 1.f / (1.f + expf(-(act[addr] + bias[g * nNeurons + layerOff + j])));
+    }
+
+    // [CUDA] NEAT supernet 评估引擎（评估 only，无 BP）
+    // 思路（GPU-NEAT 主流方案）：把本代全部个体的神经元/连接取并集构成 supernet——
+    // 每个个体 = supernet 的一组权重（不存在的连接 w=0，数学上等效禁用）+ 神经元存在 mask
+    // （不存在的神经元激活强制 0，防止 sigmoid(0)=0.5 污染下游）。supernet 层结构对全体统一
+    // （NEAT 的 innovation 机制保证同 Id 神经元同 Layer），因此可以逐层 strided-batched GEMM 批量。
+    // 代价：计算量 = supernet 大小而非每个体实际大小（个体拓扑差异大时浪费增多，但稠密 GEMM 的
+    // GPU 吞吐通常仍远超 CPU 逐个前向）。
+    struct CudaNeatEngine {
+        // supernet 描述
+        std::vector<double> layers;                       // 排序去重的层值
+        std::vector<std::vector<ulong>> layerNeuronIds;   // 每层内神经元 Id（按 Id 排序）
+        std::unordered_map<ulong, std::pair<int, int>> neuronSlot;  // Id -> (层号, 层内序号)
+        std::vector<size_t> neuronOff;                    // 每层神经元槽在打包块内的偏移
+        size_t nNeurons = 0;                              // supernet 神经元总数
+        std::vector<std::array<ulong, 2>> conns;          // supernet 连接（仅 Enable 连接的并集）
+        std::unordered_map<uint64_t, int> connSlot;       // (from<<32|to) -> 连接序号
+        struct ConnGroup {
+            int fromLayer;
+            size_t off;    // 每 genome 权重块内的偏移
+            int Nl, Np;    // 稠密矩阵维度 [Nl × Np]
+        };
+        std::vector<std::vector<ConnGroup>> connGroups;   // 每 to 层的 (源层) 分组——NEAT 连接可跨层
+                                                          // 直连（输入→输出绕过隐藏层），必须按 (to,from)
+                                                          // 二元组分组累加，只算相邻层会丢直连边。
+                                                          // 权重按组稠密打包 [Nl × Np]（缺失连接=0，
+                                                          // 稀疏列表会与 GEMM 的稠密 A 操作数错位）
+        size_t wTotal = 0;                                // 每 genome 权重块总宽
+        uint P = 0, S = 0, I = 0, O = 0;
+
+        float *dW = nullptr;      // [P × nConns] 每体权重（不存在=0），按 to 层分组连续
+        float *dBias = nullptr;   // [P × nNeurons] 每体偏置（不存在=0），按层偏移
+        float *dMask = nullptr;   // [P × nNeurons] 神经元存在掩码
+        float *dXn = nullptr;     // [S × I]
+        float *dAct = nullptr;    // [P × S × nNeurons] 全部激活（按层偏移寻址）
+        float *dOuts = nullptr;   // [P × S × O] 收集后的连续输出
+        cublasHandle_t handle = nullptr;
+        bool built = false;
+        size_t capW = 0, capN = 0, capA = 0;
+
+        CudaNeatEngine(uint P_, uint S_) : P(P_), S(S_) {
+            CUBLAS_CHECK(cublasCreate(&handle));
+        }
+
+        ~CudaNeatEngine() {
+            if (handle) {
+                cublasDestroy(handle);
+            }
+            cudaFree(dW);
+            cudaFree(dBias);
+            cudaFree(dMask);
+            cudaFree(dXn);
+            cudaFree(dAct);
+            cudaFree(dOuts);
+        }
+
+        // 每代重建 supernet（个体拓扑会变），并把种群权重/偏置/掩码打包上传
+        void BuildSupernet(const std::vector<NetworkGenome> &pop, uint inputSize, uint outputSize) {
+            I = inputSize;
+            O = outputSize;
+            layers.clear();
+            layerNeuronIds.clear();
+            neuronSlot.clear();
+            conns.clear();
+            connSlot.clear();
+            std::set<double> layerSet;
+            std::map<ulong, double> id2Layer;
+
+            for (auto &g: pop) {
+                for (auto &n: g.Neurons) {
+                    auto it = id2Layer.find(n.Id);
+                    if (it == id2Layer.end()) {
+                        id2Layer[n.Id] = n.Layer;
+                        layerSet.insert(n.Layer);
+                    } else if (it->second != n.Layer) {
+                        std::cerr << "[CudaNeat] neuron " << n.Id << " has inconsistent layer across population\n";
+                        exit(1);
+                    }
+                }
+            }
+            layers.assign(layerSet.begin(), layerSet.end());
+            layerNeuronIds.resize(layers.size());
+            neuronOff.assign(layers.size() + 1, 0);
+
+            // 每层神经元按 Id 排序；保证同 Id 跨个体同槽
+            for (auto &kv: id2Layer) {
+                int li = int(std::find(layers.begin(), layers.end(), kv.second) - layers.begin());
+                layerNeuronIds[li].push_back(kv.first);
+            }
+            for (auto &v: layerNeuronIds) {
+                std::sort(v.begin(), v.end());
+            }
+            for (size_t l = 0; l < layers.size(); ++l) {
+                neuronOff[l + 1] = neuronOff[l] + layerNeuronIds[l].size();
+                for (size_t j = 0; j < layerNeuronIds[l].size(); ++j) {
+                    neuronSlot[layerNeuronIds[l][j]] = {int(l), int(j)};
+                }
+            }
+            nNeurons = neuronOff[layers.size()];
+
+            // 连接并集（只收 Enable；同 (from,to) 槽位共享，禁用个体 w=0）
+            for (auto &g: pop) {
+                for (auto &c: g.Connections) {
+                    if (!c.Enable) {
+                        continue;
+                    }
+                    uint64_t key = (uint64_t(c.ConnectedNeuronId[0]) << 32) | c.ConnectedNeuronId[1];
+                    if (connSlot.find(key) == connSlot.end()) {
+                        connSlot[key] = int(conns.size());  // 记录 conns 下标（分组后经 finalSlot 映射到打包槽位）
+                        conns.push_back(c.ConnectedNeuronId);
+                    }
+                }
+            }
+
+            // 连接按 (to 层, from 层) 二元组分组——跨层直连边归入 (to, from<to) 组
+            std::map<int, std::map<int, std::vector<int>>> byPair;
+            for (int ci = 0; ci < int(conns.size()); ++ci) {
+                int to = neuronSlot[conns[ci][1]].first;
+                int from = neuronSlot[conns[ci][0]].first;
+                if (from >= to) {
+                    std::cerr << "[CudaNeat] conn " << conns[ci][0] << "->" << conns[ci][1]
+                              << " has from-layer >= to-layer\n";
+                    exit(1);
+                }
+                byPair[to][from].push_back(ci);
+            }
+            connGroups.assign(layers.size(), {});
+            std::vector<int> finalSlot(conns.size());
+            size_t wOff = 0;
+            for (size_t l = 0; l < layers.size(); ++l) {
+                int Nl = int(layerNeuronIds[l].size());
+                for (auto &kv: byPair[int(l)]) {
+                    int Np = int(layerNeuronIds[kv.first].size());
+                    ConnGroup grp;
+                    grp.fromLayer = kv.first;
+                    grp.off = wOff;
+                    grp.Nl = Nl;
+                    grp.Np = Np;
+                    // 稠密 [Nl × Np]（rm）：元素 (输出 j, 输入 i) 在 j*Np + i
+                    for (int ci: kv.second) {
+                        int j = neuronSlot[conns[ci][1]].second;
+                        int i = neuronSlot[conns[ci][0]].second;
+                        finalSlot[ci] = int(wOff + size_t(j) * Np + i);
+                    }
+                    wOff += size_t(Nl) * Np;
+                    connGroups[l].push_back(grp);
+                }
+            }
+            wTotal = wOff;
+
+            // 打包 [P × wTotal]
+            std::vector<float> wPack(size_t(P) * wTotal, 0.f);
+            std::vector<float> bPack(size_t(P) * nNeurons, 0.f);
+            std::vector<float> mPack(size_t(P) * nNeurons, 0.f);
+            for (uint p = 0; p < pop.size(); ++p) {
+                auto &g = pop[p];
+                for (auto &n: g.Neurons) {
+                    auto sl = neuronSlot[n.Id];
+                    size_t off = neuronOff[sl.first] + sl.second;
+                    bPack[size_t(p) * nNeurons + off] = n.Bias;
+                    mPack[size_t(p) * nNeurons + off] = 1.f;
+                }
+                for (auto &c: g.Connections) {
+                    if (!c.Enable) {
+                        continue;
+                    }
+                    uint64_t key = (uint64_t(c.ConnectedNeuronId[0]) << 32) | c.ConnectedNeuronId[1];
+                    wPack[size_t(p) * wTotal + finalSlot[connSlot[key]]] = c.Weight;
+                }
+            }
+
+            // [FIX] supernet 每代可能增长（结构变异加神经元），按需重分配
+            size_t needW = size_t(P) * wTotal, needN = size_t(P) * nNeurons, needA = size_t(P) * S * nNeurons;
+            if (!built || dW == nullptr || capW < needW || capN < needN || capA < needA) {
+                cudaFree(dW);
+                cudaFree(dBias);
+                cudaFree(dMask);
+                cudaFree(dAct);
+                cudaFree(dXn);
+                CUDA_CHECK(cudaMalloc(&dW, std::max(needW, size_t(1)) * sizeof(float)));
+                CUDA_CHECK(cudaMalloc(&dBias, std::max(needN, size_t(1)) * sizeof(float)));
+                CUDA_CHECK(cudaMalloc(&dMask, std::max(needN, size_t(1)) * sizeof(float)));
+                CUDA_CHECK(cudaMalloc(&dAct, std::max(needA, size_t(1)) * sizeof(float)));
+                CUDA_CHECK(cudaMalloc(&dOuts, std::max(size_t(P) * S * O, size_t(1)) * sizeof(float)));
+                CUDA_CHECK(cudaMalloc(&dXn, std::max(size_t(S) * I, size_t(1)) * sizeof(float)));
+                capW = needW;
+                capN = needN;
+                capA = needA;
+                built = true;
+            }
+            CUDA_CHECK(cudaMemcpy(dW, wPack.data(), wPack.size() * sizeof(float), cudaMemcpyHostToDevice));
+            CUDA_CHECK(cudaMemcpy(dBias, bPack.data(), bPack.size() * sizeof(float), cudaMemcpyHostToDevice));
+            CUDA_CHECK(cudaMemcpy(dMask, mPack.data(), mPack.size() * sizeof(float), cudaMemcpyHostToDevice));
+        }
+
+        void UploadX(const std::vector<float> &X) {  // [S × I]
+            CUDA_CHECK(cudaMemcpy(dXn, X.data(), X.size() * sizeof(float), cudaMemcpyHostToDevice));
+        }
+
+        // 批量评估：返回 [P × S × O]（行优先，每 genome 连续 S×O）
+        std::vector<float> Evaluate() {
+            float alpha = 1.f;
+            size_t inSlot = neuronOff[0];  // 输入层槽偏移（Layer 0 必为第 0 层）
+            // 输入层：复制 X（P 份共享同一输入）
+            {
+                size_t total = size_t(P) * S * I;
+                NeatCopyInputKernel<<<uint((total + 255) / 256), 256>>>(dXn, dAct, total, int(I), S,
+                                                                        nNeurons, size_t(S) * nNeurons, inSlot);
+                CUDA_CHECK(cudaGetLastError());
+            }
+
+            // 逐 supernet 层前向（跳过输入层）。NEAT 连接可跨层直连——每个 to 层对每个
+            // 有入边的源层做一次 GEMM 累加（beta 首组 0、后续 1），再 bias+sigmoid+mask。
+            // cm 矩阵的 ld 全部用 supernet 宽 nNeurons（act 里跨样本步距）
+            for (size_t l = 1; l < layers.size(); ++l) {
+                int Nl = int(layerNeuronIds[l].size());
+                float *actCur = dAct + neuronOff[l];
+                size_t total = size_t(P) * S * Nl;
+                // [FIX] 先清零再累加：存在但全部入边被禁用的槽位没有 GEMM 组覆盖，
+                // 不清零会读未初始化显存 → 垃圾传播；清零后 "无入边 → sigmoid(0+bias)"
+                // 与 CPU 语义精确一致。memset 是线性写会殃及相邻槽位，必须用跨步核
+                NeatZeroLayerKernel<<<uint((total + 255) / 256), 256>>>(dAct, total, Nl, S,
+                                                                       nNeurons, size_t(S) * nNeurons, neuronOff[l]);
+                CUDA_CHECK(cudaGetLastError());
+                for (auto &grp: connGroups[l]) {
+                    int Np = int(layerNeuronIds[grp.fromLayer].size());
+                    const float *actPrev = dAct + neuronOff[grp.fromLayer];
+                    CUBLAS_CHECK(cublasSgemmStridedBatched(handle, CUBLAS_OP_T, CUBLAS_OP_N,
+                                                           Nl, int(S), Np, &alpha,
+                                                           dW + grp.off, Np, (long long) wTotal,   // 每 genome 权重块
+                                                           actPrev, (long long) nNeurons, (long long) S * nNeurons,
+                                                           &alpha,
+                                                           actCur, (long long) nNeurons, (long long) S * nNeurons,
+                                                           int(P)));
+                }
+                // bias + sigmoid + 存在掩码（无入边组 = 孤立槽：sigmoid(bias) 后被 mask 修正）
+                // [FIX] 传 dAct 完整基址（actCur 已含 layerOff，内核内再加一次 = 双重偏移，
+                // sigmoid 写到更后面的槽位、真实槽位保持原始值）
+                NeatBiasActivateKernel<<<uint((total + 255) / 256), 256>>>(dAct, dBias, total, Nl, S,
+                                                                           nNeurons, size_t(S) * nNeurons, neuronOff[l], nNeurons);
+                CUDA_CHECK(cudaGetLastError());
+                NeatMulMaskKernel<<<uint((total + 255) / 256), 256>>>(dAct, dMask, total, Nl, S,
+                                                                      nNeurons, size_t(S) * nNeurons, neuronOff[l], nNeurons);
+                CUDA_CHECK(cudaGetLastError());
+            }
+
+            // 回读输出层（Layer 1 = 最后一层；NEAT 输出神经元 Id = I..I+O-1 排序后天然对齐）。
+            // [FIX] 输出槽位按样本跨步，先用收集核打包成连续 [P × S × O] 再一次拷回
+            size_t total = size_t(P) * S * O;
+            std::vector<float> outs(total);
+            NeatGatherOutputsKernel<<<uint((total + 255) / 256), 256>>>(dAct, dOuts, total, int(O), S,
+                                                                        nNeurons, size_t(S) * nNeurons, neuronOff[layers.size() - 1]);
+            CUDA_CHECK(cudaGetLastError());
+            CUDA_CHECK(cudaMemcpy(outs.data(), dOuts, total * sizeof(float), cudaMemcpyDeviceToHost));
+            return outs;
+        }
+
+        // [DEBUG] 回读全部激活 [P × S × nNeurons]
+        std::vector<float> DebugAct() {
+            std::vector<float> a(size_t(P) * S * nNeurons);
+            CUDA_CHECK(cudaMemcpy(a.data(), dAct, a.size() * sizeof(float), cudaMemcpyDeviceToHost));
+            return a;
+        }
+
+        // [DEBUG] 回读打包权重 [P × wTotal]
+        std::vector<float> DebugW() {
+            std::vector<float> w(size_t(P) * wTotal);
+            CUDA_CHECK(cudaMemcpy(w.data(), dW, w.size() * sizeof(float), cudaMemcpyDeviceToHost));
+            return w;
         }
     };
 }

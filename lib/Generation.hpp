@@ -4,6 +4,7 @@
 #define MYNEAT_GENERATION_HPP
 
 #include "NeuralNetwork.hpp"
+#include <algorithm>  // std::sort
 #include <set>  // [OPT] GetChildByCrossing 用 set/map 做连接匹配去重
 
 namespace znn {
@@ -109,6 +110,11 @@ namespace znn {
             }
         }
 
+        std::unordered_map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
+        for (auto &o: nn.Neurons) {
+            tmpNeuronMap[o.Id] = &o;
+        }
+
         mtx.lock();
         ulong newNid = neuralNetwork.HiddenNeuronInnovations.size() + Opts.InputSize + Opts.OutputSize + neuralNetwork.FCHidenNeuronSize;  // 新的神经元id为全部藏神经元数量+输入神经元数量+输出神经元数量+全连接网络隐藏神经元数量(如有)
         if (!neuralNetwork.HiddenNeuronInnovations.contains({nid0, nid1})) {  // 从全部隐藏神经元innovMap里面查看是否存在相同位置的神经元
@@ -155,18 +161,18 @@ namespace znn {
 
         mtx.unlock();
 
+        // [FIX] 本 genome 已有该 innovation 的神经元（连接已分裂过）时直接跳过：
+        // 原实现会对已分裂的连接再次加神经元——innovation 表返回同一个 Id →
+        // 出现重复 Id 神经元 + 重复连接（CPU 语义变求和翻倍、GPU supernet 槽位错乱）
+        if (tmpNeuronMap.find(newNid) != tmpNeuronMap.end()) {
+            return;
+        }
+
         for (auto &c: nn.Connections) {
             if (c.ConnectedNeuronId[0] == nid0 && c.ConnectedNeuronId[1] == nid1) {
                 c.Enable = false;
                 break;
             }
-        }
-
-        std::unordered_map<ulong, Neuron *> tmpNeuronMap;  // 记录神经元id对应的神经元，需要的时候才能临时生成记录，不然神经元的数组push_back的新增内存的时候会改变原有地址
-        for (auto &o: nn.Neurons) {
-            //            if (tmpNeuronMap.find(o.Id) == tmpNeuronMap.end()) {
-            tmpNeuronMap[o.Id] = &o;
-            //            }
         }
 
         // [FIX] 连接若引用了不存在的神经元（如手改过的 .nn 文件），tmpNeuronMap[nid] 用 operator[] 会插入
@@ -369,6 +375,10 @@ namespace znn {
 
             newNeurons.push_back(*tmpNeuron0Map[i.first]);
         }
+
+        // [FIX] 按 Id 排序：remainingIds 是 unordered_map，迭代序随机 → 子代 Neurons 向量顺序
+        // 每次都不同（配合 FeedForwardPredict 的向量序输入分配会导致输入映射漂移；导出文件也不稳定）
+        std::sort(newNeurons.begin(), newNeurons.end(), [](const Neuron &a, const Neuron &b) { return a.Id < b.Id; });
 
         return NetworkGenome{.Neurons = newNeurons, .Connections = newConnections,};
     }

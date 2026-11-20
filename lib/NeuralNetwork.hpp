@@ -844,6 +844,12 @@ namespace znn {
             std::cerr << "NeuralNetwork Nodes Error: Opts.InputSize " << Opts.InputSize << " Input Layer Size: " << tmpLayerMap[0.].size() << " Opts.OutputSize: " << Opts.OutputSize << " Output Layer Size: " << tmpLayerMap[1.].size() << std::endl;
             std::exit(0);
         }
+        // [FIX] 层内按 Id 排序：GetChildByCrossing 用 unordered_map 迭代序拼装 newNeurons，
+        // 向量顺序随机 → 输入按向量序分配时同一个 genome 每代输入映射都在漂移
+        // （实测交叉子代层 0 顺序 [1,0] → 输入互换）。排序后语义确定性：输入 i ↔ Id i
+        for (auto &kv: tmpLayerMap) {
+            std::sort(kv.second.begin(), kv.second.end(), [](const Neuron *a, const Neuron *b) { return a->Id < b->Id; });
+        }
 
         if (Opts.InputSize != inputs.size()) {
             std::cerr << "FeedForwardPredict: Input length " << inputs.size() << " diffrent with NN input nodes " << Opts.InputSize << std::endl;
@@ -958,6 +964,12 @@ namespace znn {
         if (Opts.InputSize != inputs.size()) {
             std::cerr << "BackPropagation: Input length " << inputs.size() << " diffrent with NN input nodes " << Opts.InputSize << std::endl;
             std::exit(0);
+        }
+        // [FIX] 层内按 Id 排序：GetChildByCrossing 用 unordered_map 迭代序拼装 newNeurons，
+        // 向量顺序随机 → 输入按向量序分配时同一个 genome 每代输入映射都在漂移
+        // （实测交叉子代层 0 顺序 [1,0] → 输入互换）。排序后语义确定性：输入 i ↔ Id i
+        for (auto &kv: tmpLayerMap) {
+            std::sort(kv.second.begin(), kv.second.end(), [](const Neuron *a, const Neuron *b) { return a->Id < b->Id; });
         }
 
         std::unordered_map<ulong, float> tmpNodesOutput;
