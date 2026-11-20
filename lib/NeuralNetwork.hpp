@@ -9,6 +9,7 @@
 #include <functional>
 #include <fstream>
 #include <mutex>
+#include <deque>
 #include "Option.hpp"
 
 #ifndef NO_3DNN
@@ -363,14 +364,15 @@ namespace znn {
 
         NetworkGenome SimplifyRemoveDisable(NetworkGenome nn);
 
-        // [OPT] inputs/wants 改 const 引用：每样本×每个体×每代调用，按值传参整份拷贝是纯开销
-        std::vector<float> FeedForwardPredict(NetworkGenome *nn, const std::vector<float> &inputs, bool isAccelerate);
+        // [OPT] inputs/wants 改 const 引用：每样本×每个体×每代调用，按值传参整份拷贝是纯开销。
+        // [FIX] isAccelerate 缺省 false：旧测试大量两/三参数调用形态
+        std::vector<float> FeedForwardPredict(NetworkGenome *nn, const std::vector<float> &inputs, bool isAccelerate = false);
 
-        std::vector<float> FCNNFeedForwardPredict(NetworkGenome *fh, const std::vector<float> &inputs, bool isAccelerate);
+        std::vector<float> FCNNFeedForwardPredict(NetworkGenome *fh, const std::vector<float> &inputs, bool isAccelerate = false);
 
-        std::vector<float> BackPropagation(NetworkGenome *nn, const std::vector<float> &inputs, const std::vector<float> &wants, bool isAccelerate);
+        std::vector<float> BackPropagation(NetworkGenome *nn, const std::vector<float> &inputs, const std::vector<float> &wants, bool isAccelerate = false);
 
-        std::vector<float> FCNNBackPropagation(NetworkGenome *nn, const std::vector<float> &inputs, const std::vector<float> &wants, bool isAccelerate);
+        std::vector<float> FCNNBackPropagation(NetworkGenome *nn, const std::vector<float> &inputs, const std::vector<float> &wants, bool isAccelerate = false);
 
         void ExportNNToDot(NetworkGenome &nn, std::string fileName);
 
@@ -1550,7 +1552,106 @@ namespace znn {
             }
         }
     }
+    // [FIX] 旧版自由函数兼容层：早期测试直接调 znn::NewNN()/znn::FeedForwardPredict(nn, in) 等，
+// 现行接口在类里。用全局实例委托（单 TU 测试程序专用）
+inline NeuralNetwork defaultNN;
+
+// 旧自由函数返回指针，且旧测试在返回后继续改写基因组——用 deque 稳定存储（push 不失效）
+inline std::deque<NetworkGenome> oldApiStorage;
+
+inline NetworkGenome *NewNN() {
+    oldApiStorage.push_back(defaultNN.NewNN());
+    return &oldApiStorage.back();
 }
 
-#endif //MYNEAT_NERAULNETWORK_HPP
+inline NetworkGenome *NewFCNN(const std::vector<ulong> &hideLayers) {
+    Opts.StartWithFCNN = true;
+    Opts.FCNN_hideLayers = hideLayers;
+    oldApiStorage.push_back(defaultNN.NewFCNN());
+    return &oldApiStorage.back();
+}
 
+inline NetworkGenome *ImportNN(const std::string &fileName) {
+    if (std::filesystem::exists(fileName + ".innov")) {
+        defaultNN.ImportInnovations(fileName);
+    }
+    oldApiStorage.push_back(defaultNN.ImportNN(fileName));
+    return &oldApiStorage.back();
+}
+
+// 旧全局连接创新簿（现行 lib 已不用连接创新，仅保留可编译可读写的哑容器）
+inline std::map<std::array<ulong, 2>, ulong> ConnectionInnovations;
+
+inline std::vector<float> FeedForwardPredict(NetworkGenome *nn, const std::vector<float> &inputs, bool isAccelerate = false) {
+    return defaultNN.FeedForwardPredict(nn, inputs, isAccelerate);
+}
+
+inline std::vector<float> FeedForwardPredict(NetworkGenome &nn, const std::vector<float> &inputs, bool isAccelerate = false) {
+    return defaultNN.FeedForwardPredict(&nn, inputs, isAccelerate);
+}
+
+inline NetworkGenome SimplifyRemoveUselessConnectionRight(NetworkGenome nn) {
+    return defaultNN.SimplifyRemoveUselessConnectionRight(nn);
+}
+
+inline NetworkGenome SimplifyRemoveUselessConnectionLeft(NetworkGenome nn) {
+    return defaultNN.SimplifyRemoveUselessConnectionLeft(nn);
+}
+
+inline NetworkGenome SimplifyRemoveDisable(NetworkGenome nn) {
+    return defaultNN.SimplifyRemoveDisable(nn);
+}
+
+inline std::vector<float> BackPropagation(NetworkGenome *nn, const std::vector<float> &inputs, const std::vector<float> &wants, bool isAccelerate = false) {
+    return defaultNN.BackPropagation(nn, inputs, wants, isAccelerate);
+}
+
+inline std::vector<float> BackPropagation(NetworkGenome &nn, const std::vector<float> &inputs, const std::vector<float> &wants, bool isAccelerate = false) {
+    return defaultNN.BackPropagation(&nn, inputs, wants, isAccelerate);
+}
+
+inline void ExportNetwork(NetworkGenome &nn, const std::string &fileName) {
+    defaultNN.ExportNN(nn, fileName);
+}
+
+inline void ExportNetwork(NetworkGenome *nn, const std::string &fileName) {
+    defaultNN.ExportNN(*nn, fileName);
+}
+
+inline void ExportNetworkToDot(NetworkGenome &nn, const std::string &fileName) {
+    defaultNN.ExportNNToDot(nn, fileName);
+}
+
+inline void ExportNetworkToDot(NetworkGenome *nn, const std::string &fileName) {
+    defaultNN.ExportNNToDot(*nn, fileName);
+}
+
+inline void ExportNN(NetworkGenome &nn, const std::string &fileName) {
+    defaultNN.ExportNN(nn, fileName);
+}
+
+inline void ExportNN(NetworkGenome *nn, const std::string &fileName) {
+    defaultNN.ExportNN(*nn, fileName);
+}
+
+inline void ExportNNToDot(NetworkGenome &nn, const std::string &fileName) {
+    defaultNN.ExportNNToDot(nn, fileName);
+}
+
+inline void ExportNNToDot(NetworkGenome *nn, const std::string &fileName) {
+    defaultNN.ExportNNToDot(*nn, fileName);
+}
+
+inline std::map<std::array<ulong, 2>, ulong> &HiddenNeuronInnovations = defaultNN.HiddenNeuronInnovations;
+
+#ifndef NO_3DNN
+
+inline void update3dNN(NetworkGenome nn) {  // 旧小写自由函数：非强制上屏
+    Update3dNN(nn, false);
+}
+
+}
+
+#endif
+
+#endif //MYNEAT_NERAULNETWORK_HPP

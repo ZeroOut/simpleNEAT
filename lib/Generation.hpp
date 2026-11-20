@@ -32,6 +32,13 @@ namespace znn {
         NetworkGenome GetChildByCrossing(NetworkGenome *nn0, NetworkGenome *nn1);
     };
 
+    // [FIX] 旧自由函数兼容层（test_mutate 等只含 Generation.hpp 的测试）
+    inline Generation defaultGeneration;
+
+    inline void MutateNetworkGenome(NetworkGenome &nn) {
+        defaultGeneration.MutateNetworkGenome(nn);
+    }
+
     void Generation::MutateWeightDirect(Connection &c) {
         c.Weight = float(random() % long(Opts.WeightRange * 2000000) - long(Opts.WeightRange * 1000000)) / 1000000.f;
     }

@@ -46,13 +46,32 @@ namespace znn {
         A[idx] = CudaActivate(A[idx] + biasBase[g * biasGenomeStride + biasLayerOffset + c]);
     }
 
-    // 输出层 delta = (target - out) * f'(out)，f'(o)=o*(1-o)（与 lib 的 delta rule 方向一致）
+    // [CUDA] delta 回传核：D_prev[s][i] = Σ_j D_cur[s][j] * W[j][i]（W 为 rm [out×in]）
+    // 替代同缓冲 B/C 别名的 GEMM 写法
+    __global__ void DeltaPropKernel(const float *dCur, const float *W, float *dPrev, int size, int in, int out) {
+        size_t idx = blockIdx.x * (size_t) blockDim.x + threadIdx.x;
+        size_t total = size_t(size) * in;
+        if (idx >= total) {
+            return;
+        }
+        int sIdx = int(idx / in);
+        int i = int(idx % in);
+        float sum = 0.f;
+        for (int j = 0; j < out; ++j) {
+            sum += dCur[sIdx * out + j] * W[size_t(j) * in + i];
+        }
+        dPrev[sIdx * in + i] = sum;
+    }
+
+    // 输出层 delta = (target - out) * f'(out)，f'(o)=o*(1-o)（与 lib 的 delta rule 方向一致）。
+    // [FIX] sigmoid 在 float 下会精确饱和到 0/1 → O*(1-O)=0 → 梯度恒零、训练冻结
+    // （classification CUDA 版 fitness 恒 0.5 的根因）。把 o 钳进 [1e-6, 1-1e-6] 保证梯度存在
     __global__ void OutputDeltaKernel(const float *out, const float *target, float *delta, size_t total) {
         size_t idx = blockIdx.x * (size_t) blockDim.x + threadIdx.x;
         if (idx >= total) {
             return;
         }
-        float o = out[idx];
+        float o = fminf(1.f - 1e-6f, fmaxf(1e-6f, out[idx]));
         delta[idx] = (target[idx] - o) * o * (1.f - o);
     }
 
@@ -90,14 +109,16 @@ namespace znn {
         }
     }
 
-    // 更新：W = clamp(W + lrScale * G, ±range)（与 lib 的越界截断语义一致）
-    __global__ void ApplyUpdateKernel(float *W, const float *G, size_t total, float lrScale, float range) {
+    // 更新：v = beta*v + lrScale*G；W = clamp(W + v, ±range)（beta=0 退化为纯 SGD，
+    // 语义与 lib 的 BPMomentum + 越界截断一致；v 驻留显存，跨轮累积）
+    __global__ void ApplyUpdateKernel(float *W, const float *G, float *V, size_t total, float lrScale, float beta, float range) {
         size_t idx = blockIdx.x * (size_t) blockDim.x + threadIdx.x;
         if (idx >= total) {
             return;
         }
-        float w = W[idx] + lrScale * G[idx];
-        W[idx] = fminf(range, fmaxf(-range, w));
+        float v = beta * V[idx] + lrScale * G[idx];
+        V[idx] = v;
+        W[idx] = fminf(range, fmaxf(-range, W[idx] + v));
     }
 
     // [V3] 按行索引收集：dst 第 i 行 = src[ids[i]] 第 i 行（逐个体模式用——每个个体引用
@@ -175,8 +196,10 @@ namespace znn {
         float *dX = nullptr;        // [S×I]
         float *dT = nullptr;        // [S×O]
         float *dPackW = nullptr;    // [P × WPG]
-        float *dD = nullptr;        // [S × maxLayer] delta 工作区（训练用）
+        float *dD = nullptr;        // [2 × S × maxLayer] delta 双缓冲（前半=当前层，后半=上一层写入区）
+        size_t maxLayer = 0;        // [CUDA] 最大层宽（TrainEpoch/TrainBatch 的 delta 缓冲寻址用）
         float *dGrad = nullptr;     // 布局同打包块（训练用）
+        float *dMom = nullptr;      // [CUDA] 动量速度缓冲（布局同打包块）
         float *dActBuf = nullptr;   // Σ_l P*S*layers[l]（l=1..L）
         std::vector<float *> dAct;  // dActBuf + 各层偏移
         cublasHandle_t handle = nullptr;
@@ -206,12 +229,14 @@ namespace znn {
             CUDA_CHECK(cudaMalloc(&dX, size_t(S) * layers[0] * sizeof(float)));
             CUDA_CHECK(cudaMalloc(&dT, size_t(S) * layers[L] * sizeof(float)));
             CUDA_CHECK(cudaMalloc(&dPackW, P * WPG * sizeof(float)));
-            size_t maxLayer = 0;
+            maxLayer = 0;
             for (auto l: layers) {
                 maxLayer = std::max(maxLayer, (size_t) l);
             }
-            CUDA_CHECK(cudaMalloc(&dD, size_t(S) * maxLayer * sizeof(float)));
+            CUDA_CHECK(cudaMalloc(&dD, 2 * size_t(S) * maxLayer * sizeof(float)));
             CUDA_CHECK(cudaMalloc(&dGrad, P * WPG * sizeof(float)));
+            CUDA_CHECK(cudaMalloc(&dMom, P * WPG * sizeof(float)));
+            CUDA_CHECK(cudaMemset(dMom, 0, P * WPG * sizeof(float)));
 
             dActBuf = nullptr;
             size_t actTotal = 0;
@@ -238,6 +263,7 @@ namespace znn {
             cudaFree(dPackW);
             cudaFree(dD);
             cudaFree(dGrad);
+            cudaFree(dMom);
             cudaFree(dActBuf);
             cudaFree(dNnId);
             cudaFree(dInputsN);
@@ -252,8 +278,11 @@ namespace znn {
             CUDA_CHECK(cudaMemcpy(dT, T.data(), size_t(S) * layers[L] * sizeof(float), cudaMemcpyHostToDevice));
         }
 
-        void UploadPopulation(const std::vector<float> &packed) {
+        void UploadPopulation(const std::vector<float> &packed, bool resetMomentum = true) {
             CUDA_CHECK(cudaMemcpy(dPackW, packed.data(), packed.size() * sizeof(float), cudaMemcpyHostToDevice));
+            if (resetMomentum) {
+                CUDA_CHECK(cudaMemset(dMom, 0, P * WPG * sizeof(float)));  // 换了权重，旧动量速度作废
+            }
         }
 
         // ===== [V3] 逐个体批量模式：N 个个体各自用"自己的 genome 权重 + 自己的输入行" =====
@@ -338,7 +367,7 @@ namespace znn {
 
         // 单 genome（P=1）全批量训练一步：前向 + 反向 + 梯度均值更新
         // [V3] count：本批实际样本数（≤ 构造时的 S；0=全部）——classification 的样本数随用户点击变化
-        void TrainEpoch(float lr, uint count = 0) {
+        void TrainEpoch(float lr, uint count = 0, float momentum = 0.f) {
             if (count == 0 || count > S) {
                 count = S;
             }
@@ -351,6 +380,7 @@ namespace znn {
             CUDA_CHECK(cudaGetLastError());
 
             float lrScale = lr / float(count);
+            float *dCur = dD, *dPrev = dD + size_t(S) * maxLayer;  // [FIX] 双缓冲：前半=当前层 delta，后半=上一层写入区
             for (size_t l = L; l >= 1; --l) {
                 int in = int(layers[l - 1]), out = int(layers[l]);
                 const float *actPrev = (l == 1 ? dX : dAct[l - 1]);
@@ -359,27 +389,90 @@ namespace znn {
                 CUBLAS_CHECK(cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_T,
                                          in, out, int(count), &alpha,
                                          actPrev, in,
-                                         dD, out,
+                                         dCur, out,
                                          &beta,
                                          dGrad + wOff[l], in));
                 // gradB_l = Σ_s D_l
-                SumColsKernel<<<dim3(uint(out)), 256>>>(dD, dGrad + bOff[l], int(count), out);
+                SumColsKernel<<<dim3(uint(out)), 256>>>(dCur, dGrad + bOff[l], int(count), out);
                 CUDA_CHECK(cudaGetLastError());
                 // 更新（clamp 截断，语义同 lib）
-                ApplyUpdateKernel<<<uint((wNum[l] + 255) / 256), 256>>>(dPackW + wOff[l], dGrad + wOff[l], wNum[l], lrScale, Opts.WeightRange);
-                ApplyUpdateKernel<<<uint((layers[l] + 255) / 256), 256>>>(dPackW + bOff[l], dGrad + bOff[l], layers[l], lrScale, Opts.BiasRange);
+                ApplyUpdateKernel<<<uint((wNum[l] + 255) / 256), 256>>>(dPackW + wOff[l], dGrad + wOff[l], dMom + wOff[l], wNum[l], lrScale, momentum, Opts.WeightRange);
+                ApplyUpdateKernel<<<uint((layers[l] + 255) / 256), 256>>>(dPackW + bOff[l], dGrad + bOff[l], dMom + bOff[l], layers[l], lrScale, momentum, Opts.BiasRange);
                 CUDA_CHECK(cudaGetLastError());
 
                 if (l > 1) {
-                    // D_{l-1} = D_l × W_l：cm 视角 (m=in,n=S,k=out) 双 opN（W 为 cm[in×out] 视图）
-                    CUBLAS_CHECK(cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N,
-                                             in, int(count), out, &alpha,
-                                             dPackW + wOff[l], in,
-                                             dD, out,
-                                             &beta,
-                                             dD, in));
+                    // D_{l-1} = D_l × W_l：自定义核（消除 cuBLAS B/C 别名问题）
+                    DeltaPropKernel<<<uint((size_t(count) * in + 255) / 256), 256>>>(dCur, dPackW + wOff[l], dPrev, int(count), in, out);
                     size_t nPrev = size_t(count) * in;
-                    MulDerivKernel<<<uint((nPrev + 255) / 256), 256>>>(dD, dAct[l - 1], nPrev);
+                    MulDerivKernel<<<uint((nPrev + 255) / 256), 256>>>(dPrev, dAct[l - 1], nPrev);
+                    CUDA_CHECK(cudaGetLastError());
+                }
+            }
+        }
+
+        // [CUDA] 回读打包权重（调试/验证用）
+        std::vector<float> GetWeights() {
+            std::vector<float> w(P * WPG);
+            CUDA_CHECK(cudaMemcpy(w.data(), dPackW, w.size() * sizeof(float), cudaMemcpyDeviceToHost));
+            return w;
+        }
+
+        // [V3] 区间小批量训练：只对行 [offset, offset+size) 做前向+反向+更新。
+        // 乱序小批量恢复在线 SGD 的样本噪声——对称分类数据下全批量均值梯度会困在
+        // "输出全 0.5" 的对称鞍点（classification CUDA 版 fitness 恒 0.5 的第二根因）
+        void TrainBatch(float lr, float momentum, uint offset, uint size) {
+            if (size == 0 || offset + size > S) {
+                return;
+            }
+            float alpha = 1.f, beta = 0.f;
+            // 前向（区间）
+            for (size_t l = 1; l <= L; ++l) {
+                int in = int(layers[l - 1]), out = int(layers[l]);
+                const float *Bsrc = (l == 1 ? dX + offset * in : dAct[l - 1] + offset * in);
+                CUBLAS_CHECK(cublasSgemmStridedBatched(handle, CUBLAS_OP_T, CUBLAS_OP_N,
+                                                       out, int(size), in, &alpha,
+                                                       dPackW + wOff[l], in, (long long) WPG,
+                                                       Bsrc, in, (long long) in,
+                                                       &beta,
+                                                       dAct[l] + offset * out, out, (long long) out,
+                                                       1));
+                size_t total = size_t(size) * out;
+                AddBiasActivateKernel<<<uint((total + 255) / 256), 256>>>(dAct[l] + offset * out, dPackW, total, out,
+                                                                          size_t(out), WPG, bOff[l]);
+                CUDA_CHECK(cudaGetLastError());
+            }
+
+            int outL = int(layers[L]);
+            size_t total = size_t(size) * outL;
+            OutputDeltaKernel<<<uint((total + 255) / 256), 256>>>(dAct[L] + offset * outL, dT + offset * outL, dD, total);
+            CUDA_CHECK(cudaGetLastError());
+
+            float lrScale = lr / float(size);
+            float *dCur = dD, *dPrev = dD + size_t(S) * maxLayer;
+            for (size_t l = L; l >= 1; --l) {
+                int in = int(layers[l - 1]), out = int(layers[l]);
+                const float *actPrev = (l == 1 ? dX + offset * in : dAct[l - 1] + offset * in);
+                std::cerr << "[TB] l=" << l << " in=" << in << " out=" << out << " size=" << size << " off=" << offset << " layers:";
+                for (auto v: layers) std::cerr << " " << v;
+                std::cerr << " hides:";
+                for (auto v: Opts.FCNN_hideLayers) std::cerr << " " << v;
+                std::cerr << "\n";
+                CUBLAS_CHECK(cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_T,
+                                         in, out, int(size), &alpha,
+                                         actPrev, in,
+                                         dCur, out,
+                                         &beta,
+                                         dGrad + wOff[l], in));
+                SumColsKernel<<<dim3(uint(out)), 256>>>(dCur, dGrad + bOff[l], int(size), out);
+                CUDA_CHECK(cudaGetLastError());
+                ApplyUpdateKernel<<<uint((wNum[l] + 255) / 256), 256>>>(dPackW + wOff[l], dGrad + wOff[l], dMom + wOff[l], wNum[l], lrScale, momentum, Opts.WeightRange);
+                ApplyUpdateKernel<<<uint((layers[l] + 255) / 256), 256>>>(dPackW + bOff[l], dGrad + bOff[l], dMom + bOff[l], layers[l], lrScale, momentum, Opts.BiasRange);
+                CUDA_CHECK(cudaGetLastError());
+
+                if (l > 1) {
+                    DeltaPropKernel<<<uint((size_t(size) * in + 255) / 256), 256>>>(dCur, dPackW + wOff[l], dPrev, int(size), in, out);
+                    size_t nPrev = size_t(size) * in;
+                    MulDerivKernel<<<uint((nPrev + 255) / 256), 256>>>(dPrev, dAct[l - 1] + offset * in, nPrev);
                     CUDA_CHECK(cudaGetLastError());
                 }
             }

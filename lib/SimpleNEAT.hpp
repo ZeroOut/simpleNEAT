@@ -27,7 +27,8 @@ namespace znn {
 
         NetworkGenome StartDeploy(std::string fileName);
 
-        BestOne TrainByWanted(const std::vector<std::vector<float>> &inputs, const std::vector<std::vector<float>> &wantedOutputs, uint randomSize, const std::function<bool()> &isBreakFunc);
+        // [FIX] randomSize/isBreakFunc 缺省：旧测试两参数调用形态；空 isBreakFunc 自动跳过
+        BestOne TrainByWanted(const std::vector<std::vector<float>> &inputs, const std::vector<std::vector<float>> &wantedOutputs, uint randomSize = 0, const std::function<bool()> &isBreakFunc = std::function<bool()>());
 
         std::vector<NetworkGenome *> OrderByFitness(std::unordered_map<NetworkGenome *, float> &M);
 
@@ -190,7 +191,7 @@ return population.generation.neuralNetwork.ImportNN(fileName);
                 ++nn->Age;
             }
 
-            if ((Opts.FitnessThreshold > 0 && populationFitness[orderedPopulation[0]] >= Opts.FitnessThreshold) || isBreakFunc()) {
+            if ((Opts.FitnessThreshold > 0 && populationFitness[orderedPopulation[0]] >= Opts.FitnessThreshold) || (isBreakFunc && isBreakFunc())) {
                 auto simplifiedBestNN = population.generation.neuralNetwork.SimplifyRemoveDisable(*orderedPopulation[0]);
                 auto compressedLeftBestNN = population.generation.neuralNetwork.SimplifyRemoveUselessConnectionLeft(simplifiedBestNN);
                 auto compressedRightBestNN = population.generation.neuralNetwork.SimplifyRemoveUselessConnectionRight(compressedLeftBestNN);
@@ -363,7 +364,7 @@ return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格
                 ++nn->Age;
             }
 
-            if ((Opts.FitnessThreshold > 0 && populationFitness[orderedPopulation[0]] >= Opts.FitnessThreshold) || isBreakFunc()) {
+            if ((Opts.FitnessThreshold > 0 && populationFitness[orderedPopulation[0]] >= Opts.FitnessThreshold) || (isBreakFunc && isBreakFunc())) {
                 auto simplifiedBestNN = population.generation.neuralNetwork.SimplifyRemoveDisable(*orderedPopulation[0]);
                 auto compressedLeftBestNN = population.generation.neuralNetwork.SimplifyRemoveUselessConnectionLeft(simplifiedBestNN);
                 auto compressedRightBestNN = population.generation.neuralNetwork.SimplifyRemoveUselessConnectionRight(compressedLeftBestNN);
@@ -487,6 +488,43 @@ return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格
 return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格式定为没有已禁用连接
                //                        .NN = *orderedPopulation[0],
                .Fit = populationFitness[orderedPopulation[0]],};
+    }
+
+    // [FIX] 旧版自由函数兼容层：一批早期测试直接调 znn::StartNew()/znn::NewFCNN({...}) 等自由函数，
+    // 现行接口都移到了类里。用全局实例委托恢复旧调用形态（单 TU 测试程序专用）
+    inline SimpleNeat defaultSneat;
+
+    inline void StartNew() {
+        defaultSneat.StartNew();
+    }
+
+    inline void StartNewFC(const std::vector<ulong> &hideLayers) {
+        Opts.StartWithFCNN = true;
+        Opts.FCNN_hideLayers = hideLayers;
+        defaultSneat.StartNew();
+    }
+
+    inline void CreatePopulation() {
+        defaultSneat.population.CreatePopulation();
+    }
+
+    inline std::vector<NetworkGenome> &population = defaultSneat.population.NeuralNetworks;  // 旧全局容器别名
+
+    inline std::vector<NetworkGenome *> OrderByFitness(std::unordered_map<NetworkGenome *, float> &fit) {
+        return defaultSneat.OrderByFitness(fit);
+    }
+
+
+    inline std::unordered_map<NetworkGenome *, float> CalculateFitnessByWanted(const std::vector<std::vector<float>> &in, const std::vector<std::vector<float>> &wa) {
+        return defaultSneat.population.CalculateFitnessByWanted(in, wa);
+    }
+
+    inline void ExportInnovations(const std::string &fileName) {
+        defaultSneat.population.generation.neuralNetwork.ExportInnovations(fileName);
+    }
+
+    inline BestOne TrainByWanted(const std::vector<std::vector<float>> &inputs, const std::vector<std::vector<float>> &wanted) {
+        return defaultSneat.TrainByWanted(inputs, wanted, 0, []() { return false; });
     }
 }
 
