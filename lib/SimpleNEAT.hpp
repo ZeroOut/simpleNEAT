@@ -432,6 +432,16 @@ return BestOne{.Gen = rounds, .NN = compressedRightBestNN, // 导出导入的格
                     } else if (index < Opts.PopulationSize - Opts.KeepWorstSize) {
                         *nn = *orderedByComplex[index % Opts.KeepComplexSize];
                         population.generation.EnableAllConnections(*nn);
+                    } else if (index == Opts.PopulationSize - 1) {
+                        // [V2.11] 冠军学习副本:通过区域最多的网络(ordered[0])原样拷贝——
+                        // 原件在冠军槽不参与反向学习;副本位于尾部(非冠军槽)参与外部 BP
+                        // (反向学习),BP 改良后若 fitness 高则下代进交配池——分工明确
+                        *nn = *orderedPopulation[0];
+                    } else if (index == Opts.PopulationSize - 1) {
+                        // [V2.11] 冠军学习副本:通过区域最多的网络(ordered[0])原样拷贝——
+                        // 原件在冠军槽不参与反向学习;副本位于尾部(非冠军槽)参与外部 BP
+                        // (反向学习),BP 改良后若 fitness 高则下代进交配池——分工明确
+                        *nn = *orderedPopulation[0];
                     } else {
                         *nn = *orderedPopulation[index];
                         population.generation.MutateNetworkGenome(*nn);
