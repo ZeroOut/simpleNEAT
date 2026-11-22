@@ -28,6 +28,22 @@
 //   CMake：-DENABLE_CUDA=ON（test_bench_fcnn / test_bench_ga / 两个 *_cuda 渲染版均已配置）
 //   -arch=native 自动匹配本机 GPU（如 RTX 2080 Ti = sm_75）；设备端激活函数固定 Sigmoid。
 //
+// ===== 功能清单 =====
+// CudaFcnnEngine（FCNN 批量引擎，拓扑必须一致）：
+//   - Forward()                     种群批量前向 [P × S × 层]
+//   - EvaluatePopulation()          P 个 genome × S 样本批量评估
+//   - TrainEpoch(lr, count, mom)    单 genome 全批量 mini-batch BP（count=实际样本数）
+//   - TrainPopulationEpoch(...)     P 个 genome 同批数据批量 BP（动量+截断；冠军豁免见
+//                                     GetGenomeWeights/OverwriteGenomeWeights）
+//   - ForwardIndividuals(N) + GatherIndividualWeights(ids) + UploadFrameInputs(X)
+//                                   逐个体模式：N 个体各自 genome 权重+各自输入行一次前向
+//                                   （RL 向量化 rollout 场景，见 test_lunar_neat_cuda 等）
+//   - PackFCNNGenome / UnpackFCNNGenome  打包/回写（GPU BP 后同步回 CPU genome）
+// CudaNeatEngine（NEAT supernet 评估引擎，结构变异全开）：
+//   - BuildSupernet(pop, I, O)      每代重建 supernet（神经元并集+跨层连接按 (to,from) 分组）
+//   - Evaluate()                    批量前向（缺失连接 w=0、缺失神经元 mask=0，数学等效禁用）
+//   - 注意：仅评估无 BP；每个体的输出块跨步布局（GetOutputs 单 genome 不可用于种群结果）
+//
 // 设计说明：
 // - 设备端激活函数硬编码为 Sigmoid/DerivativeSigmoid（Opts.ActiveFunction 是 std::function，无法在设备端执行）
 // - 前向/反向用 strided-batched GEMM：种群 P 个同拓扑 FCNN 的权重打包成 [P × WPG]，一次批量算完
@@ -211,6 +227,111 @@ namespace znn {
         return packed;
     }
 
+    // [CUDA] 打包权重回写到 genome（与 PackFCNNGenome 互逆）：GPU BP 后把权重同步回 CPU genome
+    inline void UnpackFCNNGenome(const std::vector<float> &packed, NetworkGenome &nn) {
+        auto layers = FCNNLayers();
+        size_t L = layers.size() - 1;
+        size_t off = 0;
+        size_t connOff = 0;
+        for (size_t l = 1; l <= L; ++l) {
+            ulong in = layers[l - 1], out = layers[l];
+            for (ulong j = 0; j < out; ++j) {
+                for (ulong i = 0; i < in; ++i) {
+                    nn.Connections[connOff + j * in + i].Weight = packed[off++];
+                }
+            }
+            connOff += out * in;
+        }
+        ulong hid = Opts.InputSize + Opts.OutputSize;
+        for (size_t l = 1; l < L; ++l) {
+            for (ulong j = 0; j < layers[l]; ++j) {
+                nn.Neurons[hid++].Bias = packed[off++];
+            }
+        }
+        for (ulong ol = 0; ol < layers[L]; ++ol) {
+            nn.Neurons[Opts.InputSize + ol].Bias = packed[off++];
+        }
+    }
+
+    // ===== [CUDA] 种群批量 BP 核(P 个同拓扑 genome × 同一批样本) =====
+    // 输出层 delta batched：D[g,s,o] = (T-O)*O*(1-O)，O 钳位防 sigmoid float 精确饱和
+    __global__ void DeltaOutBatchKernel(const float *out, const float *target, float *delta,
+                                        size_t total, int outN, size_t S, size_t genomeStride) {
+        size_t idx = blockIdx.x * (size_t) blockDim.x + threadIdx.x;
+        if (idx >= total) {
+            return;
+        }
+        size_t g = idx / genomeStride;
+        size_t r = idx % genomeStride;
+        size_t s = r / size_t(outN);
+        size_t o = r % size_t(outN);
+        float oAct = fminf(1.f - 1e-6f, fmaxf(1e-6f, out[idx]));
+        // target 是 [S×out](P 个 genome 共享同一批标签),按 (s,o) 寻址而非线性 idx
+        delta[idx] = (target[size_t(s) * outN + o] - oAct) * oAct * (1.f - oAct);
+    }
+
+    // gradB batched：gradB[g,o] = Σ_s D[g,s,o]
+    __global__ void SumColsBatchKernel(const float *D, float *gradB, size_t total, int outN, int S,
+                                       size_t sampleStride, size_t genomeStride, size_t gradStride, size_t gradOff) {
+        size_t idx = blockIdx.x * (size_t) blockDim.x + threadIdx.x;
+        if (idx >= total) {
+            return;
+        }
+        size_t g = idx / size_t(outN);
+        size_t o = idx % size_t(outN);
+        float sum = 0.f;
+        for (int s = 0; s < S; ++s) {
+            sum += D[g * sampleStride + size_t(s) * outN + o];
+        }
+        gradB[g * gradStride + gradOff + o] = sum;
+    }
+
+    // delta 回传 batched：Dprev[g,s,i] = Σ_j Dcur[g,s,j] * W[g, j*in+i]（W rm [out×in] @ g*WPG+off）
+    __global__ void DeltaPropBatchKernel(const float *dCur, const float *W, float *dPrev,
+                                         size_t total, int in, int out, int S,
+                                         size_t sampleStrideD, size_t genomeStrideD,
+                                         size_t wStride, size_t wOff, size_t prevOff) {
+        size_t idx = blockIdx.x * (size_t) blockDim.x + threadIdx.x;
+        if (idx >= total) {
+            return;
+        }
+        size_t g = idx / sampleStrideD;
+        size_t r = idx % sampleStrideD;
+        size_t s = r / size_t(in);
+        size_t i = r % size_t(in);
+        const float *Wg = W + g * wStride + wOff;
+        float sum = 0.f;
+        for (int j = 0; j < out; ++j) {
+            sum += dCur[g * genomeStrideD + s * size_t(out) + j] * Wg[size_t(j) * in + i];
+        }
+        dPrev[g * prevOff + s * size_t(in) + i] = sum;
+    }
+
+    // f'(act) batched
+    __global__ void MulDerivBatchKernel(float *D, const float *A, size_t total) {
+        size_t idx = blockIdx.x * (size_t) blockDim.x + threadIdx.x;
+        if (idx >= total) {
+            return;
+        }
+        float a = A[idx];
+        D[idx] *= a * (1.f - a);
+    }
+
+    // 权重/偏置更新 batched：W[g,x] = clamp(W[g,x] + v, ±range)，v[g,x] = beta*v[g,x] + lrScale*G[g,x]
+    __global__ void ApplyUpdateBatchKernel(float *W, const float *G, float *V, size_t total, size_t genomeStride,
+                                           float lrScale, float beta, float range) {
+        size_t idx = blockIdx.x * (size_t) blockDim.x + threadIdx.x;
+        if (idx >= total) {
+            return;
+        }
+        size_t g = idx / genomeStride;
+        size_t x = idx % genomeStride;
+        size_t gi = g * genomeStride + x;
+        float v = beta * V[gi] + lrScale * G[gi];
+        V[gi] = v;
+        W[gi] = fminf(range, fmaxf(-range, W[gi] + v));
+    }
+
     struct CudaFcnnEngine {
         std::vector<ulong> layers;  // {I, h0, ..., O}
         uint L = 0;                 // 权重矩阵层数 = layers.size()-1
@@ -226,6 +347,7 @@ namespace znn {
         size_t maxLayer = 0;        // [CUDA] 最大层宽（TrainEpoch/TrainBatch 的 delta 缓冲寻址用）
         float *dGrad = nullptr;     // 布局同打包块（训练用）
         float *dMom = nullptr;      // [CUDA] 动量速度缓冲（布局同打包块）
+        float *dDbatch = nullptr;   // [CUDA] 种群批量 BP 的 delta 双缓冲 [2 × P×S×maxLayer]
         float *dActBuf = nullptr;   // Σ_l P*S*layers[l]（l=1..L）
         std::vector<float *> dAct;  // dActBuf + 各层偏移
         cublasHandle_t handle = nullptr;
@@ -263,6 +385,8 @@ namespace znn {
             CUDA_CHECK(cudaMalloc(&dGrad, P * WPG * sizeof(float)));
             CUDA_CHECK(cudaMalloc(&dMom, P * WPG * sizeof(float)));
             CUDA_CHECK(cudaMemset(dMom, 0, P * WPG * sizeof(float)));
+            CUDA_CHECK(cudaMalloc(&dDbatch, 2 * size_t(P) * S * maxLayer * sizeof(float)));
+            CUDA_CHECK(cudaMemset(dDbatch, 0, 2 * size_t(P) * S * maxLayer * sizeof(float)));
 
             dActBuf = nullptr;
             size_t actTotal = 0;
@@ -290,6 +414,7 @@ namespace znn {
             cudaFree(dD);
             cudaFree(dGrad);
             cudaFree(dMom);
+            cudaFree(dDbatch);
             cudaFree(dActBuf);
             cudaFree(dNnId);
             cudaFree(dInputsN);
@@ -439,6 +564,18 @@ namespace znn {
             }
         }
 
+        // [CUDA] 回读指定 genome 槽位的打包权重（种群 BP 后同步回 CPU genome 用）
+        std::vector<float> GetGenomeWeights(uint p) {
+            std::vector<float> w(WPG);
+            CUDA_CHECK(cudaMemcpy(w.data(), dPackW + size_t(p) * WPG, WPG * sizeof(float), cudaMemcpyDeviceToHost));
+            return w;
+        }
+
+        // [CUDA] 把一个 genome 的打包权重写回指定槽位（冠军槽 BP 豁免用）
+        void OverwriteGenomeWeights(uint p, const std::vector<float> &packed) {
+            CUDA_CHECK(cudaMemcpy(dPackW + size_t(p) * WPG, packed.data(), WPG * sizeof(float), cudaMemcpyHostToDevice));
+        }
+
         // [CUDA] 回读打包权重（调试/验证用）
         std::vector<float> GetWeights() {
             std::vector<float> w(P * WPG);
@@ -503,6 +640,72 @@ namespace znn {
             }
         }
 
+        // ===== [CUDA] 种群批量 BP：P 个 genome × 同一批 count 样本，一次前向+反向+更新 =====
+        // 与 CPU 版 TrainByWanted 的"每代每 genome 逐样本在线 BP"理念对齐：这里全批量 mini-batch
+        // (梯度对样本求均值)，每代可跑多个 epoch。v[g] 动量跨 epoch 累积（g 索引 genome）
+        void TrainPopulationEpoch(float lr, float momentum, uint count = 0) {
+            if (count == 0 || count > S) {
+                count = S;
+            }
+            Forward();
+            float alpha = 1.f, beta = 0.f;
+
+            int outN = int(layers[L]);
+            // delta 输出层 [P×S×out]
+            size_t totalD = size_t(P) * count * outN;
+            DeltaOutBatchKernel<<<uint((totalD + 255) / 256), 256>>>(dAct[L], dT, dDbatch, totalD, outN, count,
+                                                                     size_t(count) * outN);
+            CUDA_CHECK(cudaGetLastError());
+
+            float lrScale = lr / float(count);
+            float *dCur = dDbatch, *dPrev = dDbatch + size_t(P) * count * maxLayer;
+            for (size_t l = L; l >= 1; --l) {
+                int in = int(layers[l - 1]), out = int(layers[l]);
+                const float *actPrev = (l == 1 ? dX : dAct[l - 1]);
+                // gradW_l[g] = Act_prev[g] × D_l[g]^T：cm C[in×out] = A[in×S] × B[out×S]^T，批量 P
+                CUBLAS_CHECK(cublasSgemmStridedBatched(handle, CUBLAS_OP_N, CUBLAS_OP_T,
+                                                       in, out, int(count), &alpha,
+                                                       actPrev, in, (long long) count * in,
+                                                       dCur, out, (long long) count * out,
+                                                       &beta,
+                                                       dGrad + wOff[l], in, (long long) WPG,
+                                                       int(P)));
+                // gradB_l[g] = Σ_s D_l[g]
+                size_t totalB = size_t(P) * out;
+                SumColsBatchKernel<<<uint((totalB + 255) / 256), 256>>>(dCur, dGrad, totalB, out, int(count),
+                                                                       size_t(count) * out, size_t(count) * out,
+                                                                       WPG, bOff[l]);
+                CUDA_CHECK(cudaGetLastError());
+                // 更新（dPackW/dGrad/dMom 布局一致 [P × WPG]）
+                {
+                    size_t totalW = size_t(P) * wNum[l];
+                    ApplyUpdateBatchKernel<<<uint((totalW + 255) / 256), 256>>>(dPackW + wOff[l], dGrad + wOff[l],
+                                                                                dMom + wOff[l], totalW, wNum[l],
+                                                                                lrScale, momentum, Opts.WeightRange);
+                    size_t totalBn = size_t(P) * layers[l];
+                    ApplyUpdateBatchKernel<<<uint((totalBn + 255) / 256), 256>>>(dPackW + bOff[l], dGrad + bOff[l],
+                                                                                 dMom + bOff[l], totalBn, layers[l],
+                                                                                 lrScale, momentum, Opts.BiasRange);
+                    CUDA_CHECK(cudaGetLastError());
+                }
+
+                if (l > 1) {
+                    // D_{l-1}[g] = W_l[g] × D_l[g]（元素核，批量 P）
+                    size_t totalP = size_t(P) * count * in;
+                    // dCur 布局 [P×count×out]:genome 步距 count*out;dPrev [P×count×in]:步距 count*in
+                    DeltaPropBatchKernel<<<uint((totalP + 255) / 256), 256>>>(dCur, dPackW, dPrev, totalP, in, out,
+                                                                              int(count), size_t(count) * out,
+                                                                              size_t(count) * out, WPG, wOff[l],
+                                                                              size_t(count) * in);
+                    CUDA_CHECK(cudaGetLastError());
+                    size_t totalM = size_t(P) * count * in;
+                    MulDerivBatchKernel<<<uint((totalM + 255) / 256), 256>>>(dPrev, dAct[l - 1], totalM);
+                    CUDA_CHECK(cudaGetLastError());
+                    std::swap(dCur, dPrev);
+                }
+            }
+        }
+
         // [V3] 回传前 count 行输出（TrainEpoch 后 dAct[L] 仍是本批(更新前)输出，供每轮评估 fitness）
         std::vector<float> GetOutputs(uint count) {
             std::vector<float> outputs(size_t(count) * layers[L]);
@@ -519,7 +722,7 @@ namespace znn {
         }
     };
 
-    // [CUDA] supernet 评估用核函数（namespace 作用域——__global__ 不能是成员函数）
+    // [CUDA] supernet 评估用核函数    // [CUDA] supernet 评估用核函数（namespace 作用域——__global__ 不能是成员函数）
     __global__ void NeatCopyInputKernel(const float *X, float *act, size_t total, int in, size_t S,
                                         size_t sampleStride, size_t genomeStride, size_t inSlot) {
         size_t idx = blockIdx.x * (size_t) blockDim.x + threadIdx.x;

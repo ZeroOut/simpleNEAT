@@ -1662,8 +1662,8 @@ inline void update3dNN(NetworkGenome nn) {  // 旧小写自由函数：非强制
     Update3dNN(nn, false);
 }
 
-}
-
 #endif
+
+}
 
 #endif //MYNEAT_NERAULNETWORK_HPP
